@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Worker Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#2463eb",
+                        "background-light": "#f6f6f8",
+                        "background-dark": "#111621",
+                    },
+                    fontFamily: {
+                        "display": ["Manrope", "sans-serif"]
+                    },
+                    borderRadius: {"DEFAULT": "0.5rem", "lg": "1rem", "xl": "1.5rem", "full": "9999px"},
+                },
+            },
+        }
+    </script>
+<style>.no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background-light dark:bg-background-dark font-display text-slate-900 dark:text-white pb-24 overflow-x-hidden selection:bg-primary/30">
+<header class="relative bg-gradient-to-br from-primary via-[#3b7bf7] to-[#60a5fa] pt-14 pb-16 px-6 rounded-b-[2.5rem] shadow-lg z-10">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-3">
+<div class="relative">
+<div class="flex items-center justify-center rounded-full size-12 border-2 border-white/30 bg-blue-50 text-primary">
+<span class="material-symbols-outlined" style="font-size: 28px;">person</span>
+</div>
+<div class="absolute bottom-0 right-0 size-3 bg-green-400 rounded-full border-2 border-primary"></div>
+</div>
+<div>
+<p class="text-blue-100 text-sm font-medium leading-tight">Welcome back,</p>
+<h2 class="text-white text-xl font-bold leading-tight">Worker</h2>
+</div>
+</div>
+<button class="relative flex items-center justify-center rounded-full size-10 bg-white/20 backdrop-blur-sm text-white hover:bg-white/30 transition-colors">
+<span class="material-symbols-outlined" style="font-size: 24px;">notifications</span>
+<span class="absolute top-2 right-2.5 size-2 bg-red-500 rounded-full border border-primary"></span>
+</button>
+</div>
+</header>
+<main class="px-4 -mt-8 relative z-20 flex flex-col gap-5">
+<div class="bg-white dark:bg-gray-800 rounded-xl p-5 shadow-sm border border-gray-100 dark:border-gray-700/50 flex flex-row items-center justify-between gap-4">
+<div class="flex flex-col gap-1">
+<p class="text-slate-900 dark:text-white text-base font-bold leading-tight">Availability Status</p>
+<div class="flex items-center gap-1.5">
+<span class="size-2 rounded-full bg-gray-400"></span>
+<p class="text-slate-500 dark:text-slate-400 text-sm font-medium">You are currently unavailable</p>
+</div>
+</div>
+<label class="relative flex h-[31px] w-[51px] shrink-0 cursor-pointer items-center rounded-full border-none bg-slate-200 dark:bg-slate-700 p-0.5 has-[:checked]:justify-end has-[:checked]:bg-primary transition-colors duration-200">
+<div class="h-full w-[27px] rounded-full bg-white shadow-sm transform transition-transform duration-200"></div>
+<input class="invisible absolute" type="checkbox"/>
+</label>
+</div>
+<div class="grid grid-cols-2 gap-4">
+<div class="bg-white dark:bg-gray-800 rounded-xl p-5 shadow-sm border border-gray-100 dark:border-gray-700/50 flex flex-col gap-3 group">
+<div class="flex items-center justify-between">
+<div class="size-8 rounded-full bg-blue-50 dark:bg-blue-900/30 flex items-center justify-center text-primary">
+<span class="material-symbols-outlined" style="font-size: 20px;">assignment</span>
+</div>
+<span class="text-xs font-bold text-primary bg-blue-50 dark:bg-blue-900/30 px-2 py-1 rounded-full">New</span>
+</div>
+<div>
+<p class="text-slate-500 dark:text-slate-400 text-sm font-medium">Current Jobs</p>
+<p class="text-slate-900 dark:text-white text-3xl font-bold tracking-tight mt-1">0</p>
+</div>
+</div>
+<div class="bg-white dark:bg-gray-800 rounded-xl p-5 shadow-sm border border-gray-100 dark:border-gray-700/50 flex flex-col gap-3">
+<div class="flex items-center justify-between">
+<div class="size-8 rounded-full bg-green-50 dark:bg-green-900/30 flex items-center justify-center text-green-600 dark:text-green-400">
+<span class="material-symbols-outlined" style="font-size: 20px;">attach_money</span>
+</div>
+</div>
+<div>
+<p class="text-slate-500 dark:text-slate-400 text-sm font-medium">Today's Earnings</p>
+<p class="text-slate-900 dark:text-white text-3xl font-bold tracking-tight mt-1">$0.00</p>
+</div>
+</div>
+<div class="col-span-2 bg-white dark:bg-gray-800 rounded-xl p-5 shadow-sm border border-gray-100 dark:border-gray-700/50 flex items-center justify-between">
+<div class="flex items-center gap-4">
+<div class="size-10 rounded-full bg-yellow-50 dark:bg-yellow-900/20 flex items-center justify-center text-yellow-500">
+<span class="material-symbols-outlined" style="font-size: 24px;">star</span>
+</div>
+<div>
+<p class="text-slate-500 dark:text-slate-400 text-sm font-medium">Overall Rating</p>
+<div class="flex items-center gap-1">
+<p class="text-slate-900 dark:text-white text-xl font-bold tracking-tight">0.0</p>
+<span class="text-slate-400 text-xs">(0 reviews)</span>
+</div>
+</div>
+</div>
+<button class="text-sm font-semibold text-primary">View</button>
+</div>
+</div>
+<div>
+<h3 class="text-slate-900 dark:text-white text-lg font-bold leading-tight px-1 mb-3">Quick Actions</h3>
+<div class="grid grid-cols-3 gap-3">
+<button class="flex flex-col items-center justify-center gap-3 bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-100 dark:border-gray-700/50 active:scale-95 transition-transform">
+<div class="size-12 rounded-full bg-purple-50 dark:bg-purple-900/20 flex items-center justify-center text-purple-600 dark:text-purple-400">
+<span class="material-symbols-outlined text-[24px]">qr_code_scanner</span>
+</div>
+<span class="text-slate-700 dark:text-slate-300 text-xs font-semibold">Scan QR</span>
+</button>
+<button class="flex flex-col items-center justify-center gap-3 bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-100 dark:border-gray-700/50 active:scale-95 transition-transform">
+<div class="size-12 rounded-full bg-orange-50 dark:bg-orange-900/20 flex items-center justify-center text-orange-600 dark:text-orange-400">
+<span class="material-symbols-outlined text-[24px]">headset_mic</span>
+</div>
+<span class="text-slate-700 dark:text-slate-300 text-xs font-semibold">Support</span>
+</button>
+<button class="flex flex-col items-center justify-center gap-3 bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-100 dark:border-gray-700/50 active:scale-95 transition-transform">
+<div class="size-12 rounded-full bg-pink-50 dark:bg-pink-900/20 flex items-center justify-center text-pink-600 dark:text-pink-400">
+<span class="material-symbols-outlined text-[24px]">calendar_month</span>
+</div>
+<span class="text-slate-700 dark:text-slate-300 text-xs font-semibold">Calendar</span>
+</button>
+</div>
+</div>
+<div class="bg-gradient-to-r from-slate-50 to-slate-100 dark:from-gray-800 dark:to-gray-800/50 rounded-xl p-6 border border-dashed border-slate-300 dark:border-gray-700 flex flex-col items-center justify-center text-center gap-2 mt-2">
+<span class="material-symbols-outlined text-slate-400 text-4xl">auto_awesome</span>
+<p class="text-slate-500 dark:text-slate-400 text-sm">No recent activity. Turn on your availability to start receiving jobs.</p>
+</div>
+</main>
+<nav class="fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-900 border-t border-slate-200 dark:border-gray-800 px-6 py-3 pb-8 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] z-50">
+<ul class="flex items-center justify-between max-w-md mx-auto">
+<li class="flex-1">
+<a class="flex flex-col items-center gap-1 text-primary group" href="#">
+<div class="relative flex items-center justify-center">
+<span class="material-symbols-outlined text-[26px] font-variation-settings-'FILL'_1">dashboard</span>
+<span class="absolute -top-1 -right-1 size-2 bg-red-500 rounded-full hidden"></span>
+</div>
+<span class="text-[10px] font-bold">Dashboard</span>
+</a>
+</li>
+<li class="flex-1">
+<a class="flex flex-col items-center gap-1 text-slate-400 dark:text-slate-500 hover:text-primary dark:hover:text-primary transition-colors group" href="#">
+<span class="material-symbols-outlined text-[26px]">work</span>
+<span class="text-[10px] font-medium">Jobs</span>
+</a>
+</li>
+<li class="flex-1">
+<a class="flex flex-col items-center gap-1 text-slate-400 dark:text-slate-500 hover:text-primary dark:hover:text-primary transition-colors group" href="#">
+<span class="material-symbols-outlined text-[26px]">person</span>
+<span class="text-[10px] font-medium">Profile</span>
+</a>
+</li>
+</ul>
+</nav>
+</body></html>

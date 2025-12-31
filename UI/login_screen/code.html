@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Servico Login</title>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#2463eb",
+                        "background-light": "#f6f6f8",
+                        "background-dark": "#111621",
+                    },
+                    fontFamily: {
+                        "display": ["Manrope", "sans-serif"]
+                    },
+                    borderRadius: { "DEFAULT": "0.5rem", "lg": "1rem", "xl": "1.5rem", "full": "9999px" },
+                },
+            },
+        }
+    </script>
+<style>
+        body {
+          min-height: max(884px, 100dvh);
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background-light dark:bg-background-dark font-display antialiased min-h-screen flex flex-col justify-between">
+<div class="flex-1 flex flex-col w-full max-w-md mx-auto relative overflow-hidden">
+<div class="relative bg-gradient-to-br from-primary to-[#5b95ff] pt-16 pb-20 px-6 rounded-b-[2.5rem] shadow-lg z-0">
+<div class="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/4 blur-3xl"></div>
+<div class="absolute bottom-0 left-0 w-40 h-40 bg-black/5 rounded-full translate-y-1/4 -translate-x-1/4 blur-2xl"></div>
+<div class="relative z-10 flex flex-col text-left">
+<div class="flex items-center gap-3 mb-4">
+<div class="h-12 w-12 bg-white/20 backdrop-blur-md border border-white/30 rounded-xl flex items-center justify-center shadow-inner shrink-0">
+<span class="material-symbols-outlined text-white text-[28px]">smart_toy</span>
+</div>
+<span class="text-white text-2xl font-extrabold tracking-tight">Servico</span>
+</div>
+<h1 class="text-white text-[32px] font-extrabold tracking-tight leading-tight">Welcome Back</h1>
+<p class="text-blue-50 text-base font-medium mt-1 opacity-90">Login to manage your services</p>
+</div>
+</div>
+<div class="px-5 -mt-10 relative z-10 w-full pb-8">
+<div class="bg-white dark:bg-[#1e2433] rounded-[2rem] shadow-xl shadow-blue-900/5 p-6 border border-white/50 dark:border-white/5">
+<div class="flex flex-col mb-6">
+<div class="flex h-12 w-full items-center justify-center rounded-xl bg-[#f1f3f7] dark:bg-[#2a3241] p-1.5">
+<label class="flex cursor-pointer h-full flex-1 items-center justify-center overflow-hidden rounded-[10px] transition-all duration-200 has-[:checked]:bg-white dark:has-[:checked]:bg-[#374151] has-[:checked]:shadow-sm has-[:checked]:text-primary text-[#64748b] dark:text-[#94a3b8] text-sm font-bold leading-normal relative group">
+<span class="truncate z-10">Customer</span>
+<input checked="" class="peer invisible w-0 absolute" name="user_role" type="radio" value="Customer"/>
+</label>
+<label class="flex cursor-pointer h-full flex-1 items-center justify-center overflow-hidden rounded-[10px] transition-all duration-200 has-[:checked]:bg-white dark:has-[:checked]:bg-[#374151] has-[:checked]:shadow-sm has-[:checked]:text-primary text-[#64748b] dark:text-[#94a3b8] text-sm font-bold leading-normal relative group">
+<span class="truncate z-10">Worker</span>
+<input class="peer invisible w-0 absolute" name="user_role" type="radio" value="Worker"/>
+</label>
+</div>
+</div>
+<form class="flex flex-col gap-5">
+<label class="flex flex-col gap-2">
+<span class="text-[#0e121b] dark:text-white text-sm font-semibold ml-1">Email</span>
+<div class="relative flex w-full items-center">
+<div class="absolute left-4 text-[#9ca3af] flex items-center justify-center pointer-events-none">
+<span class="material-symbols-outlined text-[20px]">mail</span>
+</div>
+<input class="form-input flex w-full rounded-xl text-[#0e121b] dark:text-white dark:bg-[#111621] focus:outline-0 focus:ring-2 focus:ring-primary/20 border border-[#e2e8f0] dark:border-[#2d3748] bg-[#f8f9fc] focus:border-primary h-14 placeholder:text-[#94a3b8] pl-11 pr-4 text-base font-normal transition-colors" placeholder="name@example.com" type="email" value=""/>
+</div>
+</label>
+<label class="flex flex-col gap-2">
+<span class="text-[#0e121b] dark:text-white text-sm font-semibold ml-1">Password</span>
+<div class="relative flex w-full items-center">
+<div class="absolute left-4 text-[#9ca3af] flex items-center justify-center pointer-events-none">
+<span class="material-symbols-outlined text-[20px]">lock</span>
+</div>
+<input class="form-input flex w-full rounded-xl text-[#0e121b] dark:text-white dark:bg-[#111621] focus:outline-0 focus:ring-2 focus:ring-primary/20 border border-[#e2e8f0] dark:border-[#2d3748] bg-[#f8f9fc] focus:border-primary h-14 placeholder:text-[#94a3b8] pl-11 pr-12 text-base font-normal transition-colors" placeholder="Enter your password" type="password" value=""/>
+<button class="absolute right-0 top-0 h-full w-12 flex items-center justify-center text-[#94a3b8] hover:text-primary transition-colors" type="button">
+<span class="material-symbols-outlined text-[20px]">visibility_off</span>
+</button>
+</div>
+</label>
+<div class="flex justify-end -mt-1">
+<a class="text-sm font-semibold text-primary hover:text-blue-700 transition-colors" href="#">Forgot Password?</a>
+</div>
+<button class="mt-2 w-full bg-primary hover:bg-blue-700 text-white font-bold h-14 rounded-xl shadow-lg shadow-blue-500/30 flex items-center justify-center gap-2 transition-all active:scale-[0.98]" type="button">
+<span>Login</span>
+<span class="material-symbols-outlined text-[20px]">arrow_forward</span>
+</button>
+</form>
+</div>
+<div class="text-center mt-8 pb-4">
+<p class="text-[#64748b] dark:text-[#94a3b8] text-base font-medium">
+                    Don't have an account? 
+                    <a class="text-primary font-bold hover:underline decoration-2 underline-offset-4" href="#">Register Here</a>
+</p>
+</div>
+</div>
+</div>
+
+</body></html>

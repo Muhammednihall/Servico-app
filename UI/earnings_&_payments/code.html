@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Earnings &amp; Payments - Servico App</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#2463eb",
+                        "primary-dark": "#1d4ed8",
+                        "background-light": "#f6f6f8",
+                        "background-dark": "#111621",
+                        "surface-light": "#ffffff",
+                        "surface-dark": "#1f2937",
+                        "text-primary-light": "#0e121b",
+                        "text-primary-dark": "#f9fafb",
+                        "text-secondary-light": "#4d6599",
+                        "text-secondary-dark": "#9ca3af",
+                    },
+                    fontFamily: {
+                        "display": ["Manrope", "sans-serif"]
+                    },
+                    borderRadius: {"DEFAULT": "0.5rem", "lg": "1rem", "xl": "1.5rem", "2xl": "2rem", "full": "9999px"},
+                },
+            },
+        }
+    </script>
+<style>
+        body {
+            font-family: 'Manrope', sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .header-gradient {
+            background: linear-gradient(135deg, #2463eb 0%, #60a5fa 100%);
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background-light dark:bg-background-dark text-text-primary-light dark:text-text-primary-dark font-display antialiased overflow-x-hidden">
+<!-- Mobile Container -->
+<div class="relative flex flex-col min-h-screen w-full max-w-md mx-auto bg-background-light dark:bg-background-dark shadow-2xl overflow-hidden pb-[88px]">
+<!-- Header -->
+<header class="header-gradient text-white pt-12 pb-8 px-5 rounded-b-[2rem] shadow-lg relative z-10">
+<div class="flex items-center justify-between mb-6">
+<button class="flex items-center justify-center w-10 h-10 rounded-full bg-white/20 backdrop-blur-md hover:bg-white/30 transition-colors">
+<span class="material-symbols-outlined text-white" style="font-size: 20px;">arrow_back_ios_new</span>
+</button>
+<div class="flex items-center justify-center w-10 h-10 rounded-full bg-white/20 backdrop-blur-md hover:bg-white/30 transition-colors relative">
+<span class="material-symbols-outlined text-white">notifications</span>
+<span class="absolute top-2 right-2.5 w-2 h-2 bg-red-500 rounded-full border-2 border-white/20"></span>
+</div>
+</div>
+<h1 class="text-3xl font-bold tracking-tight mb-1">Earnings &amp; Payments</h1>
+<p class="text-blue-100 text-sm font-medium opacity-90">Manage your income and payouts</p>
+</header>
+<!-- Main Content Scroll Area -->
+<main class="flex-1 px-4 -mt-6 relative z-20 space-y-5">
+<!-- Earnings Summary Cards -->
+<div class="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
+<!-- Total Earnings -->
+<div class="flex-1 min-w-[160px] bg-surface-light dark:bg-surface-dark p-5 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 flex flex-col justify-between h-[140px]">
+<div class="w-10 h-10 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center mb-2">
+<span class="material-symbols-outlined text-green-600 dark:text-green-400">attach_money</span>
+</div>
+<div>
+<p class="text-text-secondary-light dark:text-text-secondary-dark text-xs font-semibold uppercase tracking-wider mb-1">Total Earnings</p>
+<p class="text-2xl font-extrabold text-text-primary-light dark:text-text-primary-dark tracking-tight">$0.00</p>
+</div>
+</div>
+<!-- Pending Balance -->
+<div class="flex-1 min-w-[160px] bg-surface-light dark:bg-surface-dark p-5 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 flex flex-col justify-between h-[140px]">
+<div class="w-10 h-10 rounded-full bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center mb-2">
+<span class="material-symbols-outlined text-orange-600 dark:text-orange-400">pending</span>
+</div>
+<div>
+<p class="text-text-secondary-light dark:text-text-secondary-dark text-xs font-semibold uppercase tracking-wider mb-1">Pending</p>
+<p class="text-2xl font-extrabold text-text-primary-light dark:text-text-primary-dark tracking-tight">$0.00</p>
+</div>
+</div>
+</div>
+<!-- Withdraw Action -->
+<div class="w-full">
+<button class="w-full bg-primary hover:bg-primary-dark text-white font-bold h-14 rounded-xl shadow-lg shadow-blue-500/20 flex items-center justify-center gap-2 transition-transform active:scale-[0.98]">
+<span class="material-symbols-outlined">account_balance_wallet</span>
+                    Withdraw Earnings
+                </button>
+</div>
+<!-- Last Payment Detail -->
+<div class="bg-surface-light dark:bg-surface-dark rounded-2xl p-5 shadow-sm border border-gray-100 dark:border-gray-700 flex items-center justify-between">
+<div class="flex items-center gap-4">
+<div class="w-12 h-12 rounded-full bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center flex-shrink-0">
+<span class="material-symbols-outlined text-primary">payments</span>
+</div>
+<div>
+<p class="text-sm text-text-secondary-light dark:text-text-secondary-dark font-medium">Last Payment Received</p>
+<p class="text-lg font-bold text-text-primary-light dark:text-text-primary-dark">$0.00</p>
+<p class="text-xs text-text-secondary-light dark:text-text-secondary-dark mt-0.5">on 00/00/0000</p>
+</div>
+</div>
+<button class="text-primary font-bold text-sm flex items-center hover:opacity-80">
+                    Details <span class="material-symbols-outlined text-lg ml-1">chevron_right</span>
+</button>
+</div>
+<!-- Recent Transactions List -->
+<div>
+<div class="flex items-center justify-between mb-3 px-1">
+<h3 class="text-lg font-bold text-text-primary-light dark:text-text-primary-dark">Recent Transactions</h3>
+<a class="text-sm font-semibold text-primary" href="#">See All</a>
+</div>
+<div class="flex flex-col gap-3">
+<!-- Transaction Item 1 -->
+<div class="bg-surface-light dark:bg-surface-dark p-4 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 flex items-center justify-between">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-full bg-gray-50 dark:bg-gray-800 flex items-center justify-center">
+<span class="material-symbols-outlined text-gray-500 text-[20px]">work</span>
+</div>
+<div>
+<p class="text-sm font-bold text-text-primary-light dark:text-text-primary-dark">Service Payment</p>
+<p class="text-xs text-text-secondary-light dark:text-text-secondary-dark">00/00/0000 • 00:00 PM</p>
+</div>
+</div>
+<span class="text-green-600 dark:text-green-400 font-bold text-sm">+$0.00</span>
+</div>
+<!-- Transaction Item 2 -->
+<div class="bg-surface-light dark:bg-surface-dark p-4 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 flex items-center justify-between">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-full bg-gray-50 dark:bg-gray-800 flex items-center justify-center">
+<span class="material-symbols-outlined text-gray-500 text-[20px]">north_east</span>
+</div>
+<div>
+<p class="text-sm font-bold text-text-primary-light dark:text-text-primary-dark">Withdrawal</p>
+<p class="text-xs text-text-secondary-light dark:text-text-secondary-dark">00/00/0000 • 00:00 PM</p>
+</div>
+</div>
+<span class="text-text-primary-light dark:text-text-primary-dark font-bold text-sm">-$0.00</span>
+</div>
+<!-- Transaction Item 3 -->
+<div class="bg-surface-light dark:bg-surface-dark p-4 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 flex items-center justify-between">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-full bg-gray-50 dark:bg-gray-800 flex items-center justify-center">
+<span class="material-symbols-outlined text-gray-500 text-[20px]">work</span>
+</div>
+<div>
+<p class="text-sm font-bold text-text-primary-light dark:text-text-primary-dark">Service Payment</p>
+<p class="text-xs text-text-secondary-light dark:text-text-secondary-dark">00/00/0000 • 00:00 PM</p>
+</div>
+</div>
+<span class="text-green-600 dark:text-green-400 font-bold text-sm">+$0.00</span>
+</div>
+</div>
+</div>
+<!-- Spacer for bottom nav -->
+<div class="h-6"></div>
+</main>
+<!-- Bottom Navigation -->
+<nav class="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-surface-light dark:bg-surface-dark border-t border-gray-200 dark:border-gray-800 pb-safe pt-2 px-6 flex justify-between items-center z-50 rounded-t-2xl shadow-[0_-5px_10px_rgba(0,0,0,0.02)] h-[84px]">
+<a class="flex flex-col items-center justify-center w-16 gap-1 group" href="#">
+<div class="relative p-1">
+<span class="material-symbols-outlined text-primary text-[28px] transition-transform group-active:scale-90">dashboard</span>
+<span class="absolute -top-1 -right-1 flex h-2.5 w-2.5">
+<span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
+<span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-primary"></span>
+</span>
+</div>
+<span class="text-[10px] font-bold text-primary">Dashboard</span>
+</a>
+<a class="flex flex-col items-center justify-center w-16 gap-1 group" href="#">
+<span class="material-symbols-outlined text-gray-400 dark:text-gray-500 text-[28px] group-hover:text-primary transition-colors">work</span>
+<span class="text-[10px] font-medium text-gray-400 dark:text-gray-500 group-hover:text-primary transition-colors">Jobs</span>
+</a>
+<!-- Center Action Button (Optional Fab Style) -->
+<div class="-mt-8">
+<button class="bg-primary hover:bg-primary-dark text-white rounded-full w-14 h-14 flex items-center justify-center shadow-lg shadow-blue-500/30 transition-transform active:scale-95">
+<span class="material-symbols-outlined text-[32px]">add</span>
+</button>
+</div>
+<a class="flex flex-col items-center justify-center w-16 gap-1 group" href="#">
+<span class="material-symbols-outlined text-gray-400 dark:text-gray-500 text-[28px] group-hover:text-primary transition-colors">chat_bubble</span>
+<span class="text-[10px] font-medium text-gray-400 dark:text-gray-500 group-hover:text-primary transition-colors">Messages</span>
+</a>
+<a class="flex flex-col items-center justify-center w-16 gap-1 group" href="#">
+<span class="material-symbols-outlined text-gray-400 dark:text-gray-500 text-[28px] group-hover:text-primary transition-colors">person</span>
+<span class="text-[10px] font-medium text-gray-400 dark:text-gray-500 group-hover:text-primary transition-colors">Profile</span>
+</a>
+</nav>
+</div>
+</body></html>

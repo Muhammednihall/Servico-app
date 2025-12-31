@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Booking Confirmed - Servico</title>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@200..800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#2463eb",
+                        "background-light": "#f6f6f8",
+                        "background-dark": "#111621",
+                    },
+                    fontFamily: {
+                        "display": ["Manrope", "sans-serif"]
+                    },
+                    borderRadius: {"DEFAULT": "0.5rem", "lg": "1rem", "xl": "1.5rem", "2xl": "2rem", "full": "9999px"},
+                },
+            },
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        body {
+            min-height: max(884px, 100dvh);
+        }
+        .font-variation-settings-fill {
+            font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background-light dark:bg-background-dark font-display text-[#0e121b] dark:text-white transition-colors duration-200">
+<div class="relative flex min-h-screen w-full flex-col pb-24 overflow-x-hidden">
+<div class="relative w-full bg-gradient-to-r from-primary to-blue-500 rounded-b-[2rem] shadow-lg pt-12 pb-8 px-4 z-10">
+<div class="flex items-center justify-between mb-2">
+<button class="flex size-10 shrink-0 items-center justify-center rounded-full bg-white/20 text-white backdrop-blur-md hover:bg-white/30 transition">
+<span class="material-symbols-outlined text-[20px]">arrow_back</span>
+</button>
+<h2 class="text-white text-lg font-bold leading-tight tracking-[-0.015em]">Confirmation</h2>
+<div class="size-10"></div>
+</div>
+</div>
+<div class="flex flex-col items-center justify-center px-4 -mt-6 z-20">
+<div class="bg-white dark:bg-[#1a2235] p-3 rounded-full shadow-lg">
+<div class="flex items-center justify-center size-20 rounded-full bg-green-50 dark:bg-green-900/20">
+<span class="material-symbols-outlined text-green-500 text-[48px]">check_circle</span>
+</div>
+</div>
+<h1 class="text-[#0e121b] dark:text-white tracking-tight text-[32px] font-bold leading-tight px-4 text-center mt-6 mb-2">Booking Confirmed!</h1>
+<div class="flex items-center gap-2 bg-primary/10 dark:bg-primary/20 px-3 py-1 rounded-full">
+<span class="material-symbols-outlined text-primary text-[16px]">receipt_long</span>
+<p class="text-primary text-sm font-semibold">Ref ID: 0</p>
+</div>
+</div>
+<div class="px-5 mt-8 w-full max-w-md mx-auto">
+<div class="flex items-center justify-between mb-3 px-1">
+<h3 class="text-gray-500 dark:text-gray-400 text-xs font-bold uppercase tracking-wider">Service Summary</h3>
+<span class="text-primary text-xs font-semibold">View Details</span>
+</div>
+<div class="group relative overflow-hidden rounded-2xl bg-white dark:bg-[#1a2235] p-4 shadow-[0_4px_20px_rgba(0,0,0,0.05)] transition-all dark:shadow-none dark:border dark:border-gray-800">
+<div class="flex gap-4">
+<div class="w-24 h-24 shrink-0 rounded-xl bg-gray-200 dark:bg-gray-700 flex items-center justify-center relative">
+<span class="material-symbols-outlined text-gray-500 text-4xl">build</span>
+</div>
+<div class="flex flex-col flex-1 justify-between py-0.5">
+<div>
+<div class="flex items-start justify-between gap-2">
+<h4 class="text-[#0e121b] dark:text-white text-lg font-bold leading-tight line-clamp-1">Electrician Service</h4>
+</div>
+<p class="text-gray-500 dark:text-gray-400 text-sm font-medium mt-1">Name</p>
+</div>
+<div class="flex items-center gap-2 mt-2">
+<div class="flex items-center justify-center px-2 py-1 bg-indigo-50 dark:bg-indigo-900/30 rounded-lg border border-indigo-100 dark:border-indigo-800/50">
+<span class="material-symbols-outlined text-indigo-600 dark:text-indigo-400 text-[14px] mr-1">smart_toy</span>
+<span class="text-indigo-700 dark:text-indigo-300 text-xs font-bold">AI Matched</span>
+</div>
+</div>
+</div>
+</div>
+<div class="mt-4 pt-4 border-t border-gray-100 dark:border-gray-800 grid grid-cols-1 gap-3">
+<div class="flex items-center gap-3">
+<div class="size-8 rounded-full bg-orange-50 dark:bg-orange-900/20 flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-orange-500 text-[18px]">calendar_month</span>
+</div>
+<div class="flex flex-col">
+<span class="text-xs text-gray-400 font-medium">Date &amp; Time</span>
+<span class="text-sm text-[#0e121b] dark:text-white font-semibold">00/00/0000 • 00:00 AM</span>
+</div>
+</div>
+<div class="flex items-center gap-3">
+<div class="size-8 rounded-full bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-blue-500 text-[18px]">location_on</span>
+</div>
+<div class="flex flex-col">
+<span class="text-xs text-gray-400 font-medium">Location</span>
+<span class="text-sm text-[#0e121b] dark:text-white font-semibold truncate max-w-[200px]"></span>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="mt-auto px-5 w-full max-w-md mx-auto">
+<button class="w-full flex items-center justify-center h-12 rounded-xl bg-primary text-white font-bold text-base shadow-lg shadow-blue-500/30 hover:bg-blue-700 transition active:scale-95 mb-3">
+            Go to Bookings
+        </button>
+<button class="w-full flex items-center justify-center h-12 rounded-xl border border-red-200 dark:border-red-900/50 bg-white dark:bg-[#1a2235] text-red-500 font-bold text-base hover:bg-red-50 dark:hover:bg-red-900/20 transition active:scale-95">
+            Cancel Booking
+        </button>
+<p class="text-center text-xs text-gray-400 mt-4 leading-relaxed">
+            Free cancellation available until <span class="font-semibold text-gray-600 dark:text-gray-300">00:00 AM on 00/00/0000</span>.
+            <br/>After that, a fee may apply.
+        </p>
+</div>
+<div class="fixed bottom-0 left-0 w-full bg-white dark:bg-[#111621] border-t border-gray-100 dark:border-gray-800 pb-safe pt-2 px-6 z-50">
+<div class="flex items-center justify-between max-w-md mx-auto h-16">
+<button class="flex flex-col items-center gap-1 w-12 group">
+<span class="material-symbols-outlined text-gray-400 group-hover:text-primary transition-colors text-[24px]">home</span>
+<span class="text-[10px] font-medium text-gray-400 group-hover:text-primary transition-colors">Home</span>
+</button>
+<button class="flex flex-col items-center gap-1 w-12 group">
+<span class="material-symbols-outlined text-gray-400 group-hover:text-primary transition-colors text-[24px]">search</span>
+<span class="text-[10px] font-medium text-gray-400 group-hover:text-primary transition-colors">Search</span>
+</button>
+<button class="flex flex-col items-center gap-1 w-12 relative">
+<span class="absolute -top-1 size-1 bg-primary rounded-full"></span>
+<span class="material-symbols-outlined text-primary text-[24px] font-variation-settings-fill">calendar_today</span>
+<span class="text-[10px] font-bold text-primary">Bookings</span>
+</button>
+<button class="flex flex-col items-center gap-1 w-12 group">
+<span class="material-symbols-outlined text-gray-400 group-hover:text-primary transition-colors text-[24px]">person</span>
+<span class="text-[10px] font-medium text-gray-400 group-hover:text-primary transition-colors">Profile</span>
+</button>
+</div>
+<div class="h-4 w-full"></div>
+</div>
+</div>
+
+</body></html>

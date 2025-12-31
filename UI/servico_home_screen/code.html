@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Servico Home Screen</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@200..800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#2463eb",
+                        "primary-dark": "#1e3a8a",
+                        "primary-light": "#60a5fa",
+                        "background-light": "#f6f6f8",
+                        "background-dark": "#111621",
+                    },
+                    fontFamily: {
+                        "display": ["Manrope", "sans-serif"]
+                    },
+                    borderRadius: {"DEFAULT": "0.5rem", "lg": "1rem", "xl": "1.5rem", "full": "9999px"},
+                },
+            },
+        }
+    </script>
+<style>
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background-light dark:bg-background-dark font-display text-slate-900 dark:text-slate-100 antialiased overflow-x-hidden">
+<div class="relative min-h-screen flex flex-col pb-20 max-w-md mx-auto bg-white dark:bg-[#111621] shadow-2xl overflow-hidden">
+<header class="relative bg-gradient-to-r from-[#1e3a8a] via-[#2463eb] to-[#0ea5e9] pt-14 pb-20 px-6 rounded-b-[2.5rem] shadow-lg z-10 transition-all duration-300">
+<div class="flex items-center justify-between mb-4 mt-2">
+<div class="flex items-center gap-3">
+<div class="flex items-center justify-center size-12 bg-white/20 backdrop-blur-md rounded-xl text-white shadow-inner">
+<span class="material-symbols-outlined text-3xl">smart_toy</span>
+</div>
+<div class="flex flex-col">
+<h1 class="text-white text-3xl font-bold tracking-tight">Servico</h1>
+<p class="text-blue-100 text-xs font-medium opacity-90">City Service Finder</p>
+</div>
+</div>
+<div class="flex items-center gap-3">
+<button class="flex items-center justify-center size-11 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors backdrop-blur-sm">
+<span class="material-symbols-outlined">notifications</span>
+</button>
+<button class="flex items-center justify-center size-11 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors backdrop-blur-sm">
+<span class="material-symbols-outlined">menu</span>
+</button>
+</div>
+</div>
+</header>
+<div class="px-6 -mt-10 relative z-20">
+<div class="bg-white dark:bg-[#1e2736] rounded-xl shadow-lg h-14 flex items-center px-4 w-full ring-1 ring-slate-100 dark:ring-slate-800">
+<span class="material-symbols-outlined text-slate-400 text-2xl mr-3">search</span>
+<input class="flex-1 bg-transparent border-none outline-none text-slate-700 dark:text-slate-200 placeholder-slate-400 font-medium h-full focus:ring-0" placeholder="Search for services..." type="text"/>
+</div>
+</div>
+<div class="px-6 mt-8">
+<h2 class="sr-only">Promotions</h2>
+<div class="flex overflow-x-auto gap-4 no-scrollbar pb-2 snap-x snap-mandatory">
+<div class="min-w-[85%] snap-center rounded-2xl overflow-hidden relative shadow-md h-44 transition-transform hover:scale-[1.01]">
+<div class="absolute inset-0 bg-gradient-to-br from-indigo-500 to-purple-600"></div>
+<div class="absolute inset-0 opacity-20 bg-cover bg-center" data-alt="Abstract geometric circles pattern" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuBoDSvMLYhiA1Wyo6NuafolxNGp7ZBotF2JDIfHjyc70ToMkNOWphVtDJBgzbmWMb6jCAAW7fY47vHfesMJhy1tPzoX9CXUdDndvyn6Dc5D8cEuJNCU_lvFSLdLdvoAIxIeMQOSplH7QRmKnprks3ZOY7cPtBsKnrQdoo0DSTFz_NRUBhqH8mUkA91TPxETPlfOOJaD29HXT8Ie1ubvGa21Xy-C93VzWp4Hj1-N5gm_xL0ccXNpPOwg7x2B2dSspLuJy5YykQPwae-i');"></div>
+<div class="relative h-full flex flex-col justify-center p-6 text-white">
+<span class="bg-white/20 backdrop-blur-sm self-start text-xs font-bold px-2 py-1 rounded mb-2">LIMITED TIME</span>
+<h3 class="text-xl font-bold leading-tight mb-1">Get 20% off<br/>cleaning</h3>
+<p class="text-white/80 text-sm">Book now for summer specials</p>
+</div>
+</div>
+<div class="min-w-[85%] snap-center rounded-2xl overflow-hidden relative shadow-md h-44 transition-transform hover:scale-[1.01]">
+<div class="absolute inset-0 bg-gradient-to-br from-blue-600 to-cyan-500"></div>
+<div class="absolute inset-0 opacity-20 bg-cover bg-center" data-alt="Abstract water waves pattern" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuD3Gb-aZcofk74cyKgDGbfeo8JDdGyCZToywe67e-JB0w15Vpw1-nhdfTBksPXPHUXafltwrkT64tGzRpQC8vn-LteyOKsNmJ8JVjEDVufUu1I2ZSyY6uQy2DQGLs_-AWFr_tep0nPao383rt7sokz-S-LV3hD_2yfQDTgSJtx1-d5JWHkdy0cpD4LrW9M1IftvReqgD4VQ4Xy8s-f9WlUw006RmbYsNAu98pv8O52p9MVvuuLhI40SGpdIjfg_4Dlg9fFfWEarTlvp');"></div>
+<div class="relative h-full flex flex-col justify-center p-6 text-white">
+<span class="bg-white/20 backdrop-blur-sm self-start text-xs font-bold px-2 py-1 rounded mb-2">URGENT CARE</span>
+<h3 class="text-xl font-bold leading-tight mb-1">Emergency Plumbers<br/>24/7 Service</h3>
+<p class="text-white/80 text-sm">We arrive in under 30 mins</p>
+</div>
+</div>
+<div class="min-w-[85%] snap-center rounded-2xl overflow-hidden relative shadow-md h-44 transition-transform hover:scale-[1.01]">
+<div class="absolute inset-0 bg-gradient-to-br from-emerald-500 to-teal-600"></div>
+<div class="absolute inset-0 opacity-20 bg-cover bg-center" data-alt="Abstract tech circuit pattern" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuDmQJ-3n3L6mp774ZcXnNZi6CwaAfRrlK4l9K8ATWNU8b5nTAeQKXDqIlIle4xvgeq0Zo46rzIUYtXyd_Tz503Hq3DO3nj_UOqTL-b2bTNoIIzi2Jc3Q2D-czW3x1zpXeH0TEbXeMGTpPtBSVnGMG--EIaxTACqnoxKEnmzSUb7tWuwql6ptCqgIzo7i_gHxFMqdbnVlA2jZyrV7TfEL7hATzx98_Mse9QPR9L4qnxggmt23UbiNXE284zGXrzYhxXadG70AziPCayO');"></div>
+<div class="relative h-full flex flex-col justify-center p-6 text-white">
+<span class="bg-white/20 backdrop-blur-sm self-start text-xs font-bold px-2 py-1 rounded mb-2">NEW FEATURE</span>
+<h3 class="text-xl font-bold leading-tight mb-1">AI-Powered<br/>Diagnostics</h3>
+<p class="text-white/80 text-sm">Identify issues with a photo</p>
+</div>
+</div>
+</div>
+</div>
+<div class="px-6 mt-8">
+<div class="flex items-center justify-between mb-4">
+<h2 class="text-xl font-bold text-slate-800 dark:text-white">Service Categories</h2>
+<button class="text-primary text-sm font-semibold hover:underline">See all</button>
+</div>
+<div class="grid grid-cols-2 gap-4">
+<button class="flex flex-col items-center justify-center p-5 bg-white dark:bg-[#1e2736] border border-slate-100 dark:border-slate-800 rounded-2xl shadow-sm hover:shadow-md transition-shadow group">
+<div class="size-14 rounded-full bg-blue-50 dark:bg-blue-900/30 flex items-center justify-center text-primary mb-3 group-hover:scale-110 transition-transform">
+<span class="material-symbols-outlined text-3xl">build</span>
+</div>
+<span class="font-semibold text-slate-700 dark:text-slate-200">Electrician</span>
+</button>
+<button class="flex flex-col items-center justify-center p-5 bg-white dark:bg-[#1e2736] border border-slate-100 dark:border-slate-800 rounded-2xl shadow-sm hover:shadow-md transition-shadow group">
+<div class="size-14 rounded-full bg-cyan-50 dark:bg-cyan-900/30 flex items-center justify-center text-cyan-600 dark:text-cyan-400 mb-3 group-hover:scale-110 transition-transform">
+<span class="material-symbols-outlined text-3xl">water_drop</span>
+</div>
+<span class="font-semibold text-slate-700 dark:text-slate-200">Plumber</span>
+</button>
+<button class="flex flex-col items-center justify-center p-5 bg-white dark:bg-[#1e2736] border border-slate-100 dark:border-slate-800 rounded-2xl shadow-sm hover:shadow-md transition-shadow group">
+<div class="size-14 rounded-full bg-orange-50 dark:bg-orange-900/30 flex items-center justify-center text-orange-600 dark:text-orange-400 mb-3 group-hover:scale-110 transition-transform">
+<span class="material-symbols-outlined text-3xl">carpenter</span>
+</div>
+<span class="font-semibold text-slate-700 dark:text-slate-200">Carpenter</span>
+</button>
+<button class="flex flex-col items-center justify-center p-5 bg-white dark:bg-[#1e2736] border border-slate-100 dark:border-slate-800 rounded-2xl shadow-sm hover:shadow-md transition-shadow group">
+<div class="size-14 rounded-full bg-purple-50 dark:bg-purple-900/30 flex items-center justify-center text-purple-600 dark:text-purple-400 mb-3 group-hover:scale-110 transition-transform">
+<span class="material-symbols-outlined text-3xl">clean_hands</span>
+</div>
+<span class="font-semibold text-slate-700 dark:text-slate-200">Cleaning</span>
+</button>
+<button class="col-span-2 flex flex-row items-center p-4 bg-white dark:bg-[#1e2736] border border-slate-100 dark:border-slate-800 rounded-2xl shadow-sm hover:shadow-md transition-shadow group">
+<div class="size-12 rounded-full bg-slate-100 dark:bg-slate-700 flex items-center justify-center text-slate-600 dark:text-slate-300 mr-4 group-hover:scale-110 transition-transform">
+<span class="material-symbols-outlined text-2xl">more_horiz</span>
+</div>
+<div class="flex flex-col items-start">
+<span class="font-semibold text-slate-700 dark:text-slate-200">Other Services</span>
+<span class="text-xs text-slate-500 dark:text-slate-400">Gardening, Painting, Moving...</span>
+</div>
+<span class="material-symbols-outlined ml-auto text-slate-400">chevron_right</span>
+</button>
+</div>
+</div>
+<div class="px-6 mt-8 mb-6">
+<div class="rounded-2xl bg-gradient-to-br from-blue-50 to-white dark:from-[#1e2736] dark:to-[#111621] p-6 border border-blue-100 dark:border-blue-900/30 shadow-sm">
+<div class="flex items-center gap-2 mb-3">
+<span class="material-symbols-outlined text-primary">info</span>
+<h3 class="text-lg font-bold text-slate-800 dark:text-white">About Servico</h3>
+</div>
+<p class="text-slate-600 dark:text-slate-300 text-sm leading-relaxed mb-4">
+                    Your AI-enabled city companion. We connect you with top-rated local professionals instantly, ensuring quality and trust.
+                </p>
+<ul class="space-y-2">
+<li class="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-200">
+<span class="material-symbols-outlined text-green-500 text-lg">check_circle</span>
+<span>Fast &amp; Easy Booking</span>
+</li>
+<li class="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-200">
+<span class="material-symbols-outlined text-green-500 text-lg">check_circle</span>
+<span>100% Verified Professionals</span>
+</li>
+<li class="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-200">
+<span class="material-symbols-outlined text-green-500 text-lg">check_circle</span>
+<span>Secure AI-Powered Payments</span>
+</li>
+</ul>
+</div>
+</div>
+<div class="h-10"></div>
+<nav class="fixed bottom-0 left-0 right-0 bg-white dark:bg-[#1e2736] border-t border-slate-200 dark:border-slate-800 pb-safe pt-2 px-6 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] z-50 max-w-md mx-auto">
+<div class="flex justify-around items-center h-16 pb-2">
+<button class="flex flex-col items-center justify-center gap-1 w-16 text-primary">
+<span class="material-symbols-outlined text-3xl font-variation-settings-'FILL'1">home_repair_service</span>
+<span class="text-xs font-bold">Home</span>
+</button>
+<button class="flex flex-col items-center justify-center gap-1 w-16 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors">
+<span class="material-symbols-outlined text-3xl">person</span>
+<span class="text-xs font-medium">Profile</span>
+</button>
+</div>
+</nav>
+</div>
+</body></html>
