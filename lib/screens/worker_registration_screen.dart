@@ -15,7 +15,6 @@ class _WorkerRegistrationScreenState extends State<WorkerRegistrationScreen> {
   final Color _primaryColor = const Color(0xFF2463eb);
   final Color _backgroundLight = const Color(0xFFf8f9fc);
   final Color _inputBorder = const Color(0xFFd0d7e7);
-  final Color _textMain = const Color(0xFF0e121b);
   final Color _textSecondary = const Color(0xFF4d6599);
 
   @override
@@ -53,7 +52,7 @@ class _WorkerRegistrationScreenState extends State<WorkerRegistrationScreen> {
                 border: Border.all(color: const Color(0xFFf1f3f7)),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
+                    color: Colors.black.withValues(alpha: 0.05),
                     blurRadius: 4,
                     offset: const Offset(0, 2),
                   ),
@@ -400,7 +399,7 @@ class _WorkerRegistrationScreenState extends State<WorkerRegistrationScreen> {
             borderRadius: BorderRadius.circular(12),
           ),
           elevation: 0,
-          shadowColor: _primaryColor.withOpacity(0.3),
+          shadowColor: _primaryColor.withValues(alpha: 0.3),
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,

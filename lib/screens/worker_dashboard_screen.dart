@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'earnings_payments_screen.dart';
 import 'worker_profile_screen.dart';
 import 'my_schedule_screen.dart';
+import '../widgets/weather_widget.dart';
 
 class WorkerDashboardScreen extends StatefulWidget {
   const WorkerDashboardScreen({super.key});
@@ -65,6 +66,9 @@ class _WorkerDashboardScreenState extends State<WorkerDashboardScreen> {
                 children: [
                   _buildAvailabilityStatus(),
                   const SizedBox(height: 20),
+                  const SizedBox(height: 24),
+                  const WeatherWidget(),
+                  const SizedBox(height: 20),
                   _buildStatsCards(),
                   const SizedBox(height: 20),
                   _buildOverallRating(),
@@ -84,7 +88,7 @@ class _WorkerDashboardScreenState extends State<WorkerDashboardScreen> {
 
   Widget _buildHeader() {
     return Container(
-      padding: const EdgeInsets.fromLTRB(24, 56, 24, 64),
+      padding: const EdgeInsets.fromLTRB(24, 56, 24, 24),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [_primaryColor, const Color(0xFF3b7bf7), const Color(0xFF60a5fa)],
@@ -97,109 +101,155 @@ class _WorkerDashboardScreenState extends State<WorkerDashboardScreen> {
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
+            color: Colors.black.withValues(alpha: 0.1),
             blurRadius: 20,
             offset: const Offset(0, 4),
           ),
         ],
       ),
-      child: Row(
+      child: Column(
         children: [
-          Stack(
+          Row(
             children: [
-              Container(
-                width: 48,
-                height: 48,
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(24),
-                  border: Border.all(
-                    color: Colors.white.withOpacity(0.3),
-                    width: 2,
-                  ),
-                ),
-                child: const Icon(
-                  Icons.person,
-                  color: Color(0xFF2463eb),
-                  size: 28,
-                ),
-              ),
-              Positioned(
-                bottom: 0,
-                right: 0,
-                child: Container(
-                  width: 12,
-                  height: 12,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF10b981),
-                    borderRadius: BorderRadius.circular(6),
-                    border: Border.all(
-                      color: _primaryColor,
-                      width: 2,
+              Stack(
+                children: [
+                  Container(
+                    width: 48,
+                    height: 48,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(24),
+                      border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.3),
+                        width: 2,
+                      ),
+                    ),
+                    child: const Icon(
+                      Icons.person,
+                      color: Color(0xFF2463eb),
+                      size: 28,
                     ),
                   ),
+                  Positioned(
+                    bottom: 0,
+                    right: 0,
+                    child: Container(
+                      width: 12,
+                      height: 12,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF10b981),
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(
+                          color: _primaryColor,
+                          width: 2,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Welcome back,',
+                      style: TextStyle(
+                        color: Color(0xFFbfdbfe),
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                        height: 1.2,
+                      ),
+                    ),
+                    Text(
+                      'Worker',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 20,
+                        fontWeight: FontWeight.w700,
+                        height: 1.2,
+                      ),
+                    ),
+                  ],
                 ),
+              ),
+              Stack(
+                children: [
+                  Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.2),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: const Icon(
+                      Icons.notifications_outlined,
+                      color: Colors.white,
+                      size: 24,
+                    ),
+                  ),
+                  Positioned(
+                    top: 8,
+                    right: 10,
+                    child: Container(
+                      width: 8,
+                      height: 8,
+                      decoration: BoxDecoration(
+                        color: Colors.red,
+                        borderRadius: BorderRadius.circular(4),
+                        border: Border.all(
+                          color: _primaryColor,
+                          width: 1,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
-          const SizedBox(width: 12),
-          const Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Welcome back,',
-                  style: TextStyle(
-                    color: Color(0xFFbfdbfe),
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                    height: 1.2,
-                  ),
+          const SizedBox(height: 20),
+          Container(
+            height: 48,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: Colors.grey.shade100,
+                width: 1,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
                 ),
-                Text(
-                  'Worker',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 20,
-                    fontWeight: FontWeight.w700,
-                    height: 1.2,
+              ],
+            ),
+            child: Row(
+              children: [
+                const SizedBox(width: 12),
+                Icon(
+                  Icons.search,
+                  color: Colors.grey.shade400,
+                  size: 20,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: TextField(
+                    decoration: InputDecoration(
+                      hintText: 'Search for jobs...',
+                      hintStyle: TextStyle(
+                        color: Colors.grey.shade400,
+                        fontSize: 14,
+                      ),
+                      border: InputBorder.none,
+                    ),
                   ),
                 ),
               ],
             ),
-          ),
-          Stack(
-            children: [
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: const Icon(
-                  Icons.notifications_outlined,
-                  color: Colors.white,
-                  size: 24,
-                ),
-              ),
-              Positioned(
-                top: 8,
-                right: 10,
-                child: Container(
-                  width: 8,
-                  height: 8,
-                  decoration: BoxDecoration(
-                    color: Colors.red,
-                    borderRadius: BorderRadius.circular(4),
-                    border: Border.all(
-                      color: _primaryColor,
-                      width: 1,
-                    ),
-                  ),
-                ),
-              ),
-            ],
           ),
         ],
       ),
@@ -220,7 +270,7 @@ class _WorkerDashboardScreenState extends State<WorkerDashboardScreen> {
           ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.05),
+              color: Colors.black.withValues(alpha: 0.05),
               blurRadius: 4,
               offset: const Offset(0, 2),
             ),
@@ -249,15 +299,15 @@ class _WorkerDashboardScreenState extends State<WorkerDashboardScreen> {
                         width: 8,
                         height: 8,
                         decoration: BoxDecoration(
-                          color: Colors.grey.shade400,
+                          color: _isAvailable ? const Color(0xFF10b981) : Colors.grey.shade400,
                           borderRadius: BorderRadius.circular(4),
                         ),
                       ),
                       const SizedBox(width: 6),
                       Text(
-                        'You are currently unavailable',
+                        _isAvailable ? 'You are currently available' : 'You are currently unavailable',
                         style: TextStyle(
-                          color: Colors.grey.shade500,
+                          color: _isAvailable ? const Color(0xFF10b981) : Colors.grey.shade500,
                           fontSize: 14,
                           fontWeight: FontWeight.w500,
                         ),
@@ -274,7 +324,7 @@ class _WorkerDashboardScreenState extends State<WorkerDashboardScreen> {
                   _isAvailable = value;
                 });
               },
-              activeColor: _primaryColor,
+              activeThumbColor: _primaryColor,
             ),
           ],
         ),
@@ -330,7 +380,7 @@ class _WorkerDashboardScreenState extends State<WorkerDashboardScreen> {
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 4,
             offset: const Offset(0, 2),
           ),
@@ -359,7 +409,7 @@ class _WorkerDashboardScreenState extends State<WorkerDashboardScreen> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
-                    color: badgeColor?.withOpacity(0.1) ?? iconBg,
+                    color: badgeColor?.withValues(alpha: 0.1) ?? iconBg,
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Text(
@@ -409,7 +459,7 @@ class _WorkerDashboardScreenState extends State<WorkerDashboardScreen> {
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 4,
             offset: const Offset(0, 2),
           ),
@@ -556,7 +606,7 @@ class _WorkerDashboardScreenState extends State<WorkerDashboardScreen> {
           ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.05),
+              color: Colors.black.withValues(alpha: 0.05),
               blurRadius: 4,
               offset: const Offset(0, 2),
             ),
@@ -644,7 +694,7 @@ class _WorkerDashboardScreenState extends State<WorkerDashboardScreen> {
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 6,
             offset: const Offset(0, -4),
           ),

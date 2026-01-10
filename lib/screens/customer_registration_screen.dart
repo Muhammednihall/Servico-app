@@ -11,6 +11,11 @@ class CustomerRegistrationScreen extends StatefulWidget {
 class _CustomerRegistrationScreenState extends State<CustomerRegistrationScreen> {
   bool _isPasswordVisible = false;
   bool _isConfirmPasswordVisible = false;
+  final TextEditingController _nameController = TextEditingController();
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
+  final TextEditingController _confirmPasswordController = TextEditingController();
+  final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
   final Color _primaryColor = const Color(0xFF2463eb);
   final Color _backgroundLight = const Color(0xFFf8f9fc);
   final Color _inputBorder = const Color(0xFFd0d7e7);
@@ -52,7 +57,7 @@ class _CustomerRegistrationScreenState extends State<CustomerRegistrationScreen>
                 border: Border.all(color: const Color(0xFFf1f3f7)),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
+                    color: Colors.black.withValues(alpha: 0.05),
                     blurRadius: 4,
                     offset: const Offset(0, 2),
                   ),
@@ -93,27 +98,30 @@ class _CustomerRegistrationScreenState extends State<CustomerRegistrationScreen>
   Widget _buildForm() {
     return Padding(
       padding: const EdgeInsets.fromLTRB(24, 32, 24, 48),
-      child: Column(
-        children: [
-          _buildTextField(
-            label: 'Full Name',
-            hint: 'Enter your full name',
-            icon: Icons.person_outline,
-          ),
-          const SizedBox(height: 20),
-          _buildTextField(
-            label: 'Email Address',
-            hint: 'name@example.com',
-            icon: Icons.mail_outline,
-            keyboardType: TextInputType.emailAddress,
-          ),
-          const SizedBox(height: 20),
-          _buildPasswordField(),
-          const SizedBox(height: 20),
-          _buildConfirmPasswordField(),
-          const SizedBox(height: 16),
-          _buildRegisterButton(),
-        ],
+      child: Form(
+        key: _formKey,
+        child: Column(
+          children: [
+            _buildTextField(
+              label: 'Full Name',
+              hint: 'Enter your full name',
+              icon: Icons.person_outline,
+            ),
+            const SizedBox(height: 20),
+            _buildTextField(
+              label: 'Email Address',
+              hint: 'name@example.com',
+              icon: Icons.mail_outline,
+              keyboardType: TextInputType.emailAddress,
+            ),
+            const SizedBox(height: 20),
+            _buildPasswordField(),
+            const SizedBox(height: 20),
+            _buildConfirmPasswordField(),
+            const SizedBox(height: 16),
+            _buildRegisterButton(),
+          ],
+        ),
       ),
     );
   }
@@ -124,6 +132,9 @@ class _CustomerRegistrationScreenState extends State<CustomerRegistrationScreen>
     IconData? icon,
     TextInputType? keyboardType,
   }) {
+    bool isEmailField = label == 'Email Address';
+    bool isNameField = label == 'Full Name';
+    
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -148,42 +159,96 @@ class _CustomerRegistrationScreenState extends State<CustomerRegistrationScreen>
               width: 1,
             ),
           ),
-          child: TextField(
-            style: const TextStyle(
-              color: Color(0xFF0e121b),
-              fontSize: 16,
-            ),
-            keyboardType: keyboardType,
-            decoration: InputDecoration(
-              hintText: hint,
-              hintStyle: TextStyle(
-                color: _textSecondary,
-                fontSize: 16,
-              ),
-              prefixIcon: icon != null
-                  ? Icon(
-                      icon,
+          child: isNameField
+              ? TextFormField(
+                  controller: _nameController,
+                  style: const TextStyle(
+                    color: Color(0xFF0e121b),
+                    fontSize: 16,
+                  ),
+                  decoration: InputDecoration(
+                    hintText: hint,
+                    hintStyle: TextStyle(
                       color: _textSecondary,
-                      size: 20,
-                    )
-                  : null,
-              suffixIcon: icon == Icons.person_outline
-                  ? Icon(
-                      Icons.person_outline,
-                      color: _textSecondary,
-                      size: 20,
-                    )
-                  : icon == Icons.mail_outline
-                      ? Icon(
-                          Icons.mail_outline,
+                      fontSize: 16,
+                    ),
+                    prefixIcon: icon != null
+                        ? Icon(
+                            icon,
+                            color: _textSecondary,
+                            size: 20,
+                          )
+                        : null,
+                    border: InputBorder.none,
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                  ),
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Please enter your name';
+                    }
+                    if (value.length < 2) {
+                      return 'Name must be at least 2 characters';
+                    }
+                    return null;
+                  },
+                )
+              : isEmailField
+                  ? TextFormField(
+                      controller: _emailController,
+                      style: const TextStyle(
+                        color: Color(0xFF0e121b),
+                        fontSize: 16,
+                      ),
+                      keyboardType: keyboardType,
+                      decoration: InputDecoration(
+                        hintText: hint,
+                        hintStyle: TextStyle(
                           color: _textSecondary,
-                          size: 20,
-                        )
-                      : null,
-              border: InputBorder.none,
-              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-            ),
-          ),
+                          fontSize: 16,
+                        ),
+                        prefixIcon: icon != null
+                            ? Icon(
+                                icon,
+                                color: _textSecondary,
+                                size: 20,
+                              )
+                            : null,
+                        border: InputBorder.none,
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                      ),
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Please enter your email';
+                        }
+                        if (!RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(value)) {
+                          return 'Please enter a valid email';
+                        }
+                        return null;
+                      },
+                    )
+                  : TextField(
+                      style: const TextStyle(
+                        color: Color(0xFF0e121b),
+                        fontSize: 16,
+                      ),
+                      keyboardType: keyboardType,
+                      decoration: InputDecoration(
+                        hintText: hint,
+                        hintStyle: TextStyle(
+                          color: _textSecondary,
+                          fontSize: 16,
+                        ),
+                        prefixIcon: icon != null
+                            ? Icon(
+                                icon,
+                                color: _textSecondary,
+                                size: 20,
+                              )
+                            : null,
+                        border: InputBorder.none,
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                      ),
+                    ),
         ),
       ],
     );
@@ -214,7 +279,8 @@ class _CustomerRegistrationScreenState extends State<CustomerRegistrationScreen>
               width: 1,
             ),
           ),
-          child: TextField(
+          child: TextFormField(
+            controller: _passwordController,
             obscureText: !_isPasswordVisible,
             style: const TextStyle(
               color: Color(0xFF0e121b),
@@ -241,6 +307,15 @@ class _CustomerRegistrationScreenState extends State<CustomerRegistrationScreen>
               border: InputBorder.none,
               contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
             ),
+            validator: (value) {
+              if (value == null || value.isEmpty) {
+                return 'Please enter a password';
+              }
+              if (value.length < 6) {
+                return 'Password must be at least 6 characters';
+              }
+              return null;
+            },
           ),
         ),
       ],
@@ -272,7 +347,8 @@ class _CustomerRegistrationScreenState extends State<CustomerRegistrationScreen>
               width: 1,
             ),
           ),
-          child: TextField(
+          child: TextFormField(
+            controller: _confirmPasswordController,
             obscureText: !_isConfirmPasswordVisible,
             style: const TextStyle(
               color: Color(0xFF0e121b),
@@ -299,6 +375,15 @@ class _CustomerRegistrationScreenState extends State<CustomerRegistrationScreen>
               border: InputBorder.none,
               contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
             ),
+            validator: (value) {
+              if (value == null || value.isEmpty) {
+                return 'Please confirm your password';
+              }
+              if (value != _passwordController.text) {
+                return 'Passwords do not match';
+              }
+              return null;
+            },
           ),
         ),
       ],
@@ -311,7 +396,9 @@ class _CustomerRegistrationScreenState extends State<CustomerRegistrationScreen>
       height: 56,
       child: ElevatedButton(
         onPressed: () {
-          // TODO: Implement customer registration logic
+          if (_formKey.currentState!.validate()) {
+            // TODO: Implement customer registration logic
+          }
         },
         style: ElevatedButton.styleFrom(
           backgroundColor: _primaryColor,
@@ -319,7 +406,7 @@ class _CustomerRegistrationScreenState extends State<CustomerRegistrationScreen>
             borderRadius: BorderRadius.circular(12),
           ),
           elevation: 0,
-          shadowColor: _primaryColor.withOpacity(0.3),
+          shadowColor: _primaryColor.withValues(alpha: 0.3),
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
