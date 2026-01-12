@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "927804136818",
+    "project_id": "servico-1967",
+    "storage_bucket": "servico-1967.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:927804136818:android:71ec2039832332f41651eb",
+        "android_client_info": {
+          "package_name": "com.example.servico_app_flutter"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCMrxrT3ycIej5MYRc-2C2l4kbKLfEyimw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

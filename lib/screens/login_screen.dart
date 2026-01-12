@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'customer_home_screen.dart';
 import 'customer_registration_screen.dart';
 import 'worker_dashboard_screen.dart';
+import 'worker_registration_screen.dart';
+import '../services/auth_service.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -13,11 +15,13 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   bool _isCustomerSelected = true;
   bool _isPasswordVisible = false;
+  bool _isLoading = false;
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
   final Color _primaryColor = const Color(0xFF2463eb);
   final Color _backgroundLight = const Color(0xFFf6f6f8);
+  final AuthService _authService = AuthService();
 
   @override
   Widget build(BuildContext context) {
@@ -108,12 +112,18 @@ class _LoginScreenState extends State<LoginScreen> {
             ),
           ),
           const SizedBox(height: 8),
-          Text(
-            'Login to manage your services',
-            style: TextStyle(
-              color: Colors.blue.shade50,
-              fontSize: 16,
-              fontWeight: FontWeight.w500,
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 300),
+            child: Text(
+              _isCustomerSelected
+                  ? 'Login to book your services'
+                  : 'Login to manage your work',
+              key: ValueKey<bool>(_isCustomerSelected),
+              style: TextStyle(
+                color: Colors.blue.shade50,
+                fontSize: 16,
+                fontWeight: FontWeight.w500,
+              ),
             ),
           ),
         ],
@@ -183,26 +193,7 @@ class _LoginScreenState extends State<LoginScreen> {
       width: double.infinity,
       height: 56,
       child: ElevatedButton(
-        onPressed: () {
-          if (_formKey.currentState!.validate()) {
-            // Perform login logic here
-            if (_isCustomerSelected) {
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const CustomerHomeScreen(),
-                ),
-              );
-            } else {
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const WorkerDashboardScreen(),
-                ),
-              );
-            }
-          }
-        },
+        onPressed: _isLoading ? null : () => _handleLogin(context),
         style: ElevatedButton.styleFrom(
           backgroundColor: _primaryColor,
           padding: const EdgeInsets.symmetric(vertical: 16),
@@ -212,105 +203,180 @@ class _LoginScreenState extends State<LoginScreen> {
           elevation: 0,
           shadowColor: _primaryColor.withValues(alpha: 0.3),
         ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: const [
-            Text(
-              'Login',
-              style: TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.w700,
-                fontSize: 16,
+        child: _isLoading
+            ? const SizedBox(
+                height: 20,
+                width: 20,
+                child: CircularProgressIndicator(
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                  strokeWidth: 2,
+                ),
+              )
+            : const Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    'Login',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 16,
+                    ),
+                  ),
+                  SizedBox(width: 8),
+                  Icon(Icons.arrow_forward, color: Colors.white, size: 20),
+                ],
               ),
-            ),
-            SizedBox(width: 8),
-            Icon(Icons.arrow_forward, color: Colors.white, size: 20),
-          ],
-        ),
       ),
     );
   }
 
+  Future<void> _handleLogin(BuildContext context) async {
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      Map<String, dynamic> result = await _authService.login(
+        email: _emailController.text.trim(),
+        password: _passwordController.text,
+      );
+
+      if (mounted) {
+        String userRole = result['role'];
+        String selectedRole = _isCustomerSelected ? 'customer' : 'worker';
+
+        // Check if selected role matches actual role
+        if (userRole != selectedRole) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'This account is registered as a $userRole, not a $selectedRole.',
+              ),
+              backgroundColor: Colors.red,
+            ),
+          );
+          setState(() {
+            _isLoading = false;
+          });
+          return;
+        }
+
+        if (userRole == 'customer') {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => const CustomerHomeScreen()),
+          );
+        } else if (userRole == 'worker') {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => const WorkerDashboardScreen()),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(e.toString()),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
 
   Widget _buildRoleToggle() {
     return Container(
-      height: 48,
+      height: 52,
       decoration: BoxDecoration(
         color: const Color(0xFFf1f3f7),
         borderRadius: BorderRadius.circular(12),
       ),
-      padding: const EdgeInsets.all(6),
-      child: Row(
+      padding: const EdgeInsets.all(4),
+      child: Stack(
         children: [
-          Expanded(
-            child: GestureDetector(
-              onTap: () {
-                setState(() {
-                  _isCustomerSelected = true;
-                });
-              },
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
+          AnimatedAlign(
+            duration: const Duration(milliseconds: 250),
+            curve: Curves.easeInOut,
+            alignment: _isCustomerSelected ? Alignment.centerLeft : Alignment.centerRight,
+            child: FractionallySizedBox(
+              widthFactor: 0.5,
+              child: Container(
+                height: 44,
                 decoration: BoxDecoration(
-                  color: _isCustomerSelected ? Colors.white : Colors.transparent,
+                  color: _primaryColor,
                   borderRadius: BorderRadius.circular(10),
-                  boxShadow: _isCustomerSelected
-                      ? [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.05),
-                            blurRadius: 4,
-                            offset: const Offset(0, 2),
-                          ),
-                        ]
-                      : null,
-                ),
-                child: Center(
-                  child: Text(
-                    'Customer',
-                    style: TextStyle(
-                      color: _isCustomerSelected ? _primaryColor : const Color(0xFF64748b),
-                      fontWeight: FontWeight.w700,
-                      fontSize: 14,
+                  boxShadow: [
+                    BoxShadow(
+                      color: _primaryColor.withValues(alpha: 0.3),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
                     ),
-                  ),
+                  ],
                 ),
               ),
             ),
           ),
-          Expanded(
-            child: GestureDetector(
-              onTap: () {
-                setState(() {
-                  _isCustomerSelected = false;
-                });
-              },
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                decoration: BoxDecoration(
-                  color: !_isCustomerSelected ? Colors.white : Colors.transparent,
-                  borderRadius: BorderRadius.circular(10),
-                  boxShadow: !_isCustomerSelected
-                      ? [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.05),
-                            blurRadius: 4,
-                            offset: const Offset(0, 2),
-                          ),
-                        ]
-                      : null,
-                ),
-                child: Center(
-                  child: Text(
-                    'Worker',
-                    style: TextStyle(
-                      color: !_isCustomerSelected ? _primaryColor : const Color(0xFF64748b),
-                      fontWeight: FontWeight.w700,
-                      fontSize: 14,
+          Row(
+            children: [
+              Expanded(
+                child: GestureDetector(
+                  onTap: () {
+                    setState(() {
+                      _isCustomerSelected = true;
+                    });
+                  },
+                  child: Container(
+                    color: Colors.transparent,
+                    child: Center(
+                      child: AnimatedDefaultTextStyle(
+                        duration: const Duration(milliseconds: 250),
+                        style: TextStyle(
+                          color: _isCustomerSelected ? Colors.white : const Color(0xFF64748b),
+                          fontWeight: FontWeight.w700,
+                          fontSize: 15,
+                        ),
+                        child: const Text('Customer'),
+                      ),
                     ),
                   ),
                 ),
               ),
-            ),
+              Expanded(
+                child: GestureDetector(
+                  onTap: () {
+                    setState(() {
+                      _isCustomerSelected = false;
+                    });
+                  },
+                  child: Container(
+                    color: Colors.transparent,
+                    child: Center(
+                      child: AnimatedDefaultTextStyle(
+                        duration: const Duration(milliseconds: 250),
+                        style: TextStyle(
+                          color: !_isCustomerSelected ? Colors.white : const Color(0xFF64748b),
+                          fontWeight: FontWeight.w700,
+                          fontSize: 15,
+                        ),
+                        child: const Text('Worker'),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -349,19 +415,19 @@ class _LoginScreenState extends State<LoginScreen> {
               fontSize: 16,
               fontWeight: FontWeight.normal,
             ),
-            decoration: InputDecoration(
+            decoration: const InputDecoration(
               hintText: 'name@example.com',
-              hintStyle: const TextStyle(
+              hintStyle: TextStyle(
                 color: Color(0xFF94a3b8),
                 fontSize: 16,
               ),
-              prefixIcon: const Icon(
+              prefixIcon: Icon(
                 Icons.mail_outlined,
                 color: Color(0xFF9ca3af),
                 size: 20,
               ),
               border: InputBorder.none,
-              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+              contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 16),
             ),
             keyboardType: TextInputType.emailAddress,
             validator: (value) {
@@ -453,40 +519,51 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-
-
   Widget _buildRegisterLink(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.only(top: 32, bottom: 16),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Text(
+          const Text(
             "Don't have an account? ",
             style: TextStyle(
-              color: const Color(0xFF64748b),
+              color: Color(0xFF64748b),
               fontSize: 16,
               fontWeight: FontWeight.w500,
             ),
           ),
           GestureDetector(
             onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => CustomerRegistrationScreen(),
-                ),
-              );
+              if (_isCustomerSelected) {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => CustomerRegistrationScreen(),
+                  ),
+                );
+              } else {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => WorkerRegistrationScreen(),
+                  ),
+                );
+              }
             },
-            child: Text(
-              'Register Here',
-              style: TextStyle(
-                color: const Color(0xFFf97316),
-                fontSize: 16,
-                fontWeight: FontWeight.w700,
-                decoration: TextDecoration.underline,
-                decorationThickness: 2,
-                decorationColor: const Color(0xFFf97316),
+            child: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 300),
+              child: Text(
+                _isCustomerSelected ? 'Register as Customer' : 'Register as Worker',
+                key: ValueKey<bool>(_isCustomerSelected),
+                style: const TextStyle(
+                  color: Color(0xFFf97316),
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                  decoration: TextDecoration.underline,
+                  decorationThickness: 2,
+                  decorationColor: Color(0xFFf97316),
+                ),
               ),
             ),
           ),
