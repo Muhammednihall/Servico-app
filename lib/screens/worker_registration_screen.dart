@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'login_screen.dart';
 import '../services/auth_service.dart';
 import '../widgets/phone_input_field.dart';
-import '../widgets/service_area_field.dart';
+
 
 class WorkerRegistrationScreen extends StatefulWidget {
   const WorkerRegistrationScreen({super.key});
@@ -18,17 +19,20 @@ class _WorkerRegistrationScreenState extends State<WorkerRegistrationScreen> {
   bool _isLoading = false;
   List<String> _selectedServices = [];
   String _selectedCountry = 'IN';
+  String? _selectedCity;
+  String? _selectedRegion;
+  Map<String, dynamic>? _cityData;
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _phoneController = TextEditingController();
   final TextEditingController _experienceController = TextEditingController();
-  final TextEditingController _serviceAreaController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _confirmPasswordController = TextEditingController();
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
   final Color _primaryColor = const Color(0xFF2463eb);
   final Color _backgroundLight = const Color(0xFFf6f6f8);
   final AuthService _authService = AuthService();
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   final List<String> _serviceTypes = [
     'Electrician',
@@ -210,89 +214,27 @@ class _WorkerRegistrationScreenState extends State<WorkerRegistrationScreen> {
                 const SizedBox(height: 20),
                 _buildServiceTypeDropdown(),
                 const SizedBox(height: 20),
-                Row(
-                  children: [
-                    Expanded(
-                      flex: 1,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Padding(
-                            padding: EdgeInsets.only(left: 4, bottom: 8),
-                            child: Text(
-                              'Experience',
-                              style: TextStyle(
-                                color: Color(0xFF0e121b),
-                                fontSize: 14,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
-                          Container(
-                            height: 56,
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFf8f9fc),
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(
-                                color: const Color(0xFFe2e8f0),
-                                width: 1,
-                              ),
-                            ),
-                            child: TextFormField(
-                              controller: _experienceController,
-                              style: const TextStyle(
-                                color: Color(0xFF0e121b),
-                                fontSize: 16,
-                                fontWeight: FontWeight.normal,
-                              ),
-                              keyboardType: TextInputType.number,
-                              inputFormatters: [
-                                FilteringTextInputFormatter.digitsOnly,
-                                LengthLimitingTextInputFormatter(2),
-                              ],
-                              decoration: const InputDecoration(
-                                hintText: 'Years',
-                                hintStyle: TextStyle(
-                                  color: Color(0xFF94a3b8),
-                                  fontSize: 16,
-                                ),
-                                prefixIcon: Icon(
-                                  Icons.work_outline,
-                                  color: Color(0xFF9ca3af),
-                                  size: 20,
-                                ),
-                                border: InputBorder.none,
-                                contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-                              ),
-                              validator: (value) {
-                                if (value == null || value.isEmpty) {
-                                  return 'Required';
-                                }
-                                return null;
-                              },
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      flex: 2,
-                      child: ServiceAreaField(
-                        label: 'Service Area',
-                        hint: 'City, State',
-                        controller: _serviceAreaController,
-                        selectedCountry: _selectedCountry,
-                        validator: (value) {
-                          if (value == null || value.isEmpty) {
-                            return 'Please enter service area';
-                          }
-                          return null;
-                        },
-                      ),
-                    ),
+                _buildTextField(
+                  label: 'Experience',
+                  hint: 'Years',
+                  icon: Icons.work_outline,
+                  controller: _experienceController,
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [
+                    FilteringTextInputFormatter.digitsOnly,
+                    _ExperienceInputFormatter(),
                   ],
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Please enter experience';
+                    }
+                    return null;
+                  },
                 ),
+                const SizedBox(height: 20),
+                _buildCityDropdown(),
+                const SizedBox(height: 20),
+                _buildRegionDropdown(),
                 const SizedBox(height: 20),
                 _buildPasswordField(
                   label: 'Password',
@@ -351,6 +293,7 @@ class _WorkerRegistrationScreenState extends State<WorkerRegistrationScreen> {
     required IconData icon,
     required TextEditingController controller,
     TextInputType? keyboardType,
+    List<TextInputFormatter>? inputFormatters,
     String? Function(String?)? validator,
   }) {
     return Column(
@@ -385,6 +328,7 @@ class _WorkerRegistrationScreenState extends State<WorkerRegistrationScreen> {
               fontWeight: FontWeight.normal,
             ),
             keyboardType: keyboardType,
+            inputFormatters: inputFormatters,
             decoration: InputDecoration(
               hintText: hint,
               hintStyle: const TextStyle(
@@ -404,6 +348,179 @@ class _WorkerRegistrationScreenState extends State<WorkerRegistrationScreen> {
         ),
       ],
     );
+  }
+
+  Widget _buildCityDropdown() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(left: 4, bottom: 8),
+          child: Row(
+            children: [
+              const Text(
+                'City',
+                style: TextStyle(
+                  color: Color(0xFF0e121b),
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(width: 4),
+              const Text(
+                '*',
+                style: TextStyle(
+                  color: Colors.red,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ),
+        DropdownMenu<String>(
+          initialSelection: _selectedCity,
+          onSelected: (String? value) {
+            setState(() {
+              _selectedCity = value;
+              _selectedRegion = null;
+              _loadCityData(value);
+            });
+          },
+          dropdownMenuEntries: const [
+            DropdownMenuEntry(
+              value: 'city_kozhikode',
+              label: 'Kozhikode',
+            ),
+          ],
+          width: double.infinity,
+          inputDecorationTheme: InputDecorationTheme(
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            prefixIconColor: const Color(0xFF9ca3af),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: Color(0xFFe2e8f0)),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: Color(0xFF2463eb), width: 2),
+            ),
+          ),
+          leadingIcon: const Icon(Icons.location_city),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildRegionDropdown() {
+    final isEnabled = _selectedCity != null;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(left: 4, bottom: 8),
+          child: Row(
+            children: [
+              const Text(
+                'Region',
+                style: TextStyle(
+                  color: Color(0xFF0e121b),
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(width: 4),
+              const Text(
+                '*',
+                style: TextStyle(
+                  color: Colors.red,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ),
+        DropdownMenu<String>(
+          enabled: isEnabled,
+          initialSelection: _selectedRegion,
+          onSelected: (String? value) {
+            setState(() {
+              _selectedRegion = value;
+            });
+          },
+          dropdownMenuEntries: _buildRegionItems(),
+          width: double.infinity,
+          inputDecorationTheme: InputDecorationTheme(
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            prefixIconColor: isEnabled ? const Color(0xFF9ca3af) : Colors.grey.shade400,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(
+                color: isEnabled ? const Color(0xFFe2e8f0) : Colors.grey.shade300,
+              ),
+            ),
+            disabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: Colors.grey.shade300),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: Color(0xFF2463eb), width: 2),
+            ),
+            filled: true,
+            fillColor: isEnabled ? Colors.white : Colors.grey.shade50,
+          ),
+          leadingIcon: Icon(
+            Icons.location_on_outlined,
+            color: isEnabled ? const Color(0xFF9ca3af) : Colors.grey.shade400,
+          ),
+        ),
+      ],
+    );
+  }
+
+  List<DropdownMenuEntry<String>> _buildRegionItems() {
+    if (_cityData == null || _cityData!['regions'] == null) {
+      return [];
+    }
+
+    final regions = _cityData!['regions'] as Map<String, dynamic>;
+    return regions.entries.map((entry) {
+      final regionName = entry.value['regionName'] as String;
+      return DropdownMenuEntry(
+        value: entry.key,
+        label: regionName,
+      );
+    }).toList();
+  }
+
+  Future<void> _loadCityData(String? cityId) async {
+    if (cityId == null) return;
+
+    try {
+      final doc = await _firestore.collection('Locations').doc(cityId).get();
+      if (doc.exists) {
+        setState(() {
+          _cityData = doc.data();
+        });
+      }
+    } catch (e) {
+      print('Error loading city data: $e');
+    }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedCity = 'city_kozhikode';
+    _loadCityData('city_kozhikode');
   }
 
   Widget _buildServiceTypeDropdown() {
@@ -670,6 +787,16 @@ class _WorkerRegistrationScreenState extends State<WorkerRegistrationScreen> {
       return;
     }
 
+    if (_selectedRegion == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please select a region'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
     setState(() {
       _isLoading = true;
     });
@@ -684,7 +811,7 @@ class _WorkerRegistrationScreenState extends State<WorkerRegistrationScreen> {
         phone: _phoneController.text.trim(),
         serviceType: serviceType,
         experience: _experienceController.text.trim(),
-        serviceArea: _serviceAreaController.text.trim(),
+        serviceArea: _selectedRegion ?? '',
       );
 
       if (mounted) {
@@ -754,5 +881,37 @@ class _WorkerRegistrationScreenState extends State<WorkerRegistrationScreen> {
         ],
       ),
     );
+  }
+}
+
+class _ExperienceInputFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    final text = newValue.text;
+
+    // If empty, allow it
+    if (text.isEmpty) {
+      return newValue;
+    }
+
+    // If it's "0", allow it
+    if (text == '0') {
+      return newValue;
+    }
+
+    // If it starts with "0" and has more than 1 digit, reject it (prevents "00", "01", etc.)
+    if (text.startsWith('0') && text.length > 1) {
+      return oldValue;
+    }
+
+    // Limit to 2 digits max
+    if (text.length > 2) {
+      return oldValue;
+    }
+
+    return newValue;
   }
 }

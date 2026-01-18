@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'login_screen.dart';
+import '../services/auth_service.dart';
 
 class UserProfileScreen extends StatelessWidget {
   const UserProfileScreen({super.key});
@@ -410,6 +411,8 @@ class UserProfileScreen extends StatelessWidget {
   }
 
   Widget _buildLogoutButton(BuildContext context) {
+    final AuthService _authService = AuthService();
+    
     return Container(
       decoration: BoxDecoration(
         gradient: const LinearGradient(
@@ -429,11 +432,25 @@ class UserProfileScreen extends StatelessWidget {
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          onTap: () {
-            Navigator.of(context).pushAndRemoveUntil(
-              MaterialPageRoute(builder: (context) => const LoginScreen()),
-              (route) => false,
-            );
+          onTap: () async {
+            try {
+              await _authService.logout();
+              if (context.mounted) {
+                Navigator.of(context).pushAndRemoveUntil(
+                  MaterialPageRoute(builder: (context) => const LoginScreen()),
+                  (route) => false,
+                );
+              }
+            } catch (e) {
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Logout failed: $e'),
+                    backgroundColor: Colors.red,
+                  ),
+                );
+              }
+            }
           },
           borderRadius: BorderRadius.circular(12),
           child: Container(

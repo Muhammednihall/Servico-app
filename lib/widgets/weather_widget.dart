@@ -17,20 +17,20 @@ class WeatherWidget extends StatelessWidget {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            const Color(0xFF10b981).withOpacity(0.3),
-            const Color(0xFF059669).withOpacity(0.1),
+            const Color(0xFFfbbf24).withOpacity(0.3),
+            const Color(0xFFf59e0b).withOpacity(0.1),
             Colors.white.withOpacity(0.05),
           ],
         ),
         color: Colors.white.withOpacity(0.9),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: const Color(0xFFd1fae5).withOpacity(0.5),
+          color: const Color(0xFFfef3c7).withOpacity(0.5),
           width: 1,
         ),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFFa7f3d0).withOpacity(0.2),
+            color: const Color(0xFFfcd34d).withOpacity(0.2),
             blurRadius: 15,
             offset: const Offset(0, 4),
           ),
@@ -66,92 +66,67 @@ class WeatherWidget extends StatelessWidget {
             ],
           ),
           const SizedBox(width: 12),
-          // Temperature
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    '28',
-                    style: TextStyle(
-                      fontSize: 32,
-                      fontWeight: FontWeight.w900,
-                      color: Colors.grey.shade900,
-                      height: 1.0,
-                    ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.only(top: 4),
-                    child: Text(
-                      '°C',
-                      style: TextStyle(
-                        fontSize: 16,
-                        color: Colors.grey.shade600,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              Text(
-                'Sunny',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Colors.grey.shade600,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(width: 12),
-          // Location Section
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.7),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                color: const Color(0xFFa7f3d0).withOpacity(0.5),
-                width: 1,
-              ),
-            ),
-            child: Row(
+          // Temperature and Location
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(
-                  Icons.location_on,
-                  color: const Color(0xFF059669),
-                  size: 14,
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '28',
+                      style: TextStyle(
+                        fontSize: 32,
+                        fontWeight: FontWeight.w900,
+                        color: Colors.grey.shade900,
+                        height: 1.0,
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.only(top: 4),
+                      child: Text(
+                        '°C',
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: Colors.grey.shade600,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(width: 4),
-                Text(
-                  'Narikkuni',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.grey.shade800,
-                  ),
+                Row(
+                  children: [
+                    Text(
+                      'Sunny',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey.shade600,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Icon(
+                      Icons.location_on,
+                      color: const Color(0xFFf59e0b),
+                      size: 12,
+                    ),
+                    const SizedBox(width: 2),
+                    Expanded(
+                      child: Text(
+                        'Kuruvattur',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.grey.shade800,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
                 ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 8),
-          // Weather Details - Ultra Compact
-          Expanded(
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                // Cloud
-                _buildCompactDetail(Icons.cloud_outlined, '12%'),
-                const SizedBox(width: 8),
-                // Humidity
-                _buildCompactDetail(Icons.water_drop_outlined, '65%'),
-                const SizedBox(width: 8),
-                // Wind
-                _buildCompactDetail(Icons.air, '8km/h'),
               ],
             ),
           ),
@@ -160,25 +135,4 @@ class WeatherWidget extends StatelessWidget {
     );
   }
 
-  Widget _buildCompactDetail(IconData icon, String value) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(
-          icon,
-          size: 16,
-          color: Colors.grey.shade600,
-        ),
-        const SizedBox(height: 2),
-        Text(
-          value,
-          style: TextStyle(
-            fontSize: 11,
-            fontWeight: FontWeight.w600,
-            color: Colors.grey.shade800,
-          ),
-        ),
-      ],
-    );
-  }
 }

@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'booking_confirmed_screen.dart';
+import '../services/worker_service.dart';
 
 /// Base class for category service list screens
 /// This allows all service categories to use the same design pattern
-class CategoryServiceScreen extends StatelessWidget {
+class CategoryServiceScreen extends StatefulWidget {
   final String categoryName;
   final IconData categoryIcon;
   final Color categoryColor;
@@ -17,8 +18,45 @@ class CategoryServiceScreen extends StatelessWidget {
     required this.categoryBgColor,
   });
 
+  @override
+  State<CategoryServiceScreen> createState() => _CategoryServiceScreenState();
+}
+
+class _CategoryServiceScreenState extends State<CategoryServiceScreen> {
   final Color _primaryColor = const Color(0xFF2463eb);
   final Color _backgroundLight = const Color(0xFFf6f6f8);
+  final WorkerService _workerService = WorkerService();
+  
+  List<Map<String, dynamic>> _workers = [];
+  bool _isLoading = true;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadWorkers();
+  }
+
+  Future<void> _loadWorkers() async {
+    try {
+      setState(() {
+        _isLoading = true;
+        _error = null;
+      });
+      
+      final workers = await _workerService.getWorkersByCategory(widget.categoryName);
+      
+      setState(() {
+        _workers = workers;
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _error = e.toString();
+        _isLoading = false;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -59,7 +97,7 @@ class CategoryServiceScreen extends StatelessWidget {
       ),
       child: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 48, 16, 24),
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
           child: Column(
             children: [
               Row(
@@ -82,7 +120,7 @@ class CategoryServiceScreen extends StatelessWidget {
                   ),
                   Expanded(
                     child: Text(
-                      '$categoryName Services',
+                      '${widget.categoryName} Services',
                       textAlign: TextAlign.center,
                       style: const TextStyle(
                         color: Colors.white,
@@ -204,16 +242,90 @@ class CategoryServiceScreen extends StatelessWidget {
   }
 
   Widget _buildServiceList(BuildContext context) {
+    if (_isLoading) {
+      return const Center(
+        child: CircularProgressIndicator(),
+      );
+    }
+
+    if (_error != null) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.error_outline,
+              size: 48,
+              color: Colors.red.shade300,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Error loading workers',
+              style: TextStyle(
+                color: Colors.grey.shade700,
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 8),
+            TextButton(
+              onPressed: _loadWorkers,
+              child: const Text('Retry'),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (_workers.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.person_search,
+              size: 64,
+              color: Colors.grey.shade300,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'No ${widget.categoryName} workers found',
+              style: TextStyle(
+                color: Colors.grey.shade700,
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Check back later for available service providers',
+              style: TextStyle(
+                color: Colors.grey.shade500,
+                fontSize: 14,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
     return ListView.builder(
       padding: const EdgeInsets.all(16),
-      itemCount: 4,
+      itemCount: _workers.length,
       itemBuilder: (context, index) {
-        return _buildServiceCard(context);
+        return _buildServiceCard(context, _workers[index]);
       },
     );
   }
 
-  Widget _buildServiceCard(BuildContext context) {
+  Widget _buildServiceCard(BuildContext context, Map<String, dynamic> worker) {
+    final name = worker['name'] ?? 'Unknown';
+    final rating = (worker['rating'] as num?)?.toDouble() ?? 0.0;
+    final totalReviews = worker['totalReviews'] ?? 0;
+    final experience = worker['experience'] ?? '0';
+    final isAvailable = worker['isAvailable'] ?? false;
+    final phone = worker['phone'] ?? '';
+    
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
@@ -242,13 +354,13 @@ class CategoryServiceScreen extends StatelessWidget {
                   width: 64,
                   height: 64,
                   decoration: BoxDecoration(
-                    color: Colors.grey.shade100,
+                    color: widget.categoryBgColor,
                     borderRadius: BorderRadius.circular(32),
                   ),
                   child: Icon(
-                    Icons.person,
-                    size: 40,
-                    color: Colors.grey.shade400,
+                    widget.categoryIcon,
+                    size: 32,
+                    color: widget.categoryColor,
                   ),
                 ),
                 const SizedBox(width: 16),
@@ -259,24 +371,31 @@ class CategoryServiceScreen extends StatelessWidget {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          const Text(
-                            'Name',
-                            style: TextStyle(
-                              color: Color(0xFF1e293b),
-                              fontSize: 16,
-                              fontWeight: FontWeight.w700,
+                          Expanded(
+                            child: Text(
+                              name,
+                              style: const TextStyle(
+                                color: Color(0xFF1e293b),
+                                fontSize: 16,
+                                fontWeight: FontWeight.w700,
+                              ),
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ),
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                             decoration: BoxDecoration(
-                              color: const Color(0xFFecfdf5),
+                              color: isAvailable 
+                                  ? const Color(0xFFecfdf5)
+                                  : Colors.grey.shade100,
                               borderRadius: BorderRadius.circular(6),
                             ),
-                            child: const Text(
-                              '\$0/hr',
+                            child: Text(
+                              isAvailable ? 'Available' : 'Busy',
                               style: TextStyle(
-                                color: Color(0xFF10b981),
+                                color: isAvailable 
+                                    ? const Color(0xFF10b981)
+                                    : Colors.grey.shade600,
                                 fontSize: 12,
                                 fontWeight: FontWeight.w700,
                               ),
@@ -293,9 +412,9 @@ class CategoryServiceScreen extends StatelessWidget {
                             size: 18,
                           ),
                           const SizedBox(width: 4),
-                          const Text(
-                            '0',
-                            style: TextStyle(
+                          Text(
+                            rating.toStringAsFixed(1),
+                            style: const TextStyle(
                               color: Color(0xFF1e293b),
                               fontSize: 14,
                               fontWeight: FontWeight.w600,
@@ -303,7 +422,7 @@ class CategoryServiceScreen extends StatelessWidget {
                           ),
                           const SizedBox(width: 4),
                           Text(
-                            '(0 reviews)',
+                            '($totalReviews reviews)',
                             style: TextStyle(
                               color: Colors.grey.shade500,
                               fontSize: 14,
@@ -313,7 +432,7 @@ class CategoryServiceScreen extends StatelessWidget {
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        'Description',
+                        '$experience years experience',
                         style: TextStyle(
                           color: Colors.grey.shade500,
                           fontSize: 14,
@@ -342,7 +461,9 @@ class CategoryServiceScreen extends StatelessWidget {
               children: [
                 Expanded(
                   child: OutlinedButton(
-                    onPressed: () {},
+                    onPressed: () {
+                      // TODO: Navigate to worker profile
+                    },
                     style: OutlinedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 12),
                       side: BorderSide(color: Colors.grey.shade300),
@@ -417,7 +538,7 @@ class CategoryServiceScreen extends StatelessWidget {
       ),
       child: SafeArea(
         child: SizedBox(
-          height: 64,
+          height: 56,
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
@@ -513,4 +634,3 @@ class CleaningListScreen extends CategoryServiceScreen {
           categoryBgColor: const Color(0xFFfaf5ff),
         );
 }
-

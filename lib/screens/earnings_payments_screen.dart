@@ -1,44 +1,149 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'worker_dashboard_screen.dart';
 import 'my_schedule_screen.dart';
 import 'worker_profile_screen.dart';
+import '../widgets/worker_bottom_nav_bar.dart';
+import '../utils/custom_page_route.dart';
+import '../services/auth_service.dart';
+import '../services/worker_service.dart';
 
-class EarningsPaymentsScreen extends StatelessWidget {
+class EarningsPaymentsScreen extends StatefulWidget {
   const EarningsPaymentsScreen({super.key});
 
+  @override
+  State<EarningsPaymentsScreen> createState() => _EarningsPaymentsScreenState();
+}
+
+class _EarningsPaymentsScreenState extends State<EarningsPaymentsScreen> {
   final Color _primaryColor = const Color(0xFF2463eb);
   final Color _backgroundLight = const Color(0xFFf6f6f8);
+  final int _selectedNavIndex = 2; // Earnings is index 2
+  
+  final AuthService _authService = AuthService();
+  final WorkerService _workerService = WorkerService();
+  
+  late String _workerId;
+  double _totalBalance = 0.0;
+  double _totalEarned = 0.0;
+  DateTime? _nextPayoutDate;
+  List<Map<String, dynamic>> _transactions = [];
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadEarningsData();
+  }
+
+  Future<void> _loadEarningsData() async {
+    final user = _authService.getCurrentUser();
+    if (user != null) {
+      _workerId = user.uid;
+      
+      try {
+        // Load wallet data
+        final wallet = await _workerService.getWorkerWallet(_workerId);
+        if (wallet != null) {
+          setState(() {
+            _totalBalance = (wallet['balance'] as num?)?.toDouble() ?? 0.0;
+            _totalEarned = (wallet['totalEarned'] as num?)?.toDouble() ?? 0.0;
+            if (wallet['nextPayoutDate'] != null) {
+              final payoutDate = wallet['nextPayoutDate'];
+              if (payoutDate is Timestamp) {
+                _nextPayoutDate = payoutDate.toDate();
+              } else if (payoutDate is DateTime) {
+                _nextPayoutDate = payoutDate;
+              }
+            }
+          });
+        }
+        
+        // Load transactions
+        final transactions = await _workerService.getWorkerTransactions(_workerId, limit: 20);
+        setState(() {
+          _transactions = transactions;
+          _isLoading = false;
+        });
+      } catch (e) {
+        print('Error loading earnings data: $e');
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  void _onNavItemTapped(int index) {
+    if (index == 0) {
+      Navigator.pushReplacement(
+        context,
+        FastPageRoute(
+          builder: (context) => const WorkerDashboardScreen(),
+        ),
+      );
+    } else if (index == 1) {
+      Navigator.pushReplacement(
+        context,
+        FastPageRoute(
+          builder: (context) => const MyScheduleScreen(),
+        ),
+      );
+    } else if (index == 2) {
+      // Already on earnings
+    } else if (index == 3) {
+      Navigator.pushReplacement(
+        context,
+        FastPageRoute(
+          builder: (context) => const WorkerProfileScreen(),
+        ),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: _backgroundLight,
-      body: Column(
+      body: Stack(
         children: [
-          _buildHeader(context),
-          Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
-              child: Column(
-                children: [
-                  _buildTotalEarningsCard(),
-                  const SizedBox(height: 20),
-                  _buildPayoutDetailsCard(),
-                  const SizedBox(height: 20),
-                  _buildRecentTransactions(),
-                ],
+          Column(
+            children: [
+              _buildHeader(context),
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.fromLTRB(16, 210, 16, 100),
+                  child: Column(
+                    children: [
+                      _buildPayoutDetailsCard(),
+                      const SizedBox(height: 20),
+                      _buildRecentTransactions(),
+                    ],
+                  ),
+                ),
               ),
-            ),
+            ],
+          ),
+          // Card positioned to overlap header
+          Positioned(
+            top: 120,
+            left: 32,
+            right: 32,
+            child: _buildTotalEarningsCard(),
           ),
         ],
       ),
-      bottomNavigationBar: _buildBottomNavigationBar(context),
+      bottomNavigationBar: WorkerBottomNavBar(
+        selectedIndex: _selectedNavIndex,
+        onItemTapped: _onNavItemTapped,
+        primaryColor: _primaryColor,
+      ),
     );
   }
 
   Widget _buildHeader(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(16, 48, 16, 32),
+      padding: const EdgeInsets.fromLTRB(24, 10, 24, 46),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [_primaryColor, const Color(0xFF60a5fa)],
@@ -46,8 +151,8 @@ class EarningsPaymentsScreen extends StatelessWidget {
           end: Alignment.topRight,
         ),
         borderRadius: const BorderRadius.only(
-          bottomLeft: Radius.circular(32),
-          bottomRight: Radius.circular(32),
+          bottomLeft: Radius.circular(24),
+          bottomRight: Radius.circular(24),
         ),
         boxShadow: [
           BoxShadow(
@@ -58,142 +163,198 @@ class EarningsPaymentsScreen extends StatelessWidget {
         ],
       ),
       child: SafeArea(
-        child: Column(
-          children: [
-            Row(
-              children: [
-                IconButton(
-                  icon: Container(
-                    width: 40,
-                    height: 40,
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.2),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: const Icon(
-                      Icons.arrow_back,
-                      color: Colors.white,
-                      size: 20,
-                    ),
-                  ),
-                  onPressed: () => Navigator.pop(context),
-                ),
-                const Expanded(
-                  child: Text(
-                    'Earnings & Payments',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 18,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: -0.5,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 40),
-              ],
+        child: Padding(
+          padding: const EdgeInsets.only(top: 8, bottom: 8),
+          child: const Align(
+            alignment: Alignment.centerLeft,
+            child: Text(
+              'Earnings & Payments',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 24,
+                fontWeight: FontWeight.w800,
+                letterSpacing: -0.5,
+              ),
             ),
-          ],
+          ),
         ),
       ),
     );
   }
 
   Widget _buildTotalEarningsCard() {
-    return Transform.translate(
-      offset: const Offset(0, -24),
+    return AspectRatio(
+      aspectRatio: 1.587, // Standard VISA card ratio (3.375 / 2.125)
       child: Container(
-        padding: const EdgeInsets.all(24),
+        padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           gradient: LinearGradient(
-            colors: [const Color(0xFF10b981), const Color(0xFF059669)],
+            colors: [
+              const Color(0xFF1a5f4a),
+              const Color(0xFF0d3d2e),
+            ],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-              color: const Color(0xFF10b981).withValues(alpha: 0.3),
-              blurRadius: 20,
-              offset: const Offset(0, 8),
+              color: const Color(0xFF0d3d2e).withValues(alpha: 0.4),
+              blurRadius: 25,
+              offset: const Offset(0, 10),
             ),
           ],
         ),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
           children: [
+            // Top row with chip and logo
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text(
-                  'Total Earnings',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Colors.white70,
-                    fontWeight: FontWeight.w500,
+                // Chip
+                Container(
+                  width: 40,
+                  height: 32,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        Colors.amber.shade600,
+                        Colors.amber.shade700,
+                      ],
+                    ),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Stack(
+                    children: [
+                      Positioned(
+                        left: 6,
+                        top: 6,
+                        child: Container(
+                          width: 10,
+                          height: 10,
+                          decoration: BoxDecoration(
+                            color: Colors.amber.shade800,
+                            borderRadius: BorderRadius.circular(2),
+                          ),
+                        ),
+                      ),
+                      Positioned(
+                        right: 6,
+                        bottom: 6,
+                        child: Container(
+                          width: 10,
+                          height: 10,
+                          decoration: BoxDecoration(
+                            color: Colors.amber.shade800,
+                            borderRadius: BorderRadius.circular(2),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.2),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Text(
-                    'This Month',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.white,
-                      fontWeight: FontWeight.w600,
-                    ),
+                // VISA Logo
+                Text(
+                  'VISA',
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.9),
+                    fontSize: 20,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 1.5,
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 16),
-            const Row(
+            const Spacer(),
+            // Balance text and amount
+            Text(
+              'Total Balance',
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.7),
+                fontSize: 11,
+                fontWeight: FontWeight.w500,
+                letterSpacing: 0.3,
+              ),
+            ),
+            const SizedBox(height: 4),
+            // Amount
+            Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   '\$',
                   style: TextStyle(
-                    fontSize: 24,
+                    color: Colors.white.withValues(alpha: 0.9),
+                    fontSize: 20,
                     fontWeight: FontWeight.w600,
-                    color: Colors.white70,
                   ),
                 ),
+                const SizedBox(width: 2),
                 Text(
-                  '1,234.56',
-                  style: TextStyle(
-                    fontSize: 40,
-                    fontWeight: FontWeight.w800,
+                  _totalBalance.toStringAsFixed(2),
+                  style: const TextStyle(
                     color: Colors.white,
-                    letterSpacing: -1,
+                    fontSize: 32,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.5,
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 16),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: const Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.trending_up, color: Colors.white, size: 18),
-                  SizedBox(width: 8),
-                  Text(
-                    '+12.5% from last month',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.white,
-                      fontWeight: FontWeight.w600,
+            const Spacer(),
+            // Card holder and expiry
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'CARD HOLDER',
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.6),
+                        fontSize: 8,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: 0.5,
+                      ),
                     ),
-                  ),
-                ],
-              ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Worker Account',
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.9),
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      'VALID THRU',
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.6),
+                        fontSize: 8,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      '12/25',
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.9),
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ),
           ],
         ),
@@ -203,7 +364,7 @@ class EarningsPaymentsScreen extends StatelessWidget {
 
   Widget _buildPayoutDetailsCard() {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(15),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
@@ -252,13 +413,15 @@ class EarningsPaymentsScreen extends StatelessWidget {
           _buildDetailRow(
             icon: Icons.calendar_today,
             title: 'Next Payout',
-            value: 'Jan 5, 2026',
+            value: _nextPayoutDate != null 
+                ? '${_nextPayoutDate!.month}/${_nextPayoutDate!.day}/${_nextPayoutDate!.year}'
+                : 'Not scheduled',
           ),
           const SizedBox(height: 12),
           _buildDetailRow(
             icon: Icons.account_balance,
-            title: 'Payout Method',
-            value: 'Bank **** 1234',
+            title: 'Total Earned',
+            value: '\$${_totalEarned.toStringAsFixed(2)}',
           ),
           const SizedBox(height: 20),
           SizedBox(
@@ -290,7 +453,7 @@ class EarningsPaymentsScreen extends StatelessWidget {
 
   Widget _buildRecentTransactions() {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(15),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
@@ -334,27 +497,40 @@ class EarningsPaymentsScreen extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 16),
-          _buildTransactionItem(
-            service: 'House Cleaning',
-            date: 'Dec 28, 2025',
-            amount: '+\$50.00',
-            isCredit: true,
-            icon: Icons.cleaning_services,
-          ),
-          _buildTransactionItem(
-            service: 'Plumbing Fix',
-            date: 'Dec 27, 2025',
-            amount: '+\$75.00',
-            isCredit: true,
-            icon: Icons.plumbing,
-          ),
-          _buildTransactionItem(
-            service: 'Service Fee',
-            date: 'Dec 26, 2025',
-            amount: '-\$5.00',
-            isCredit: false,
-            icon: Icons.receipt_long,
-          ),
+          if (_isLoading)
+            const Center(
+              child: CircularProgressIndicator(),
+            )
+          else if (_transactions.isEmpty)
+            Center(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 32),
+                child: Text(
+                  'No transactions yet',
+                  style: TextStyle(
+                    color: Colors.grey.shade500,
+                    fontSize: 14,
+                  ),
+                ),
+              ),
+            )
+          else
+            ..._transactions.map((transaction) {
+              final isCredit = transaction['type'] == 'credit';
+              final amount = (transaction['amount'] as num).toDouble();
+              final description = transaction['description'] ?? 'Transaction';
+              final createdAt = (transaction['createdAt'] as Timestamp?)?.toDate();
+              
+              return _buildTransactionItem(
+                service: description,
+                date: createdAt != null 
+                    ? '${createdAt.month}/${createdAt.day}/${createdAt.year}'
+                    : 'Unknown date',
+                amount: '${isCredit ? '+' : '-'}\$${amount.toStringAsFixed(2)}',
+                isCredit: isCredit,
+                icon: isCredit ? Icons.add_circle : Icons.remove_circle,
+              );
+            }),
         ],
       ),
     );
@@ -469,109 +645,4 @@ class EarningsPaymentsScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildBottomNavigationBar(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        border: Border(
-          top: BorderSide(
-            color: Colors.grey.shade200,
-            width: 1,
-          ),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 6,
-            offset: const Offset(0, -4),
-          ),
-        ],
-      ),
-      child: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              _buildNavItem(
-                icon: Icons.dashboard,
-                label: 'Dashboard',
-                isSelected: false,
-                onTap: () {
-                  Navigator.pushReplacement(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const WorkerDashboardScreen(),
-                    ),
-                  );
-                },
-              ),
-              _buildNavItem(
-                icon: Icons.calendar_month,
-                label: 'Schedule',
-                isSelected: false,
-                onTap: () {
-                  Navigator.pushReplacement(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const MyScheduleScreen(),
-                    ),
-                  );
-                },
-              ),
-              _buildNavItem(
-                icon: Icons.attach_money,
-                label: 'Earnings',
-                isSelected: true,
-                onTap: () {},
-              ),
-              _buildNavItem(
-                icon: Icons.person_outline,
-                label: 'Profile',
-                isSelected: false,
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const WorkerProfileScreen(),
-                    ),
-                  );
-                },
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildNavItem({
-    required IconData icon,
-    required String label,
-    required bool isSelected,
-    required VoidCallback onTap,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            icon,
-            color: isSelected ? _primaryColor : Colors.grey.shade400,
-            size: 26,
-          ),
-          const SizedBox(height: 4),
-          Text(
-            label,
-            style: TextStyle(
-              color: isSelected ? _primaryColor : Colors.grey.shade400,
-              fontSize: 10,
-              fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 }

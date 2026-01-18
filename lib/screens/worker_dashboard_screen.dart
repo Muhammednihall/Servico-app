@@ -3,6 +3,10 @@ import 'earnings_payments_screen.dart';
 import 'worker_profile_screen.dart';
 import 'my_schedule_screen.dart';
 import '../widgets/weather_widget.dart';
+import '../widgets/worker_bottom_nav_bar.dart';
+import '../utils/custom_page_route.dart';
+import '../services/auth_service.dart';
+import '../services/worker_service.dart';
 
 class WorkerDashboardScreen extends StatefulWidget {
   const WorkerDashboardScreen({super.key});
@@ -16,39 +20,77 @@ class _WorkerDashboardScreenState extends State<WorkerDashboardScreen> {
   int _selectedIndex = 0;
   final Color _primaryColor = const Color(0xFF2463eb);
   final Color _backgroundLight = const Color(0xFFf6f6f8);
+  final AuthService _authService = AuthService();
+  final WorkerService _workerService = WorkerService();
+  
+  late String _workerId;
+  String _workerName = 'Worker';
+  int _currentJobsCount = 0;
+  double _todaysEarnings = 0.0;
+  double _averageRating = 0.0;
+  int _totalReviews = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadWorkerData();
+  }
+
+  Future<void> _loadWorkerData() async {
+    final user = _authService.getCurrentUser();
+    if (user != null) {
+      _workerId = user.uid;
+      
+      // Load worker profile
+      final profile = await _workerService.getWorkerProfile(_workerId);
+      if (profile != null) {
+        setState(() {
+          _workerName = profile['name'] ?? 'Worker';
+          _isAvailable = profile['isAvailable'] ?? false;
+        });
+      }
+      
+      // Load current jobs count
+      final jobsCount = await _workerService.getCurrentJobsCount(_workerId);
+      setState(() {
+        _currentJobsCount = jobsCount;
+      });
+      
+      // Load today's earnings
+      final earnings = await _workerService.getTodaysEarnings(_workerId);
+      setState(() {
+        _todaysEarnings = earnings;
+      });
+      
+      // Load average rating
+      final avgRating = await _workerService.getAverageRating(_workerId);
+      final ratings = await _workerService.getWorkerRatings(_workerId);
+      setState(() {
+        _averageRating = avgRating;
+        _totalReviews = ratings.length;
+      });
+    }
+  }
 
   void _onItemTapped(int index) {
-    setState(() {
-      _selectedIndex = index;
-    });
-    if (index == 1) {
+    if (index == 0) {
+      // Already on dashboard
+    } else if (index == 1) {
       // Schedule - navigate to schedule screen
-      Navigator.push(
+      Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (context) => const MyScheduleScreen()),
-      ).then((_) {
-        setState(() {
-          _selectedIndex = 0; // Reset to dashboard after returning
-        });
-      });
+        FastPageRoute(builder: (context) => const MyScheduleScreen()),
+      );
     } else if (index == 2) {
-      Navigator.push(
+      Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (context) => const EarningsPaymentsScreen()),
-      ).then((_) {
-        setState(() {
-          _selectedIndex = 0; // Reset to dashboard after returning
-        });
-      });
+        FastPageRoute(builder: (context) => const EarningsPaymentsScreen()),
+      );
     } else if (index == 3) {
-      Navigator.push(
+      Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (context) => const WorkerProfileScreen()),
-      ).then((_) {
-        setState(() {
-          _selectedIndex = 0; // Reset to dashboard after returning
-        });
-      });
+        FastPageRoute(builder: (context) => const WorkerProfileScreen()),
+      );
     }
   }
 
@@ -82,7 +124,11 @@ class _WorkerDashboardScreenState extends State<WorkerDashboardScreen> {
           ),
         ],
       ),
-      bottomNavigationBar: _buildBottomNavigationBar(),
+      bottomNavigationBar: WorkerBottomNavBar(
+        selectedIndex: _selectedIndex,
+        onItemTapped: _onItemTapped,
+        primaryColor: _primaryColor,
+      ),
     );
   }
 
@@ -149,11 +195,11 @@ class _WorkerDashboardScreenState extends State<WorkerDashboardScreen> {
                 ],
               ),
               const SizedBox(width: 12),
-              const Expanded(
+              Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
+                    const Text(
                       'Welcome back,',
                       style: TextStyle(
                         color: Color(0xFFbfdbfe),
@@ -163,8 +209,8 @@ class _WorkerDashboardScreenState extends State<WorkerDashboardScreen> {
                       ),
                     ),
                     Text(
-                      'Worker',
-                      style: TextStyle(
+                      _workerName,
+                      style: const TextStyle(
                         color: Colors.white,
                         fontSize: 20,
                         fontWeight: FontWeight.w700,
@@ -320,9 +366,29 @@ class _WorkerDashboardScreenState extends State<WorkerDashboardScreen> {
             Switch(
               value: _isAvailable,
               onChanged: (value) {
+                // Update UI immediately
                 setState(() {
                   _isAvailable = value;
                 });
+                
+                // Save to database in background
+                final uid = _authService.getCurrentUser()?.uid;
+                if (uid != null) {
+                  _authService.updateWorkerAvailability(uid, value).catchError((e) {
+                    if (mounted) {
+                      // Revert on error
+                      setState(() {
+                        _isAvailable = !value;
+                      });
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Error: $e'),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
+                    }
+                  });
+                }
               },
               activeThumbColor: _primaryColor,
             ),
@@ -341,8 +407,8 @@ class _WorkerDashboardScreenState extends State<WorkerDashboardScreen> {
             iconColor: _primaryColor,
             iconBg: const Color(0xFFeff6ff),
             label: 'Current Jobs',
-            value: '0',
-            badge: 'New',
+            value: '$_currentJobsCount',
+            badge: _currentJobsCount > 0 ? 'Active' : null,
             badgeColor: _primaryColor,
           ),
         ),
@@ -353,7 +419,7 @@ class _WorkerDashboardScreenState extends State<WorkerDashboardScreen> {
             iconColor: const Color(0xFF10b981),
             iconBg: const Color(0xFFecfdf5),
             label: "Today's Earnings",
-            value: '\$0.00',
+            value: '\$${_todaysEarnings.toStringAsFixed(2)}',
           ),
         ),
       ],
@@ -484,10 +550,10 @@ class _WorkerDashboardScreenState extends State<WorkerDashboardScreen> {
                 ),
               ),
               const SizedBox(width: 16),
-              const Column(
+              Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
+                  const Text(
                     'Overall Rating',
                     style: TextStyle(
                       color: Color(0xFF64748b),
@@ -495,22 +561,22 @@ class _WorkerDashboardScreenState extends State<WorkerDashboardScreen> {
                       fontWeight: FontWeight.w500,
                     ),
                   ),
-                  SizedBox(height: 4),
+                  const SizedBox(height: 4),
                   Row(
                     children: [
                       Text(
-                        '0.0',
-                        style: TextStyle(
+                        _averageRating.toStringAsFixed(1),
+                        style: const TextStyle(
                           color: Color(0xFF1e293b),
                           fontSize: 20,
                           fontWeight: FontWeight.w700,
                           letterSpacing: -0.5,
                         ),
                       ),
-                      SizedBox(width: 4),
+                      const SizedBox(width: 4),
                       Text(
-                        '(0 reviews)',
-                        style: TextStyle(
+                        '($_totalReviews reviews)',
+                        style: const TextStyle(
                           color: Color(0xFF94a3b8),
                           fontSize: 12,
                         ),
@@ -675,91 +741,6 @@ class _WorkerDashboardScreenState extends State<WorkerDashboardScreen> {
             style: TextStyle(
               color: Colors.grey.shade500,
               fontSize: 14,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildBottomNavigationBar() {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        border: Border(
-          top: BorderSide(
-            color: Colors.grey.shade200,
-            width: 1,
-          ),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 6,
-            offset: const Offset(0, -4),
-          ),
-        ],
-      ),
-      child: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              _buildNavItem(
-                icon: Icons.dashboard,
-                label: 'Dashboard',
-                isSelected: _selectedIndex == 0,
-                onTap: () => _onItemTapped(0),
-              ),
-              _buildNavItem(
-                icon: Icons.calendar_month,
-                label: 'Schedule',
-                isSelected: _selectedIndex == 1,
-                onTap: () => _onItemTapped(1),
-              ),
-              _buildNavItem(
-                icon: Icons.attach_money,
-                label: 'Earnings',
-                isSelected: _selectedIndex == 2,
-                onTap: () => _onItemTapped(2),
-              ),
-              _buildNavItem(
-                icon: Icons.person_outline,
-                label: 'Profile',
-                isSelected: _selectedIndex == 3,
-                onTap: () => _onItemTapped(3),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildNavItem({
-    required IconData icon,
-    required String label,
-    required bool isSelected,
-    required VoidCallback onTap,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            icon,
-            color: isSelected ? _primaryColor : Colors.grey.shade400,
-            size: 26,
-          ),
-          const SizedBox(height: 4),
-          Text(
-            label,
-            style: TextStyle(
-              color: isSelected ? _primaryColor : Colors.grey.shade400,
-              fontSize: 10,
-              fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
             ),
           ),
         ],

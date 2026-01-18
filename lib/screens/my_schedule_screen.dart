@@ -3,6 +3,8 @@ import 'job_details_screen.dart';
 import 'worker_dashboard_screen.dart';
 import 'earnings_payments_screen.dart';
 import 'worker_profile_screen.dart';
+import '../widgets/worker_bottom_nav_bar.dart';
+import '../utils/custom_page_route.dart';
 
 class MyScheduleScreen extends StatefulWidget {
   const MyScheduleScreen({super.key});
@@ -13,9 +15,37 @@ class MyScheduleScreen extends StatefulWidget {
 
 class _MyScheduleScreenState extends State<MyScheduleScreen> {
   int _selectedTab = 0; // 0 = Upcoming, 1 = Completed
+  int _selectedNavIndex = 1; // Schedule is index 1
   final Color _primaryColor = const Color(0xFF2463eb);
   final Color _backgroundLight = const Color(0xFFf6f6f8);
   final Color _surfaceDark = const Color(0xFF1e2330);
+
+  void _onNavItemTapped(int index) {
+    if (index == 0) {
+      Navigator.pushReplacement(
+        context,
+        FastPageRoute(
+          builder: (context) => const WorkerDashboardScreen(),
+        ),
+      );
+    } else if (index == 1) {
+      // Already on schedule
+    } else if (index == 2) {
+      Navigator.pushReplacement(
+        context,
+        FastPageRoute(
+          builder: (context) => const EarningsPaymentsScreen(),
+        ),
+      );
+    } else if (index == 3) {
+      Navigator.pushReplacement(
+        context,
+        FastPageRoute(
+          builder: (context) => const WorkerProfileScreen(),
+        ),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -29,15 +59,19 @@ class _MyScheduleScreenState extends State<MyScheduleScreen> {
           Expanded(
             child: _buildJobsList(),
           ),
-          _buildBottomNavigation(),
         ],
+      ),
+      bottomNavigationBar: WorkerBottomNavBar(
+        selectedIndex: _selectedNavIndex,
+        onItemTapped: _onNavItemTapped,
+        primaryColor: _primaryColor,
       ),
     );
   }
 
   Widget _buildHeader() {
     return Container(
-      padding: const EdgeInsets.fromLTRB(24, 48, 24, 32),
+      padding: const EdgeInsets.fromLTRB(24, 10, 24, 46),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [_primaryColor, const Color(0xFF60a5fa)],
@@ -57,75 +91,17 @@ class _MyScheduleScreenState extends State<MyScheduleScreen> {
         ],
       ),
       child: SafeArea(
-        child: Column(
-          children: [
-            Row(
-              children: [
-                Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.3),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(
-                      color: Colors.white.withValues(alpha: 0.3),
-                      width: 2,
-                    ),
-                  ),
-                  child: Icon(
-                    Icons.person,
-                    color: _primaryColor,
-                    size: 24,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                const Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Welcome back,',
-                        style: TextStyle(
-                          color: Color(0xFFbfdbfe),
-                          fontSize: 12,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                      Text(
-                        'Name',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                IconButton(
-                  icon: const Icon(
-                    Icons.notifications_outlined,
-                    color: Colors.white,
-                    size: 24,
-                  ),
-                  onPressed: () {},
-                ),
-              ],
+        child: const Align(
+          alignment: Alignment.centerLeft,
+          child: Text(
+            'My Schedule',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 24,
+              fontWeight: FontWeight.w800,
+              letterSpacing: -0.5,
             ),
-            const SizedBox(height: 16),
-            const Align(
-              alignment: Alignment.centerLeft,
-              child: Text(
-                'My Schedule',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 24,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: -0.5,
-                ),
-              ),
-            ),
-          ],
+          ),
         ),
       ),
     );
@@ -135,9 +111,9 @@ class _MyScheduleScreenState extends State<MyScheduleScreen> {
     return Transform.translate(
       offset: const Offset(0, -24),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16),
+        padding: const EdgeInsets.symmetric(horizontal: 26),
         child: Container(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(12),
@@ -172,28 +148,31 @@ class _MyScheduleScreenState extends State<MyScheduleScreen> {
                   ),
                 ],
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 10),
               Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
                 children: ['S', 'M', 'T', 'W', 'T', 'F', 'S']
-                    .map((day) => Text(
-                          day,
-                          style: TextStyle(
-                            color: Colors.grey.shade400,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
+                    .map((day) => Expanded(
+                          child: Text(
+                            day,
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: Colors.grey.shade400,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
                         ))
                     .toList(),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 4),
               GridView.builder(
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
                 gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                   crossAxisCount: 7,
-                  mainAxisSpacing: 4,
-                  crossAxisSpacing: 4,
+                  mainAxisSpacing: 0,
+                  crossAxisSpacing: 0,
+                  childAspectRatio: 2.5,
                 ),
                 itemCount: 35,
                 itemBuilder: (context, index) {
@@ -616,110 +595,5 @@ class _MyScheduleScreenState extends State<MyScheduleScreen> {
     );
   }
 
-  Widget _buildBottomNavigation() {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        border: Border(
-          top: BorderSide(
-            color: Colors.grey.shade200,
-            width: 1,
-          ),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 6,
-            offset: const Offset(0, -4),
-          ),
-        ],
-      ),
-      child: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              _buildNavItem(
-                icon: Icons.dashboard,
-                label: 'Dashboard',
-                isSelected: false,
-                onTap: () {
-                  Navigator.pushReplacement(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const WorkerDashboardScreen(),
-                    ),
-                  );
-                },
-              ),
-              _buildNavItem(
-                icon: Icons.calendar_month,
-                label: 'Schedule',
-                isSelected: true,
-                onTap: () {},
-              ),
-              _buildNavItem(
-                icon: Icons.attach_money,
-                label: 'Earnings',
-                isSelected: false,
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const EarningsPaymentsScreen(),
-                    ),
-                  );
-                },
-              ),
-              _buildNavItem(
-                icon: Icons.person_outline,
-                label: 'Profile',
-                isSelected: false,
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const WorkerProfileScreen(),
-                    ),
-                  );
-                },
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildNavItem({
-    required IconData icon,
-    required String label,
-    required bool isSelected,
-    required VoidCallback onTap,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            icon,
-            color: isSelected ? _primaryColor : Colors.grey.shade400,
-            size: 26,
-          ),
-          const SizedBox(height: 4),
-          Text(
-            label,
-            style: TextStyle(
-              color: isSelected ? _primaryColor : Colors.grey.shade400,
-              fontSize: 10,
-              fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 }
 

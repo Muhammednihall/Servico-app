@@ -163,6 +163,33 @@ class AuthService {
       await _firestore.collection('workers').doc(uid).set(workerData);
       print('✓ Worker document created in Firestore successfully');
 
+      // Create wallet for worker
+      print('📝 Creating wallet for worker...');
+      final walletData = {
+        'userId': uid,
+        'userType': 'worker',
+        'balance': 0.0,
+        'totalEarned': 0.0,
+        'totalSpent': 0.0,
+        'currency': 'USD',
+        'payoutMethod': 'bank_transfer',
+        'payoutDetails': {
+          'accountHolder': '',
+          'accountNumber': '',
+          'bankName': '',
+          'ifscCode': '',
+          'upiId': '',
+        },
+        'nextPayoutDate': DateTime.now().add(const Duration(days: 7)),
+        'lastPayoutDate': null,
+        'lastPayoutAmount': null,
+        'createdAt': DateTime.now(),
+        'updatedAt': DateTime.now(),
+      };
+
+      await _firestore.collection('wallets').doc(uid).set(walletData);
+      print('✓ Wallet created successfully');
+
       return true;
     } on FirebaseAuthException catch (e) {
       print('❌ Firebase Auth Exception: ${e.code} - ${e.message}');
@@ -295,5 +322,43 @@ class AuthService {
   // Check if user is logged in
   bool isUserLoggedIn() {
     return _firebaseAuth.currentUser != null;
+  }
+
+  // Send password reset email
+  Future<void> sendPasswordResetEmail(String email) async {
+    try {
+      if (email.isEmpty) {
+        throw 'Please enter your email address';
+      }
+
+      print('📝 Sending password reset email to: $email');
+      await _firebaseAuth.sendPasswordResetEmail(email: email);
+      print('✓ Password reset email sent successfully');
+    } on FirebaseAuthException catch (e) {
+      print('❌ Firebase Auth Exception: ${e.code} - ${e.message}');
+      if (e.code == 'user-not-found') {
+        throw 'No account found with this email address.';
+      } else {
+        throw e.message ?? 'Failed to send password reset email';
+      }
+    } catch (e) {
+      print('❌ Error sending password reset email: $e');
+      throw 'Failed to send password reset email: $e';
+    }
+  }
+
+  // Update worker availability status
+  Future<void> updateWorkerAvailability(String uid, bool isAvailable) async {
+    try {
+      print('📝 Updating worker availability to: $isAvailable');
+      await _firestore.collection('workers').doc(uid).update({
+        'isAvailable': isAvailable,
+        'updatedAt': DateTime.now(),
+      });
+      print('✓ Worker availability updated successfully');
+    } catch (e) {
+      print('❌ Error updating availability: $e');
+      throw 'Failed to update availability: $e';
+    }
   }
 }

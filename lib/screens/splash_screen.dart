@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'login_screen.dart';
+import 'customer_home_screen.dart';
+import 'worker_dashboard_screen.dart';
+import '../services/auth_service.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -13,6 +17,7 @@ class _SplashScreenState extends State<SplashScreen>
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
   late Animation<double> _scaleAnimation;
+  final AuthService _authService = AuthService();
 
   @override
   void initState() {
@@ -39,25 +44,86 @@ class _SplashScreenState extends State<SplashScreen>
 
     _animationController.forward();
 
-    // Navigate to login screen after delay
+    // Check user session and navigate accordingly
     Future.delayed(const Duration(milliseconds: 2500), () {
       if (mounted) {
-        Navigator.of(context).pushReplacement(
-          PageRouteBuilder(
-            pageBuilder: (context, animation, secondaryAnimation) =>
-                const LoginScreen(),
-            transitionsBuilder:
-                (context, animation, secondaryAnimation, child) {
-              return FadeTransition(
-                opacity: animation,
-                child: child,
-              );
-            },
-            transitionDuration: const Duration(milliseconds: 500),
-          ),
-        );
+        _checkUserSession();
       }
     });
+  }
+
+  Future<void> _checkUserSession() async {
+    try {
+      User? currentUser = FirebaseAuth.instance.currentUser;
+
+      if (currentUser != null) {
+        // User is logged in, determine their role
+        String? role = await _authService.getUserRole(currentUser.uid);
+
+        if (mounted) {
+          if (role == 'customer') {
+            Navigator.of(context).pushReplacement(
+              PageRouteBuilder(
+                pageBuilder: (context, animation, secondaryAnimation) =>
+                    const CustomerHomeScreen(),
+                transitionsBuilder:
+                    (context, animation, secondaryAnimation, child) {
+                  return FadeTransition(
+                    opacity: animation,
+                    child: child,
+                  );
+                },
+                transitionDuration: const Duration(milliseconds: 500),
+              ),
+            );
+          } else if (role == 'worker') {
+            Navigator.of(context).pushReplacement(
+              PageRouteBuilder(
+                pageBuilder: (context, animation, secondaryAnimation) =>
+                    const WorkerDashboardScreen(),
+                transitionsBuilder:
+                    (context, animation, secondaryAnimation, child) {
+                  return FadeTransition(
+                    opacity: animation,
+                    child: child,
+                  );
+                },
+                transitionDuration: const Duration(milliseconds: 500),
+              ),
+            );
+          } else {
+            // Role not found, go to login
+            _navigateToLogin();
+          }
+        }
+      } else {
+        // No user logged in, go to login screen
+        if (mounted) {
+          _navigateToLogin();
+        }
+      }
+    } catch (e) {
+      print('❌ Error checking user session: $e');
+      if (mounted) {
+        _navigateToLogin();
+      }
+    }
+  }
+
+  void _navigateToLogin() {
+    Navigator.of(context).pushReplacement(
+      PageRouteBuilder(
+        pageBuilder: (context, animation, secondaryAnimation) =>
+            const LoginScreen(),
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          return FadeTransition(
+            opacity: animation,
+            child: child,
+          );
+        },
+        transitionDuration: const Duration(milliseconds: 500),
+      ),
+    );
   }
 
   @override

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'login_screen.dart';
 import '../services/auth_service.dart';
 import '../widgets/phone_input_field.dart';
@@ -14,16 +15,19 @@ class _CustomerRegistrationScreenState extends State<CustomerRegistrationScreen>
   bool _isPasswordVisible = false;
   bool _isConfirmPasswordVisible = false;
   bool _isLoading = false;
+  String? _selectedCity;
+  String? _selectedRegion;
+  Map<String, dynamic>? _cityData;
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _phoneController = TextEditingController();
-  final TextEditingController _addressController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _confirmPasswordController = TextEditingController();
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
   final Color _primaryColor = const Color(0xFF2463eb);
   final Color _backgroundLight = const Color(0xFFf6f6f8);
   final AuthService _authService = AuthService();
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   @override
   Widget build(BuildContext context) {
@@ -192,18 +196,9 @@ class _CustomerRegistrationScreenState extends State<CustomerRegistrationScreen>
                   },
                 ),
                 const SizedBox(height: 20),
-                _buildTextField(
-                  label: 'Address',
-                  hint: 'Enter your address',
-                  icon: Icons.location_on_outlined,
-                  controller: _addressController,
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Please enter your address';
-                    }
-                    return null;
-                  },
-                ),
+                _buildCityDropdown(),
+                const SizedBox(height: 20),
+                _buildRegionDropdown(),
                 const SizedBox(height: 20),
                 _buildPasswordField(
                   label: 'Password',
@@ -386,6 +381,179 @@ class _CustomerRegistrationScreenState extends State<CustomerRegistrationScreen>
     );
   }
 
+  Widget _buildCityDropdown() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(left: 4, bottom: 8),
+          child: Row(
+            children: [
+              const Text(
+                'City',
+                style: TextStyle(
+                  color: Color(0xFF0e121b),
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(width: 4),
+              const Text(
+                '*',
+                style: TextStyle(
+                  color: Colors.red,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ),
+        DropdownMenu<String>(
+          initialSelection: _selectedCity,
+          onSelected: (String? value) {
+            setState(() {
+              _selectedCity = value;
+              _selectedRegion = null;
+              _loadCityData(value);
+            });
+          },
+          dropdownMenuEntries: const [
+            DropdownMenuEntry(
+              value: 'city_kozhikode',
+              label: 'Kozhikode',
+            ),
+          ],
+          width: double.infinity,
+          inputDecorationTheme: InputDecorationTheme(
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            prefixIconColor: const Color(0xFF9ca3af),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: Color(0xFFe2e8f0)),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: Color(0xFF2463eb), width: 2),
+            ),
+          ),
+          leadingIcon: const Icon(Icons.location_city),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildRegionDropdown() {
+    final isEnabled = _selectedCity != null;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(left: 4, bottom: 8),
+          child: Row(
+            children: [
+              const Text(
+                'Region',
+                style: TextStyle(
+                  color: Color(0xFF0e121b),
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(width: 4),
+              const Text(
+                '*',
+                style: TextStyle(
+                  color: Colors.red,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ),
+        DropdownMenu<String>(
+          enabled: isEnabled,
+          initialSelection: _selectedRegion,
+          onSelected: (String? value) {
+            setState(() {
+              _selectedRegion = value;
+            });
+          },
+          dropdownMenuEntries: _buildRegionItems(),
+          width: double.infinity,
+          inputDecorationTheme: InputDecorationTheme(
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            prefixIconColor: isEnabled ? const Color(0xFF9ca3af) : Colors.grey.shade400,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(
+                color: isEnabled ? const Color(0xFFe2e8f0) : Colors.grey.shade300,
+              ),
+            ),
+            disabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: Colors.grey.shade300),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: Color(0xFF2463eb), width: 2),
+            ),
+            filled: true,
+            fillColor: isEnabled ? Colors.white : Colors.grey.shade50,
+          ),
+          leadingIcon: Icon(
+            Icons.location_on_outlined,
+            color: isEnabled ? const Color(0xFF9ca3af) : Colors.grey.shade400,
+          ),
+        ),
+      ],
+    );
+  }
+
+  List<DropdownMenuEntry<String>> _buildRegionItems() {
+    if (_cityData == null || _cityData!['regions'] == null) {
+      return [];
+    }
+
+    final regions = _cityData!['regions'] as Map<String, dynamic>;
+    return regions.entries.map((entry) {
+      final regionName = entry.value['regionName'] as String;
+      return DropdownMenuEntry(
+        value: entry.key,
+        label: regionName,
+      );
+    }).toList();
+  }
+
+  Future<void> _loadCityData(String? cityId) async {
+    if (cityId == null) return;
+
+    try {
+      final doc = await _firestore.collection('Locations').doc(cityId).get();
+      if (doc.exists) {
+        setState(() {
+          _cityData = doc.data();
+        });
+      }
+    } catch (e) {
+      print('Error loading city data: $e');
+    }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedCity = 'city_kozhikode';
+    _loadCityData('city_kozhikode');
+  }
+
   Widget _buildRegisterButton() {
     return SizedBox(
       width: double.infinity,
@@ -444,7 +612,7 @@ class _CustomerRegistrationScreenState extends State<CustomerRegistrationScreen>
         email: _emailController.text.trim(),
         password: _passwordController.text,
         phone: _phoneController.text.trim(),
-        address: _addressController.text.trim(),
+        address: _selectedRegion ?? '',
       );
 
       if (mounted) {

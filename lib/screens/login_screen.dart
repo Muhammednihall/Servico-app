@@ -5,6 +5,8 @@ import 'worker_dashboard_screen.dart';
 import 'worker_registration_screen.dart';
 import '../services/auth_service.dart';
 
+
+
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
@@ -167,7 +169,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 Align(
                   alignment: Alignment.centerRight,
                   child: TextButton(
-                    onPressed: () {},
+                    onPressed: () => _showForgotPasswordDialog(),
                     child: Text(
                       'Forgot Password?',
                       style: TextStyle(
@@ -569,6 +571,179 @@ class _LoginScreenState extends State<LoginScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  void _showForgotPasswordDialog() {
+    final TextEditingController resetEmailController = TextEditingController();
+    bool isResetting = false;
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+              title: const Text(
+                'Reset Password',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF0e121b),
+                ),
+              ),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Enter your email address and we\'ll send you a link to reset your password.',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Color(0xFF64748b),
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Container(
+                    height: 56,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFf8f9fc),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: const Color(0xFFe2e8f0),
+                        width: 1,
+                      ),
+                    ),
+                    child: TextField(
+                      controller: resetEmailController,
+                      style: const TextStyle(
+                        color: Color(0xFF0e121b),
+                        fontSize: 16,
+                        fontWeight: FontWeight.normal,
+                      ),
+                      decoration: const InputDecoration(
+                        hintText: 'Enter your email',
+                        hintStyle: TextStyle(
+                          color: Color(0xFF94a3b8),
+                          fontSize: 16,
+                        ),
+                        prefixIcon: Icon(
+                          Icons.mail_outlined,
+                          color: Color(0xFF9ca3af),
+                          size: 20,
+                        ),
+                        border: InputBorder.none,
+                        contentPadding: EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 16,
+                        ),
+                      ),
+                      keyboardType: TextInputType.emailAddress,
+                    ),
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: isResetting ? null : () => Navigator.pop(context),
+                  child: const Text(
+                    'Cancel',
+                    style: TextStyle(
+                      color: Color(0xFF64748b),
+                      fontWeight: FontWeight.w600,
+                      fontSize: 14,
+                    ),
+                  ),
+                ),
+                ElevatedButton(
+                  onPressed: isResetting
+                      ? null
+                      : () async {
+                          if (resetEmailController.text.trim().isEmpty) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Please enter your email address'),
+                                backgroundColor: Colors.red,
+                              ),
+                            );
+                            return;
+                          }
+
+                          setState(() {
+                            isResetting = true;
+                          });
+
+                          try {
+                            await _authService.sendPasswordResetEmail(
+                              resetEmailController.text.trim(),
+                            );
+
+                            if (mounted) {
+                              Navigator.pop(context);
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text(
+                                    'Password reset email sent! Check your inbox.',
+                                  ),
+                                  backgroundColor: Colors.green,
+                                  duration: Duration(seconds: 3),
+                                ),
+                              );
+                            }
+                          } catch (e) {
+                            if (mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(e.toString()),
+                                  backgroundColor: Colors.red,
+                                ),
+                              );
+                            }
+                          } finally {
+                            if (mounted) {
+                              setState(() {
+                                isResetting = false;
+                              });
+                            }
+                          }
+                        },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: _primaryColor,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 24,
+                      vertical: 12,
+                    ),
+                  ),
+                  child: isResetting
+                      ? const SizedBox(
+                          height: 16,
+                          width: 16,
+                          child: CircularProgressIndicator(
+                            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                            strokeWidth: 2,
+                          ),
+                        )
+                      : const Text(
+                          'Send Reset Link',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 14,
+                          ),
+                        ),
+                ),
+              ],
+            );
+          },
+        );
+      },
     );
   }
 }

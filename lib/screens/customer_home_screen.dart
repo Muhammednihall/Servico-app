@@ -50,7 +50,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
         ),
         child: SafeArea(
           child: SizedBox(
-            height: 64,
+            height: 56,
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [

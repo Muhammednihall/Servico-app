@@ -1,43 +1,96 @@
 import 'package:flutter/material.dart';
 import 'login_screen.dart';
+import '../services/auth_service.dart';
+import '../widgets/worker_bottom_nav_bar.dart';
+import 'worker_dashboard_screen.dart';
+import 'my_schedule_screen.dart';
+import 'earnings_payments_screen.dart';
+import '../utils/custom_page_route.dart';
 
-class WorkerProfileScreen extends StatelessWidget {
+class WorkerProfileScreen extends StatefulWidget {
   const WorkerProfileScreen({super.key});
 
+  @override
+  State<WorkerProfileScreen> createState() => _WorkerProfileScreenState();
+}
+
+class _WorkerProfileScreenState extends State<WorkerProfileScreen> {
   final Color _primaryColor = const Color(0xFF2463eb);
   final Color _backgroundLight = const Color(0xFFf6f6f8);
+  final int _selectedNavIndex = 3; // Profile is index 3
+
+  void _onNavItemTapped(int index) {
+    if (index == 0) {
+      Navigator.pushReplacement(
+        context,
+        FastPageRoute(
+          builder: (context) => const WorkerDashboardScreen(),
+        ),
+      );
+    } else if (index == 1) {
+      Navigator.pushReplacement(
+        context,
+        FastPageRoute(
+          builder: (context) => const MyScheduleScreen(),
+        ),
+      );
+    } else if (index == 2) {
+      Navigator.pushReplacement(
+        context,
+        FastPageRoute(
+          builder: (context) => const EarningsPaymentsScreen(),
+        ),
+      );
+    } else if (index == 3) {
+      // Already on profile
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: _backgroundLight,
-      body: Column(
+      body: Stack(
         children: [
-          _buildHeader(),
-          Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(20, 32, 20, 100),
-              child: Column(
-                children: [
-                  _buildAccountInfo(),
-                  const SizedBox(height: 20),
-                  _buildSettings(),
-                  const SizedBox(height: 20),
-                  _buildLogoutButton(context),
-                  const SizedBox(height: 24),
-                ],
+          Column(
+            children: [
+              _buildHeader(),
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.fromLTRB(10, 140, 20, 100),
+                  child: Column(
+                    children: [
+                      _buildSettings(),
+                      const SizedBox(height: 20),
+                      _buildLogoutButton(context),
+                      const SizedBox(height: 24),
+                    ],
+                  ),
+                ),
               ),
-            ),
+            ],
+          ),
+          // Account Info Card positioned to overlap header
+          Positioned(
+            top: 240,
+            left: 16,
+            right: 16,
+            child: _buildAccountInfo(),
           ),
         ],
       ),
-      bottomNavigationBar: _buildBottomNavigationBar(),
+      bottomNavigationBar: WorkerBottomNavBar(
+        selectedIndex: _selectedNavIndex,
+        onItemTapped: _onNavItemTapped,
+        primaryColor: _primaryColor,
+      ),
     );
   }
 
   Widget _buildHeader() {
     return Container(
-      padding: const EdgeInsets.fromLTRB(24, 56, 24, 32),
+      width: double.infinity,
+      padding: const EdgeInsets.only(top: 20, bottom: 60),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [const Color(0xFF3b82f6), _primaryColor],
@@ -51,177 +104,169 @@ class WorkerProfileScreen extends StatelessWidget {
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.1),
-            blurRadius: 20,
+            blurRadius: 10,
             offset: const Offset(0, 4),
           ),
         ],
       ),
-      child: Column(
-        children: [
-          Stack(
-            children: [
-              Container(
-                width: 128,
-                height: 128,
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(64),
-                  border: Border.all(
-                    color: Colors.white.withValues(alpha: 0.2),
-                    width: 4,
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.2),
-                      blurRadius: 20,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
-                ),
-                child: Icon(
-                  Icons.person,
-                  size: 64,
-                  color: _primaryColor,
-                ),
-              ),
-              Positioned(
-                bottom: 16,
-                right: 0,
-                child: Container(
-                  width: 36,
-                  height: 36,
+      child: SafeArea(
+        bottom: false,
+        child: Column(
+          children: [
+            Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Container(
+                  width: 128,
+                  height: 128,
                   decoration: BoxDecoration(
-                    color: Colors.grey.shade900,
-                    borderRadius: BorderRadius.circular(18),
-                    border: Border.all(
-                      color: Colors.white,
-                      width: 2,
-                    ),
+                    color: Colors.white,
+                    shape: BoxShape.circle,
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.2),
-                        blurRadius: 8,
-                        offset: const Offset(0, 2),
+                        color: Colors.black.withValues(alpha: 0.15),
+                        blurRadius: 20,
+                        offset: const Offset(0, 4),
                       ),
                     ],
                   ),
-                  child: const Icon(
-                    Icons.edit,
-                    color: Colors.white,
-                    size: 18,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          const Text(
-            'Worker Profile',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 24,
-              fontWeight: FontWeight.w800,
-              letterSpacing: -0.5,
-              height: 1.2,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            'Manage your account and settings',
-            style: TextStyle(
-              color: Colors.blue.shade100,
-              fontSize: 14,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildAccountInfo() {
-    return Transform.translate(
-      offset: const Offset(0, -32),
-      child: Container(
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: Colors.grey.shade100,
-            width: 1,
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05),
-              blurRadius: 4,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFeff6ff),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
                   child: Icon(
-                    Icons.badge_outlined,
+                    Icons.person,
+                    size: 64,
                     color: _primaryColor,
-                    size: 20,
                   ),
                 ),
-                const SizedBox(width: 12),
-                const Text(
-                  'Account Information',
-                  style: TextStyle(
-                    color: Color(0xFF1e293b),
-                    fontSize: 18,
-                    fontWeight: FontWeight.w700,
+                Positioned(
+                  bottom: 0,
+                  right: 0,
+                  child: Container(
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF1e293b),
+                      shape: BoxShape.circle,
+                      border: Border.all(color: Colors.white, width: 2),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.2),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: const Icon(
+                      Icons.edit,
+                      size: 16,
+                      color: Colors.white,
+                    ),
                   ),
                 ),
               ],
             ),
             const SizedBox(height: 16),
-            _buildInfoRow(
-              label: 'Role',
-              value: 'Worker',
-            ),
-            _buildInfoRow(
-              label: 'Service Type',
-              value: 'Home Repairs',
-            ),
-            Padding(
-              padding: const EdgeInsets.only(top: 12),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Member Since',
-                    style: TextStyle(
-                      color: Colors.grey.shade500,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                  Text(
-                    '0000',
-                    style: TextStyle(
-                      color: Colors.grey.shade900,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
+            const Text(
+              'Worker Profile',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 24,
+                fontWeight: FontWeight.w800,
+                letterSpacing: -0.5,
               ),
             ),
+            const SizedBox(height: 4),
+            const SizedBox(height: 0),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildAccountInfo() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.1),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFeff6ff),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(
+                  Icons.badge_outlined,
+                  color: _primaryColor,
+                  size: 18,
+                ),
+              ),
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Text(
+                  'Account Information',
+                  style: TextStyle(
+                    color: Color(0xFF1e293b),
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          _buildInfoRow(
+            label: 'Role',
+            value: 'Worker',
+          ),
+          _buildInfoRow(
+            label: 'Service Type',
+            value: 'Home Repairs',
+          ),
+          _buildInfoRow(
+            label: 'City',
+            value: 'Not Set',
+          ),
+          _buildInfoRow(
+            label: 'Region',
+            value: 'Not Set',
+          ),
+          Padding(
+            padding: const EdgeInsets.only(top: 10),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Member Since',
+                  style: TextStyle(
+                    color: Colors.grey.shade500,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                Text(
+                  '0000',
+                  style: TextStyle(
+                    color: Colors.grey.shade900,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -231,7 +276,7 @@ class WorkerProfileScreen extends StatelessWidget {
     required String value,
   }) {
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 12),
+      padding: const EdgeInsets.symmetric(vertical: 10),
       decoration: BoxDecoration(
         border: Border(
           bottom: BorderSide(
@@ -247,16 +292,19 @@ class WorkerProfileScreen extends StatelessWidget {
             label,
             style: TextStyle(
               color: Colors.grey.shade500,
-              fontSize: 14,
+              fontSize: 13,
               fontWeight: FontWeight.w500,
             ),
           ),
-          Text(
-            value,
-            style: TextStyle(
-              color: Colors.grey.shade900,
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
+          Flexible(
+            child: Text(
+              value,
+              textAlign: TextAlign.end,
+              style: TextStyle(
+                color: Colors.grey.shade900,
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ),
         ],
@@ -268,11 +316,7 @@ class WorkerProfileScreen extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: Colors.grey.shade100,
-          width: 1,
-        ),
+        borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.05),
@@ -297,20 +341,24 @@ class WorkerProfileScreen extends StatelessWidget {
           ),
           _buildSettingsItem(
             icon: Icons.edit_outlined,
+            iconColor: _primaryColor,
             label: 'Edit Profile',
           ),
           _buildSettingsItem(
             icon: Icons.notifications_outlined,
+            iconColor: _primaryColor,
             label: 'Notifications',
           ),
           _buildSettingsItem(
             icon: Icons.shield_outlined,
+            iconColor: _primaryColor,
             label: 'Privacy & Security',
           ),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
             child: _buildSettingsItem(
               icon: Icons.help_outline,
+              iconColor: _primaryColor,
               label: 'Help & Support',
               showBorder: false,
             ),
@@ -322,6 +370,7 @@ class WorkerProfileScreen extends StatelessWidget {
 
   Widget _buildSettingsItem({
     required IconData icon,
+    required Color iconColor,
     required String label,
     bool showBorder = true,
   }) {
@@ -353,7 +402,7 @@ class WorkerProfileScreen extends StatelessWidget {
                   ),
                   child: Icon(
                     icon,
-                    color: _primaryColor,
+                    color: iconColor,
                     size: 20,
                   ),
                 ),
@@ -382,14 +431,17 @@ class WorkerProfileScreen extends StatelessWidget {
   }
 
   Widget _buildLogoutButton(BuildContext context) {
+    final authService = AuthService();
+    
     return Container(
+      width: double.infinity,
       decoration: BoxDecoration(
         gradient: const LinearGradient(
           colors: [Color(0xFFef4444), Color(0xFFdc2626)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
+          begin: Alignment.centerLeft,
+          end: Alignment.centerRight,
         ),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
             color: Colors.red.withValues(alpha: 0.3),
@@ -401,13 +453,27 @@ class WorkerProfileScreen extends StatelessWidget {
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          onTap: () {
-            Navigator.of(context).pushAndRemoveUntil(
-              MaterialPageRoute(builder: (context) => const LoginScreen()),
-              (route) => false,
-            );
+          onTap: () async {
+            try {
+              await authService.logout();
+              if (context.mounted) {
+                Navigator.of(context).pushAndRemoveUntil(
+                  MaterialPageRoute(builder: (context) => const LoginScreen()),
+                  (route) => false,
+                );
+              }
+            } catch (e) {
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Logout failed: $e'),
+                    backgroundColor: Colors.red,
+                  ),
+                );
+              }
+            }
           },
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(24),
           child: Container(
             padding: const EdgeInsets.symmetric(vertical: 16),
             child: Row(
@@ -416,7 +482,7 @@ class WorkerProfileScreen extends StatelessWidget {
                 Icon(
                   Icons.logout,
                   color: Colors.white,
-                  size: 24,
+                  size: 20,
                 ),
                 SizedBox(width: 8),
                 Text(
@@ -432,83 +498,6 @@ class WorkerProfileScreen extends StatelessWidget {
           ),
         ),
       ),
-    );
-  }
-
-  Widget _buildBottomNavigationBar() {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        border: Border(
-          top: BorderSide(
-            color: Colors.grey.shade100,
-            width: 1,
-          ),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 6,
-            offset: const Offset(0, -4),
-          ),
-        ],
-      ),
-      child: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              _buildNavItem(
-                icon: Icons.work_outline,
-                label: 'Jobs',
-                isSelected: false,
-              ),
-              _buildNavItem(
-                icon: Icons.payments_outlined,
-                label: 'Earnings',
-                isSelected: false,
-              ),
-              _buildNavItem(
-                icon: Icons.calendar_month_outlined,
-                label: 'Calendar',
-                isSelected: false,
-              ),
-              _buildNavItem(
-                icon: Icons.person,
-                label: 'Profile',
-                isSelected: true,
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildNavItem({
-    required IconData icon,
-    required String label,
-    required bool isSelected,
-  }) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(
-          icon,
-          color: isSelected ? _primaryColor : Colors.grey.shade400,
-          size: 26,
-        ),
-        const SizedBox(height: 4),
-        Text(
-          label,
-          style: TextStyle(
-            color: isSelected ? _primaryColor : Colors.grey.shade400,
-            fontSize: 10,
-            fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-          ),
-        ),
-      ],
     );
   }
 }
