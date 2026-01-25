@@ -17,20 +17,20 @@ class WeatherWidget extends StatelessWidget {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            const Color(0xFFfbbf24).withOpacity(0.3),
-            const Color(0xFFf59e0b).withOpacity(0.1),
-            Colors.white.withOpacity(0.05),
+            const Color(0xFFfbbf24).withValues(alpha: 0.3),
+            const Color(0xFFf59e0b).withValues(alpha: 0.1),
+            Colors.white.withValues(alpha: 0.05),
           ],
         ),
-        color: Colors.white.withOpacity(0.9),
+        color: Colors.white.withValues(alpha: 0.9),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: const Color(0xFFfef3c7).withOpacity(0.5),
+          color: const Color(0xFFfef3c7).withValues(alpha: 0.5),
           width: 1,
         ),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFFfcd34d).withOpacity(0.2),
+            color: const Color(0xFFfcd34d).withValues(alpha: 0.2),
             blurRadius: 15,
             offset: const Offset(0, 4),
           ),
@@ -50,7 +50,7 @@ class WeatherWidget extends StatelessWidget {
                   shape: BoxShape.circle,
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.yellow.shade600.withOpacity(0.5),
+                      color: Colors.yellow.shade600.withValues(alpha: 0.5),
                       blurRadius: 20,
                       spreadRadius: 3,
                     ),

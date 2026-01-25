@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'login_screen.dart';
 import '../services/auth_service.dart';
+import '../services/worker_service.dart';
 import '../widgets/worker_bottom_nav_bar.dart';
 import 'worker_dashboard_screen.dart';
 import 'my_schedule_screen.dart';
@@ -18,6 +19,40 @@ class _WorkerProfileScreenState extends State<WorkerProfileScreen> {
   final Color _primaryColor = const Color(0xFF2463eb);
   final Color _backgroundLight = const Color(0xFFf6f6f8);
   final int _selectedNavIndex = 3; // Profile is index 3
+  
+  final AuthService _authService = AuthService();
+  final WorkerService _workerService = WorkerService();
+  
+  Map<String, dynamic>? _workerData;
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadWorkerProfile();
+  }
+
+  Future<void> _loadWorkerProfile() async {
+    try {
+      final user = _authService.getCurrentUser();
+      if (user != null) {
+        final data = await _workerService.getWorkerProfile(user.uid);
+        if (mounted) {
+          setState(() {
+            _workerData = data;
+            _isLoading = false;
+          });
+        }
+      }
+    } catch (e) {
+      print('Error loading worker profile: $e');
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
 
   void _onNavItemTapped(int index) {
     if (index == 0) {
@@ -164,9 +199,9 @@ class _WorkerProfileScreenState extends State<WorkerProfileScreen> {
               ],
             ),
             const SizedBox(height: 16),
-            const Text(
-              'Worker Profile',
-              style: TextStyle(
+            Text(
+              _workerData?['name'] ?? 'Worker Profile',
+              style: const TextStyle(
                 color: Colors.white,
                 fontSize: 24,
                 fontWeight: FontWeight.w800,
@@ -228,19 +263,23 @@ class _WorkerProfileScreenState extends State<WorkerProfileScreen> {
           const SizedBox(height: 14),
           _buildInfoRow(
             label: 'Role',
-            value: 'Worker',
+            value: (_workerData?['role'] ?? 'Worker').toString().toUpperCase(),
           ),
           _buildInfoRow(
             label: 'Service Type',
-            value: 'Home Repairs',
+            value: _workerData?['serviceType'] ?? 'Not Set',
           ),
           _buildInfoRow(
-            label: 'City',
-            value: 'Not Set',
+            label: 'Experience',
+            value: '${_workerData?['experience'] ?? 0} Years',
           ),
           _buildInfoRow(
-            label: 'Region',
-            value: 'Not Set',
+            label: 'Phone',
+            value: _workerData?['phone'] ?? 'Not Set',
+          ),
+          _buildInfoRow(
+            label: 'Service Area',
+            value: _workerData?['serviceArea'] ?? 'Not Set',
           ),
           Padding(
             padding: const EdgeInsets.only(top: 10),
@@ -248,7 +287,7 @@ class _WorkerProfileScreenState extends State<WorkerProfileScreen> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  'Member Since',
+                  'Availability',
                   style: TextStyle(
                     color: Colors.grey.shade500,
                     fontSize: 13,
@@ -256,9 +295,9 @@ class _WorkerProfileScreenState extends State<WorkerProfileScreen> {
                   ),
                 ),
                 Text(
-                  '0000',
+                  (_workerData?['isAvailable'] ?? false) ? 'AVAILABLE' : 'UNAVAILABLE',
                   style: TextStyle(
-                    color: Colors.grey.shade900,
+                    color: (_workerData?['isAvailable'] ?? false) ? Colors.green : Colors.red,
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
                   ),

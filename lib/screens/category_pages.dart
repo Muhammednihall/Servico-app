@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 import 'booking_confirmed_screen.dart';
+import 'booking_request_screen.dart';
+import 'worker_public_profile_screen.dart';
 import '../services/worker_service.dart';
+import '../services/booking_service.dart';
+import '../services/category_service.dart';
 
 /// Base class for category service list screens
 /// This allows all service categories to use the same design pattern
@@ -9,6 +13,8 @@ class CategoryServiceScreen extends StatefulWidget {
   final IconData categoryIcon;
   final Color categoryColor;
   final Color categoryBgColor;
+  final List<SubCategoryModel> subcategories;
+  final String? initialSubcategory;
 
   const CategoryServiceScreen({
     super.key,
@@ -16,6 +22,8 @@ class CategoryServiceScreen extends StatefulWidget {
     required this.categoryIcon,
     required this.categoryColor,
     required this.categoryBgColor,
+    this.subcategories = const [],
+    this.initialSubcategory,
   });
 
   @override
@@ -26,14 +34,20 @@ class _CategoryServiceScreenState extends State<CategoryServiceScreen> {
   final Color _primaryColor = const Color(0xFF2463eb);
   final Color _backgroundLight = const Color(0xFFf6f6f8);
   final WorkerService _workerService = WorkerService();
+  final BookingService _bookingService = BookingService();
   
-  List<Map<String, dynamic>> _workers = [];
+  List<Map<String, dynamic>> _allWorkers = [];
+  List<Map<String, dynamic>> _filteredWorkers = [];
   bool _isLoading = true;
   String? _error;
+  String _selectedFilter = 'All';
+  String _searchQuery = '';
+  String? _selectedSubcategory;
 
   @override
   void initState() {
     super.initState();
+    _selectedSubcategory = widget.initialSubcategory;
     _loadWorkers();
   }
 
@@ -47,7 +61,8 @@ class _CategoryServiceScreenState extends State<CategoryServiceScreen> {
       final workers = await _workerService.getWorkersByCategory(widget.categoryName);
       
       setState(() {
-        _workers = workers;
+        _allWorkers = workers;
+        _applyFilters();
         _isLoading = false;
       });
     } catch (e) {
@@ -56,6 +71,51 @@ class _CategoryServiceScreenState extends State<CategoryServiceScreen> {
         _isLoading = false;
       });
     }
+  }
+
+  void _applyFilters() {
+    setState(() {
+      Iterable<Map<String, dynamic>> workers = _allWorkers;
+
+      // Apply Subcategory Filter
+      if (_selectedSubcategory != null && _selectedSubcategory != 'All') {
+        workers = workers.where((worker) {
+          final workerSubcategory = worker['subcategory'] as String? ?? '';
+          return workerSubcategory.toLowerCase() == _selectedSubcategory!.toLowerCase();
+        });
+      }
+
+      // Apply Search Query
+      if (_searchQuery.isNotEmpty) {
+        final query = _searchQuery.toLowerCase();
+        workers = workers.where((worker) {
+          final name = (worker['name'] as String? ?? '').toLowerCase();
+          final sub = (worker['subcategory'] as String? ?? '').toLowerCase();
+          final bio = (worker['bio'] as String? ?? '').toLowerCase();
+          final service = (worker['serviceType'] as String? ?? '').toLowerCase();
+          return name.contains(query) || sub.contains(query) || bio.contains(query) || service.contains(query);
+        });
+      }
+
+      // Apply Sorting/Filter Tabs
+      List<Map<String, dynamic>> workersList = workers.toList();
+      
+      if (_selectedFilter == 'Rating 4.0+') {
+        workersList = workersList.where((worker) {
+          final rating = (worker['rating'] as num?)?.toDouble() ?? 0.0;
+          return rating >= 4.0;
+        }).toList();
+        workersList.sort((a, b) => (b['rating'] as num).compareTo(a['rating'] as num));
+      } else if (_selectedFilter == 'Availability') {
+        workersList = workersList.where((worker) {
+          return worker['isAvailable'] == true;
+        }).toList();
+      } else if (_selectedFilter == 'Price: Low to High') {
+        workersList.sort((a, b) => (a['hourlyRate'] as num).compareTo(b['hourlyRate'] as num));
+      }
+
+      _filteredWorkers = workersList;
+    });
   }
 
   @override
@@ -69,7 +129,6 @@ class _CategoryServiceScreenState extends State<CategoryServiceScreen> {
           Expanded(
             child: _buildServiceList(context),
           ),
-          _buildBottomNavigation(context),
         ],
       ),
     );
@@ -84,12 +143,12 @@ class _CategoryServiceScreenState extends State<CategoryServiceScreen> {
           end: Alignment.topRight,
         ),
         borderRadius: const BorderRadius.only(
-          bottomLeft: Radius.circular(16),
-          bottomRight: Radius.circular(16),
+          bottomLeft: Radius.circular(32),
+          bottomRight: Radius.circular(32),
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.1),
+            color: Colors.black.withOpacity(0.1),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -107,7 +166,7 @@ class _CategoryServiceScreenState extends State<CategoryServiceScreen> {
                       width: 40,
                       height: 40,
                       decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.2),
+                        color: Colors.white.withOpacity(0.2),
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: const Icon(
@@ -120,7 +179,7 @@ class _CategoryServiceScreenState extends State<CategoryServiceScreen> {
                   ),
                   Expanded(
                     child: Text(
-                      '${widget.categoryName} Services',
+                      _selectedSubcategory ?? '${widget.categoryName} Services',
                       textAlign: TextAlign.center,
                       style: const TextStyle(
                         color: Colors.white,
@@ -137,7 +196,7 @@ class _CategoryServiceScreenState extends State<CategoryServiceScreen> {
               Container(
                 height: 48,
                 decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.2),
+                  color: Colors.white.withOpacity(0.2),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Row(
@@ -145,17 +204,23 @@ class _CategoryServiceScreenState extends State<CategoryServiceScreen> {
                     const SizedBox(width: 12),
                     Icon(
                       Icons.search,
-                      color: Colors.white.withValues(alpha: 0.7),
+                      color: Colors.white.withOpacity(0.7),
                       size: 20,
                     ),
                     const SizedBox(width: 12),
                     Expanded(
                       child: TextField(
+                        onChanged: (value) {
+                          setState(() {
+                            _searchQuery = value;
+                          });
+                          _applyFilters();
+                        },
                         style: const TextStyle(color: Colors.white),
                         decoration: InputDecoration(
                           hintText: 'Search for specific services...',
                           hintStyle: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.7),
+                            color: Colors.white.withOpacity(0.7),
                             fontSize: 14,
                           ),
                           border: InputBorder.none,
@@ -190,7 +255,7 @@ class _CategoryServiceScreenState extends State<CategoryServiceScreen> {
           children: [
             _buildFilterChip('Rating 4.0+'),
             const SizedBox(width: 12),
-            _buildFilterChip('Price'),
+            _buildFilterChip('Price: Low to High'),
             const SizedBox(width: 12),
             _buildFilterChip('Distance'),
             const SizedBox(width: 12),
@@ -202,41 +267,51 @@ class _CategoryServiceScreenState extends State<CategoryServiceScreen> {
   }
 
   Widget _buildFilterChip(String label) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: Colors.grey.shade200,
-          width: 1,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 4,
-            offset: const Offset(0, 2),
+    bool isSelected = _selectedFilter == label;
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          // If already selected, clicking again de-selects it (All)
+          _selectedFilter = isSelected ? 'All' : label;
+          _applyFilters();
+        });
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: isSelected ? _primaryColor : Colors.grey.shade200,
+            width: isSelected ? 1.5 : 1,
           ),
-        ],
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            label,
-            style: TextStyle(
-              color: Colors.grey.shade700,
-              fontSize: 14,
-              fontWeight: FontWeight.w500,
+          boxShadow: [
+            BoxShadow(
+              color: isSelected ? _primaryColor.withValues(alpha: 0.1) : Colors.black.withValues(alpha: 0.05),
+              blurRadius: 4,
+              offset: const Offset(0, 2),
             ),
-          ),
-          const SizedBox(width: 4),
-          Icon(
-            Icons.keyboard_arrow_down,
-            color: Colors.grey.shade500,
-            size: 20,
-          ),
-        ],
+          ],
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              label,
+              style: TextStyle(
+                color: isSelected ? _primaryColor : Colors.grey.shade700,
+                fontSize: 14,
+                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+              ),
+            ),
+            const SizedBox(width: 4),
+            Icon(
+              Icons.keyboard_arrow_down,
+              color: isSelected ? _primaryColor : Colors.grey.shade500,
+              size: 20,
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -277,7 +352,7 @@ class _CategoryServiceScreenState extends State<CategoryServiceScreen> {
       );
     }
 
-    if (_workers.isEmpty) {
+    if (_filteredWorkers.isEmpty) {
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -311,9 +386,9 @@ class _CategoryServiceScreenState extends State<CategoryServiceScreen> {
 
     return ListView.builder(
       padding: const EdgeInsets.all(16),
-      itemCount: _workers.length,
+      itemCount: _filteredWorkers.length,
       itemBuilder: (context, index) {
-        return _buildServiceCard(context, _workers[index]);
+        return _buildServiceCard(context, _filteredWorkers[index]);
       },
     );
   }
@@ -462,7 +537,12 @@ class _CategoryServiceScreenState extends State<CategoryServiceScreen> {
                 Expanded(
                   child: OutlinedButton(
                     onPressed: () {
-                      // TODO: Navigate to worker profile
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => WorkerPublicProfileScreen(worker: worker),
+                        ),
+                      );
                     },
                     style: OutlinedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 12),
@@ -484,13 +564,40 @@ class _CategoryServiceScreenState extends State<CategoryServiceScreen> {
                 const SizedBox(width: 12),
                 Expanded(
                   child: ElevatedButton(
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const BookingConfirmedScreen(),
-                        ),
-                      );
+                    onPressed: () async {
+                      try {
+                        showDialog(
+                          context: context,
+                          barrierDismissible: false,
+                          builder: (context) => const Center(child: CircularProgressIndicator()),
+                        );
+
+                        final requestId = await _bookingService.createBookingRequest(
+                          workerId: worker['id'] ?? '',
+                          workerName: worker['name'] ?? 'Worker',
+                          serviceName: widget.categoryName,
+                          price: 40.0,
+                          duration: 1,
+                        );
+
+                        if (context.mounted) Navigator.pop(context);
+
+                        if (context.mounted) {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => BookingRequestScreen(requestId: requestId),
+                            ),
+                          );
+                        }
+                      } catch (e) {
+                        if (context.mounted) Navigator.pop(context);
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+                          );
+                        }
+                      }
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: _primaryColor,
@@ -518,119 +625,160 @@ class _CategoryServiceScreenState extends State<CategoryServiceScreen> {
     );
   }
 
-  Widget _buildBottomNavigation(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        border: Border(
-          top: BorderSide(
-            color: Colors.grey.shade200,
-            width: 1,
-          ),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 6,
-            offset: const Offset(0, -4),
-          ),
-        ],
-      ),
-      child: SafeArea(
-        child: SizedBox(
-          height: 56,
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              _buildNavItem(
-                icon: Icons.home,
-                label: 'Home',
-                isSelected: false,
-                onTap: () {
-                  Navigator.of(context).popUntil((route) => route.isFirst);
-                },
-              ),
-              _buildNavItem(
-                icon: Icons.person_outline,
-                label: 'Profile',
-                isSelected: false,
-                onTap: () {},
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
+}
 
-  Widget _buildNavItem({
-    required IconData icon,
-    required String label,
-    required bool isSelected,
-    required VoidCallback onTap,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
+/// Screen to select a subcategory before viewing the worker list
+class SubCategorySelectionScreen extends StatelessWidget {
+  final CategoryModel category;
+
+  const SubCategorySelectionScreen({
+    super.key,
+    required this.category,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final Color primaryColor = category.getColor();
+    final Color bgColor = primaryColor.withOpacity(0.05);
+
+    return Scaffold(
+      backgroundColor: Colors.white,
+      appBar: AppBar(
+        title: Text(
+          category.name,
+          style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF1e293b)),
+        ),
+        centerTitle: true,
+        backgroundColor: Colors.white,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new, color: Color(0xFF1e293b), size: 20),
+          onPressed: () => Navigator.pop(context),
+        ),
+      ),
+      body: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(
-            icon,
-            color: isSelected ? _primaryColor : Colors.grey.shade400,
-            size: 28,
-          ),
-          const SizedBox(height: 4),
-          Text(
-            label,
-            style: TextStyle(
-              color: isSelected ? _primaryColor : Colors.grey.shade400,
-              fontSize: 10,
-              fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+          Padding(
+            padding: const EdgeInsets.all(24.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'What ${category.name} service',
+                  style: const TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFF1e293b),
+                    letterSpacing: -0.5,
+                  ),
+                ),
+                const Text(
+                  'do you need today?',
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFF1e293b),
+                    letterSpacing: -0.5,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Select a subcategory to find available experts',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.grey.shade600,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
             ),
           ),
+          Expanded(
+            child: GridView.builder(
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 2,
+                mainAxisSpacing: 16,
+                crossAxisSpacing: 16,
+                childAspectRatio: 1.1,
+              ),
+              itemCount: category.subcategories.length,
+              itemBuilder: (context, index) {
+                final sub = category.subcategories[index];
+                return GestureDetector(
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => CategoryServiceScreen(
+                          categoryName: category.name,
+                          categoryIcon: category.getIconData(),
+                          categoryColor: category.getColor(),
+                          categoryBgColor: category.getColor().withOpacity(0.1),
+                          subcategories: category.subcategories,
+                          initialSubcategory: sub.name,
+                        ),
+                      ),
+                    );
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: bgColor,
+                      borderRadius: BorderRadius.circular(24),
+                      border: Border.all(
+                        color: primaryColor.withOpacity(0.1),
+                        width: 1.5,
+                      ),
+                    ),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Container(
+                          width: 52,
+                          height: 52,
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(16),
+                            boxShadow: [
+                              BoxShadow(
+                                color: primaryColor.withOpacity(0.15),
+                                blurRadius: 10,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
+                          ),
+                          child: Icon(
+                            sub.getIconData(),
+                            color: primaryColor,
+                            size: 28,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          sub.name,
+                          textAlign: TextAlign.center,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: primaryColor.withOpacity(0.9),
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: -0.2,
+                            height: 1.1,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+          const SizedBox(height: 24),
         ],
       ),
     );
   }
-}
-
-/// Specific category screens
-class ElectricianListScreen extends CategoryServiceScreen {
-  const ElectricianListScreen({super.key})
-      : super(
-          categoryName: 'Electrician',
-          categoryIcon: Icons.electrical_services,
-          categoryColor: const Color(0xFF2463eb),
-          categoryBgColor: const Color(0xFFeff6ff),
-        );
-}
-
-class PlumberListScreen extends CategoryServiceScreen {
-  const PlumberListScreen({super.key})
-      : super(
-          categoryName: 'Plumber',
-          categoryIcon: Icons.plumbing,
-          categoryColor: const Color(0xFF06b6d4),
-          categoryBgColor: const Color(0xFFecfeff),
-        );
-}
-
-class CarpenterListScreen extends CategoryServiceScreen {
-  const CarpenterListScreen({super.key})
-      : super(
-          categoryName: 'Carpenter',
-          categoryIcon: Icons.carpenter,
-          categoryColor: const Color(0xFFea580c),
-          categoryBgColor: const Color(0xFFfff7ed),
-        );
-}
-
-class CleaningListScreen extends CategoryServiceScreen {
-  const CleaningListScreen({super.key})
-      : super(
-          categoryName: 'Cleaning',
-          categoryIcon: Icons.cleaning_services,
-          categoryColor: const Color(0xFFa855f7),
-          categoryBgColor: const Color(0xFFfaf5ff),
-        );
 }

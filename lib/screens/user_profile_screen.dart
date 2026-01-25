@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'login_screen.dart';
+import 'edit_profile_screen.dart';
 import '../services/auth_service.dart';
+import '../services/user_service.dart';
 
 class UserProfileScreen extends StatelessWidget {
   const UserProfileScreen({super.key});
@@ -17,7 +19,7 @@ class UserProfileScreen extends StatelessWidget {
       color: _backgroundLight,
       child: Column(
         children: [
-          _buildHeader(),
+          _buildHeader(context),
           Expanded(
             child: SingleChildScrollView(
               padding: const EdgeInsets.fromLTRB(20, 32, 20, 100),
@@ -25,7 +27,7 @@ class UserProfileScreen extends StatelessWidget {
                 children: [
                   _buildAccountInfo(),
                   const SizedBox(height: 20),
-                  _buildSettings(),
+                  _buildSettings(context),
                   const SizedBox(height: 20),
                   _buildLogoutButton(context),
                   const SizedBox(height: 8),
@@ -45,7 +47,7 @@ class UserProfileScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildHeader() {
+  Widget _buildHeader(BuildContext context) {
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 56, 16, 64),
       decoration: BoxDecoration(
@@ -55,8 +57,8 @@ class UserProfileScreen extends StatelessWidget {
           end: Alignment.bottomCenter,
         ),
         borderRadius: const BorderRadius.only(
-          bottomLeft: Radius.circular(40),
-          bottomRight: Radius.circular(40),
+          bottomLeft: Radius.circular(32),
+          bottomRight: Radius.circular(32),
         ),
         boxShadow: [
           BoxShadow(
@@ -97,28 +99,36 @@ class UserProfileScreen extends StatelessWidget {
               Positioned(
                 bottom: 4,
                 right: 4,
-                child: Container(
-                  width: 36,
-                  height: 36,
-                  decoration: BoxDecoration(
-                    color: _primaryColor,
-                    borderRadius: BorderRadius.circular(18),
-                    border: Border.all(
-                      color: Colors.white,
-                      width: 2,
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.2),
-                        blurRadius: 4,
-                        offset: const Offset(0, 2),
+                child: GestureDetector(
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const EditProfileScreen()),
+                    );
+                  },
+                  child: Container(
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      color: _primaryColor,
+                      borderRadius: BorderRadius.circular(18),
+                      border: Border.all(
+                        color: Colors.white,
+                        width: 2,
                       ),
-                    ],
-                  ),
-                  child: const Icon(
-                    Icons.edit,
-                    color: Colors.white,
-                    size: 18,
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.2),
+                          blurRadius: 4,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: const Icon(
+                      Icons.edit,
+                      color: Colors.white,
+                      size: 18,
+                    ),
                   ),
                 ),
               ),
@@ -283,7 +293,7 @@ class UserProfileScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildSettings() {
+  Widget _buildSettings(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -319,28 +329,34 @@ class UserProfileScreen extends StatelessWidget {
             label: 'Edit Profile',
             iconColor: _primaryColor,
             iconBg: const Color(0xFFeff6ff),
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const EditProfileScreen()),
+              );
+            },
           ),
           _buildSettingsItem(
             icon: Icons.notifications_outlined,
             label: 'Notifications',
             iconColor: const Color(0xFFea580c),
             iconBg: const Color(0xFFfff7ed),
+            onTap: () {},
           ),
           _buildSettingsItem(
             icon: Icons.lock_outline,
             label: 'Privacy & Security',
             iconColor: const Color(0xFF10b981),
             iconBg: const Color(0xFFecfdf5),
+            onTap: () {},
           ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-            child: _buildSettingsItem(
-              icon: Icons.help_outline,
-              label: 'Help & Support',
-              iconColor: const Color(0xFFa855f7),
-              iconBg: const Color(0xFFfaf5ff),
-              showBorder: false,
-            ),
+          _buildSettingsItem(
+            icon: Icons.help_outline,
+            label: 'Help & Support',
+            iconColor: const Color(0xFFa855f7),
+            iconBg: const Color(0xFFfaf5ff),
+            showBorder: true,
+            onTap: () {},
           ),
         ],
       ),
@@ -352,13 +368,14 @@ class UserProfileScreen extends StatelessWidget {
     required String label,
     required Color iconColor,
     required Color iconBg,
+    required VoidCallback onTap,
     bool showBorder = true,
   }) {
     return Container(
       decoration: showBorder
           ? BoxDecoration(
               border: Border(
-                top: BorderSide(
+                bottom: BorderSide(
                   color: Colors.grey.shade50,
                   width: 1,
                 ),
@@ -368,7 +385,7 @@ class UserProfileScreen extends StatelessWidget {
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          onTap: () {},
+          onTap: onTap,
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
             child: Row(

@@ -7,6 +7,7 @@ import '../widgets/worker_bottom_nav_bar.dart';
 import '../utils/custom_page_route.dart';
 import '../services/auth_service.dart';
 import '../services/worker_service.dart';
+import '../services/booking_service.dart';
 
 class WorkerDashboardScreen extends StatefulWidget {
   const WorkerDashboardScreen({super.key});
@@ -22,6 +23,7 @@ class _WorkerDashboardScreenState extends State<WorkerDashboardScreen> {
   final Color _backgroundLight = const Color(0xFFf6f6f8);
   final AuthService _authService = AuthService();
   final WorkerService _workerService = WorkerService();
+  final BookingService _bookingService = BookingService();
   
   late String _workerId;
   String _workerName = 'Worker';
@@ -108,6 +110,9 @@ class _WorkerDashboardScreenState extends State<WorkerDashboardScreen> {
                 children: [
                   _buildAvailabilityStatus(),
                   const SizedBox(height: 20),
+                  _buildIncomingRequests(),
+                  const SizedBox(height: 24),
+                  _buildActiveJobs(),
                   const SizedBox(height: 24),
                   const WeatherWidget(),
                   const SizedBox(height: 20),
@@ -142,8 +147,8 @@ class _WorkerDashboardScreenState extends State<WorkerDashboardScreen> {
           end: Alignment.bottomRight,
         ),
         borderRadius: const BorderRadius.only(
-          bottomLeft: Radius.circular(40),
-          bottomRight: Radius.circular(40),
+          bottomLeft: Radius.circular(32),
+          bottomRight: Radius.circular(32),
         ),
         boxShadow: [
           BoxShadow(
@@ -220,38 +225,41 @@ class _WorkerDashboardScreenState extends State<WorkerDashboardScreen> {
                   ],
                 ),
               ),
-              Stack(
-                children: [
-                  Container(
-                    width: 40,
-                    height: 40,
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.2),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: const Icon(
-                      Icons.notifications_outlined,
-                      color: Colors.white,
-                      size: 24,
-                    ),
-                  ),
-                  Positioned(
-                    top: 8,
-                    right: 10,
-                    child: Container(
-                      width: 8,
-                      height: 8,
+              GestureDetector(
+                onTap: () => _showNotifications(context),
+                child: Stack(
+                  children: [
+                    Container(
+                      width: 40,
+                      height: 40,
                       decoration: BoxDecoration(
-                        color: Colors.red,
-                        borderRadius: BorderRadius.circular(4),
-                        border: Border.all(
-                          color: _primaryColor,
-                          width: 1,
+                        color: Colors.white.withValues(alpha: 0.2),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: const Icon(
+                        Icons.notifications_outlined,
+                        color: Colors.white,
+                        size: 24,
+                      ),
+                    ),
+                    Positioned(
+                      top: 8,
+                      right: 10,
+                      child: Container(
+                        width: 8,
+                        height: 8,
+                        decoration: BoxDecoration(
+                          color: Colors.red,
+                          borderRadius: BorderRadius.circular(4),
+                          border: Border.all(
+                            color: _primaryColor,
+                            width: 1,
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ],
           ),
@@ -399,30 +407,43 @@ class _WorkerDashboardScreenState extends State<WorkerDashboardScreen> {
   }
 
   Widget _buildStatsCards() {
-    return Row(
-      children: [
-        Expanded(
-          child: _buildStatCard(
-            icon: Icons.assignment_outlined,
-            iconColor: _primaryColor,
-            iconBg: const Color(0xFFeff6ff),
-            label: 'Current Jobs',
-            value: '$_currentJobsCount',
-            badge: _currentJobsCount > 0 ? 'Active' : null,
-            badgeColor: _primaryColor,
-          ),
-        ),
-        const SizedBox(width: 16),
-        Expanded(
-          child: _buildStatCard(
-            icon: Icons.attach_money,
-            iconColor: const Color(0xFF10b981),
-            iconBg: const Color(0xFFecfdf5),
-            label: "Today's Earnings",
-            value: '\$${_todaysEarnings.toStringAsFixed(2)}',
-          ),
-        ),
-      ],
+    return StreamBuilder<Map<String, dynamic>?>(
+      stream: _workerService.streamWorkerWallet(_workerId),
+      builder: (context, walletSnapshot) {
+        return StreamBuilder<List<Map<String, dynamic>>>(
+          stream: _bookingService.streamActiveJobs(_workerId),
+          builder: (context, jobsSnapshot) {
+            final activeJobsCount = jobsSnapshot.data?.length ?? 0;
+            final balance = (walletSnapshot.data?['balance'] as num?)?.toDouble() ?? 0.0;
+
+            return Row(
+              children: [
+                Expanded(
+                  child: _buildStatCard(
+                    icon: Icons.assignment_outlined,
+                    iconColor: _primaryColor,
+                    iconBg: const Color(0xFFeff6ff),
+                    label: 'Current Jobs',
+                    value: '$activeJobsCount',
+                    badge: activeJobsCount > 0 ? 'Active' : null,
+                    badgeColor: _primaryColor,
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: _buildStatCard(
+                    icon: Icons.attach_money,
+                    iconColor: const Color(0xFF10b981),
+                    iconBg: const Color(0xFFecfdf5),
+                    label: "Total Balance",
+                    value: '\$${balance.toStringAsFixed(2)}',
+                  ),
+                ),
+              ],
+            );
+          },
+        );
+      },
     );
   }
 
@@ -702,6 +723,238 @@ class _WorkerDashboardScreenState extends State<WorkerDashboardScreen> {
                 fontWeight: FontWeight.w600,
               ),
             ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildIncomingRequests() {
+    final user = _authService.getCurrentUser();
+    if (user == null) return const SizedBox.shrink();
+
+    return StreamBuilder<List<Map<String, dynamic>>>(
+      stream: _bookingService.streamWorkerRequests(user.uid),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData || snapshot.data!.isEmpty) {
+          return const SizedBox.shrink();
+        }
+
+        final requests = snapshot.data!;
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Padding(
+              padding: EdgeInsets.only(left: 4, bottom: 12),
+              child: Text(
+                'Incoming Requests',
+                style: TextStyle(
+                  color: Color(0xFF1e293b),
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                  height: 1.2,
+                ),
+              ),
+            ),
+            ...requests.map((request) => _buildRequestCard(request)).toList(),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildRequestCard(Map<String, dynamic> request) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: _primaryColor, width: 1.5),
+        boxShadow: [
+          BoxShadow(
+            color: _primaryColor.withValues(alpha: 0.1),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                request['serviceName'] ?? 'New Request',
+                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(
+                  color: Colors.amber.shade100,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.timer_outlined, size: 14, color: Colors.amber.shade800),
+                    const SizedBox(width: 4),
+                    const Text('Expiring', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text('${request['duration']} Hour(s) Requested', style: const TextStyle(fontWeight: FontWeight.bold)),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: ElevatedButton(
+                  onPressed: () => _bookingService.updateRequestStatus(request['id'], 'accepted'),
+                  style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF10b981), foregroundColor: Colors.white),
+                  child: const Text('Accept'),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: () => _bookingService.updateRequestStatus(request['id'], 'rejected'),
+                  style: OutlinedButton.styleFrom(foregroundColor: Colors.red, side: const BorderSide(color: Colors.red)),
+                  child: const Text('Reject'),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildActiveJobs() {
+    final user = _authService.getCurrentUser();
+    if (user == null) return const SizedBox.shrink();
+
+    return StreamBuilder<List<Map<String, dynamic>>>(
+      stream: _bookingService.streamActiveJobs(user.uid),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData || snapshot.data!.isEmpty) {
+          return const SizedBox.shrink();
+        }
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Padding(
+              padding: EdgeInsets.only(left: 4, bottom: 12),
+              child: Text('Active Jobs', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            ),
+            ...snapshot.data!.map((job) => _buildActiveJobCard(job)).toList(),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildActiveJobCard(Map<String, dynamic> job) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.green.shade200),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(job['serviceName'], style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+              const Badge(label: Text('In Progress'), backgroundColor: Color(0xFFecfdf5), textColor: Color(0xFF10b981)),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: ElevatedButton.icon(
+                  onPressed: () => _showExtraTimeDialog(job['id']),
+                  icon: const Icon(Icons.more_time),
+                  label: const Text('Add Time'),
+                  style: ElevatedButton.styleFrom(backgroundColor: _primaryColor, foregroundColor: Colors.white),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: () => _bookingService.completeJob(job['id']),
+                  style: OutlinedButton.styleFrom(foregroundColor: const Color(0xFF10b981), side: const BorderSide(color: Color(0xFF10b981))),
+                  child: const Text('Complete'),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showExtraTimeDialog(String requestId) {
+    int extraHours = 1;
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('Request Extra Time'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text('How many extra hours do you need?'),
+              const SizedBox(height: 16),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  IconButton(onPressed: extraHours > 1 ? () => setDialogState(() => extraHours--) : null, icon: const Icon(Icons.remove_circle_outline)),
+                  Text('$extraHours', style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+                  IconButton(onPressed: () => setDialogState(() => extraHours++), icon: const Icon(Icons.add_circle_outline)),
+                ],
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+            ElevatedButton(
+              onPressed: () async {
+                await _bookingService.requestExtraTime(requestId, extraHours);
+                if (context.mounted) Navigator.pop(context);
+              },
+              child: const Text('Send'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showNotifications(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (context) => Container(
+        height: 350,
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Notifications', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 20),
+            ListTile(leading: const Icon(Icons.work_outline, color: Colors.blue), title: const Text('New Job Request'), subtitle: const Text('Someone requested an electrician nearby.')),
+            const Divider(),
+            ListTile(leading: const Icon(Icons.account_balance_wallet, color: Colors.green), title: const Text('Payment Processed'), subtitle: const Text('Your payout for last week is ready.')),
           ],
         ),
       ),

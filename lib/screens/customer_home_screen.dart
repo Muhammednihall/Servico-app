@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'category_pages.dart';
 import 'user_profile_screen.dart';
+import 'all_services_screen.dart';
+import '../services/category_service.dart';
+import '../services/worker_service.dart';
 import '../widgets/weather_widget.dart';
 
 class CustomerHomeScreen extends StatefulWidget {
@@ -27,6 +30,12 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
   }
 
   @override
+  void initState() {
+    super.initState();
+    // Category data is already managed by the database
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
@@ -49,6 +58,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
           ],
         ),
         child: SafeArea(
+          top: false,
           child: SizedBox(
             height: 56,
             child: Row(
@@ -113,37 +123,40 @@ class CustomerHomeContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      constraints: const BoxConstraints(maxWidth: 500),
-      margin: const EdgeInsets.symmetric(horizontal: 0),
-      child: Column(
-        children: [
-          _buildHeader(),
-          Expanded(
-            child: SingleChildScrollView(
-              child: Column(
-                children: [
-                  const SizedBox(height: 24),
-                  _buildPromotions(context),
-                  const SizedBox(height: 32),
-                  const WeatherWidget(),
-                  const SizedBox(height: 32),
-                  _buildServiceCategories(context),
-                  const SizedBox(height: 32),
-                  _buildAboutServico(),
-                  const SizedBox(height: 40),
-                ],
-              ),
+    return Column(
+      children: [
+        _buildHeader(),
+        Expanded(
+          child: RefreshIndicator(
+            onRefresh: () async {
+              // Refresh is handled by StreamBuilder automatically
+              await Future.delayed(const Duration(seconds: 1));
+            },
+            child: ListView(
+              padding: EdgeInsets.zero,
+              children: [
+                const SizedBox(height: 16),
+                _buildPromotions(context),
+                const SizedBox(height: 20),
+                _buildTopCategories(context),
+                const SizedBox(height: 20),
+                const WeatherWidget(),
+                const SizedBox(height: 20),
+                _buildServiceCategories(context),
+                const SizedBox(height: 20),
+                _buildAboutServico(),
+                const SizedBox(height: 32),
+              ],
             ),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
   Widget _buildHeader() {
     return Container(
-      padding: const EdgeInsets.fromLTRB(24, 56, 24, 24),
+      padding: const EdgeInsets.fromLTRB(24, 48, 24, 20),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
           colors: [Color(0xFF1e3a8a), Color(0xFF2463eb), Color(0xFF0ea5e9)],
@@ -151,8 +164,8 @@ class CustomerHomeContent extends StatelessWidget {
           end: Alignment.topRight,
         ),
         borderRadius: const BorderRadius.only(
-          bottomLeft: Radius.circular(40),
-          bottomRight: Radius.circular(40),
+          bottomLeft: Radius.circular(32),
+          bottomRight: Radius.circular(32),
         ),
         boxShadow: [
           BoxShadow(
@@ -242,7 +255,7 @@ class CustomerHomeContent extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 16),
           Container(
             height: 48,
             decoration: BoxDecoration(
@@ -254,7 +267,7 @@ class CustomerHomeContent extends StatelessWidget {
               ),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
+                  color: Colors.black.withValues(alpha: 0.05),
                   blurRadius: 8,
                   offset: const Offset(0, 2),
                 ),
@@ -403,7 +416,7 @@ class CustomerHomeContent extends StatelessWidget {
           ),
         ],
       ),
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.all(20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisAlignment: MainAxisAlignment.center,
@@ -446,6 +459,124 @@ class CustomerHomeContent extends StatelessWidget {
     );
   }
 
+  Widget _buildTopCategories(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Top Services',
+            style: TextStyle(
+              color: Color(0xFF1e293b),
+              fontSize: 20,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 12),
+          StreamBuilder<List<CategoryModel>>(
+            stream: CategoryService().streamTopCategories(limit: 4),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(
+                  child: Padding(
+                    padding: EdgeInsets.all(24.0),
+                    child: CircularProgressIndicator(),
+                  ),
+                );
+              }
+
+              final categories = snapshot.data ?? [];
+
+              return Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: categories.asMap().entries.map((entry) {
+                  final index = entry.key;
+                  final cat = entry.value;
+                  return Expanded(
+                    child: Padding(
+                      padding: EdgeInsets.only(right: index < categories.length - 1 ? 8 : 0),
+                      child: _buildTopCategoryCard(
+                        context: context,
+                        category: cat,
+                      ),
+                    ),
+                  );
+                }).toList(),
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTopCategoryCard({
+    required BuildContext context,
+    required CategoryModel category,
+  }) {
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => SubCategorySelectionScreen(
+              category: category,
+            ),
+          ),
+        );
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: Colors.grey.shade100,
+            width: 1,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.03),
+              blurRadius: 4,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: category.getColor().withOpacity(0.1),
+                borderRadius: BorderRadius.circular(22),
+              ),
+              child: Icon(
+                category.getIconData(),
+                color: category.getColor(),
+                size: 22,
+              ),
+            ),
+            const SizedBox(height: 10),
+            Text(
+              category.name,
+              textAlign: TextAlign.center,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: Color(0xFF475569),
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildServiceCategories(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -463,7 +594,12 @@ class CustomerHomeContent extends StatelessWidget {
                 ),
               ),
               TextButton(
-                onPressed: () {},
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const AllServicesScreen()),
+                  );
+                },
                 child: Text(
                   'See all',
                   style: TextStyle(
@@ -475,107 +611,131 @@ class CustomerHomeContent extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 16),
-          GridView.count(
-            crossAxisCount: 2,
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            mainAxisSpacing: 16,
-            crossAxisSpacing: 16,
-            childAspectRatio: 1.1,
-            children: [
-              _buildServiceCategory(
-                context: context,
-                icon: Icons.build,
-                label: 'Electrician',
-                color: _primaryColor,
-                bgColor: const Color(0xFFeff6ff),
-              ),
-              _buildServiceCategory(
-                context: context,
-                icon: Icons.water_drop,
-                label: 'Plumber',
-                color: const Color(0xFF06b6d4),
-                bgColor: const Color(0xFFecfeff),
-              ),
-              _buildServiceCategory(
-                context: context,
-                icon: Icons.carpenter,
-                label: 'Carpenter',
-                color: const Color(0xFFea580c),
-                bgColor: const Color(0xFFfff7ed),
-              ),
-              _buildServiceCategory(
-                context: context,
-                icon: Icons.cleaning_services,
-                label: 'Cleaning',
-                color: const Color(0xFFa855f7),
-                bgColor: const Color(0xFFfaf5ff),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                color: Colors.grey.shade100,
-                width: 1,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.05),
-                  blurRadius: 4,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-            child: Row(
-              children: [
-                Container(
-                  width: 48,
-                  height: 48,
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade100,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Icon(
-                    Icons.more_horiz,
-                    color: Colors.grey.shade600,
-                    size: 24,
-                  ),
-                ),
-                const SizedBox(width: 16),
-                const Expanded(
+          const SizedBox(height: 12),
+          StreamBuilder<List<CategoryModel>>(
+            stream: CategoryService().streamCategories(),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: Padding(
+                  padding: EdgeInsets.all(24.0),
+                  child: CircularProgressIndicator(),
+                ));
+              }
+
+              final categories = (snapshot.data ?? []).take(6).toList();
+
+              if (categories.isEmpty) {
+                return Center(
                   child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        'Other Services',
-                        style: TextStyle(
-                          color: Color(0xFF1e293b),
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      SizedBox(height: 4),
-                      Text(
-                        'Gardening, Painting, Moving...',
-                        style: TextStyle(
-                          color: Color(0xFF64748b),
-                          fontSize: 12,
-                        ),
+                      const Icon(Icons.category_outlined, size: 48, color: Colors.grey),
+                      const SizedBox(height: 12),
+                      const Text('No categories found'),
+                      const SizedBox(height: 8),
+                      ElevatedButton(
+                        onPressed: () {},
+                        child: const Text('Search Categories'),
                       ),
                     ],
                   ),
+                );
+              }
+
+              return GridView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 3,
+                  mainAxisSpacing: 16,
+                  crossAxisSpacing: 16,
+                  childAspectRatio: 0.88,
                 ),
-                Icon(
-                  Icons.chevron_right,
-                  color: Colors.grey.shade400,
+                itemCount: categories.length,
+                itemBuilder: (context, index) {
+                  final cat = categories[index];
+                  return _buildServiceCategory(
+                    context: context,
+                    icon: cat.getIconData(),
+                    label: cat.name,
+                    color: cat.getColor(),
+                    bgColor: cat.getColor().withOpacity(0.1),
+                    category: cat,
+                  );
+                },
+              );
+            },
+          ),
+          const SizedBox(height: 16),
+          GestureDetector(
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const AllServicesScreen()),
+              );
+            },
+            child: Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: Colors.grey.shade100,
+                  width: 1,
                 ),
-              ],
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.05),
+                    blurRadius: 4,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    width: 48,
+                    height: 48,
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade100,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Icon(
+                      Icons.more_horiz,
+                      color: Colors.grey.shade600,
+                      size: 24,
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  const Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'View All Services',
+                          style: TextStyle(
+                            color: Color(0xFF1e293b),
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        SizedBox(height: 4),
+                        Text(
+                          'Cleaning, Relocation, Wellness...',
+                          style: TextStyle(
+                            color: Color(0xFF64748b),
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Icon(
+                    Icons.arrow_forward_rounded,
+                    color: _primaryColor,
+                    size: 20,
+                  ),
+                ],
+              ),
             ),
           ),
         ],
@@ -589,47 +749,33 @@ class CustomerHomeContent extends StatelessWidget {
     required String label,
     required Color color,
     required Color bgColor,
+    required CategoryModel category,
   }) {
     return GestureDetector(
       onTap: () {
-        Widget? categoryScreen;
-        switch (label) {
-          case 'Electrician':
-            categoryScreen = const ElectricianListScreen();
-            break;
-          case 'Plumber':
-            categoryScreen = const PlumberListScreen();
-            break;
-          case 'Carpenter':
-            categoryScreen = const CarpenterListScreen();
-            break;
-          case 'Cleaning':
-            categoryScreen = const CleaningListScreen();
-            break;
-          default:
-            categoryScreen = const ElectricianListScreen();
-        }
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => categoryScreen!,
+            builder: (context) => SubCategorySelectionScreen(
+              category: category,
+            ),
           ),
         );
       },
       child: Container(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
         decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
+          color: bgColor,
+          borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: Colors.grey.shade100,
-            width: 1,
+            color: color.withOpacity(0.1),
+            width: 1.5,
           ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05),
-              blurRadius: 4,
-              offset: const Offset(0, 2),
+              color: color.withOpacity(0.05),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
             ),
           ],
         ),
@@ -637,25 +783,37 @@ class CustomerHomeContent extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Container(
-              width: 56,
-              height: 56,
+              width: 44,
+              height: 44,
               decoration: BoxDecoration(
-                color: bgColor,
-                borderRadius: BorderRadius.circular(28),
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(14),
+                boxShadow: [
+                  BoxShadow(
+                    color: color.withOpacity(0.15),
+                    blurRadius: 6,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
               ),
               child: Icon(
                 icon,
                 color: color,
-                size: 28,
+                size: 24,
               ),
             ),
             const SizedBox(height: 12),
             Text(
               label,
-              style: const TextStyle(
-                color: Color(0xFF475569),
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
+              textAlign: TextAlign.center,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: color.withOpacity(0.9),
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                letterSpacing: -0.2,
+                height: 1.1,
               ),
             ),
           ],
@@ -668,7 +826,7 @@ class CustomerHomeContent extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24),
       child: Container(
-        padding: const EdgeInsets.all(24),
+        padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
           gradient: LinearGradient(
             colors: [
