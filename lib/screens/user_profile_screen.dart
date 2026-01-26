@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'login_screen.dart';
 import 'edit_profile_screen.dart';
 import '../services/auth_service.dart';
-import '../services/user_service.dart';
 
 class UserProfileScreen extends StatelessWidget {
   const UserProfileScreen({super.key});
@@ -33,10 +32,7 @@ class UserProfileScreen extends StatelessWidget {
                   const SizedBox(height: 8),
                   const Text(
                     'App Version 1.0.2',
-                    style: TextStyle(
-                      color: Color(0xFF94a3b8),
-                      fontSize: 12,
-                    ),
+                    style: TextStyle(color: Color(0xFF94a3b8), fontSize: 12),
                   ),
                 ],
               ),
@@ -103,7 +99,9 @@ class UserProfileScreen extends StatelessWidget {
                   onTap: () {
                     Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (context) => const EditProfileScreen()),
+                      MaterialPageRoute(
+                        builder: (context) => const EditProfileScreen(),
+                      ),
                     );
                   },
                   child: Container(
@@ -112,10 +110,7 @@ class UserProfileScreen extends StatelessWidget {
                     decoration: BoxDecoration(
                       color: _primaryColor,
                       borderRadius: BorderRadius.circular(18),
-                      border: Border.all(
-                        color: Colors.white,
-                        width: 2,
-                      ),
+                      border: Border.all(color: Colors.white, width: 2),
                       boxShadow: [
                         BoxShadow(
                           color: Colors.black.withValues(alpha: 0.2),
@@ -166,10 +161,7 @@ class UserProfileScreen extends StatelessWidget {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: Colors.grey.shade100,
-            width: 1,
-          ),
+          border: Border.all(color: Colors.grey.shade100, width: 1),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.05),
@@ -192,15 +184,8 @@ class UserProfileScreen extends StatelessWidget {
                 ),
               ),
             ),
-            _buildInfoRow(
-              label: 'Role',
-              value: 'Citizen',
-            ),
-            _buildInfoRow(
-              label: 'Status',
-              value: 'Active',
-              showStatus: true,
-            ),
+            _buildInfoRow(label: 'Role', value: 'Citizen'),
+            _buildInfoRow(label: 'Status', value: 'Active', showStatus: true),
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
               child: Row(
@@ -240,10 +225,7 @@ class UserProfileScreen extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
       decoration: BoxDecoration(
         border: Border(
-          bottom: BorderSide(
-            color: Colors.grey.shade100,
-            width: 1,
-          ),
+          bottom: BorderSide(color: Colors.grey.shade100, width: 1),
         ),
       ),
       child: Row(
@@ -298,10 +280,7 @@ class UserProfileScreen extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: Colors.grey.shade100,
-          width: 1,
-        ),
+        border: Border.all(color: Colors.grey.shade100, width: 1),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.05),
@@ -332,7 +311,9 @@ class UserProfileScreen extends StatelessWidget {
             onTap: () {
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (context) => const EditProfileScreen()),
+                MaterialPageRoute(
+                  builder: (context) => const EditProfileScreen(),
+                ),
               );
             },
           ),
@@ -375,10 +356,7 @@ class UserProfileScreen extends StatelessWidget {
       decoration: showBorder
           ? BoxDecoration(
               border: Border(
-                bottom: BorderSide(
-                  color: Colors.grey.shade50,
-                  width: 1,
-                ),
+                bottom: BorderSide(color: Colors.grey.shade50, width: 1),
               ),
             )
           : null,
@@ -397,11 +375,7 @@ class UserProfileScreen extends StatelessWidget {
                     color: iconBg,
                     borderRadius: BorderRadius.circular(10),
                   ),
-                  child: Icon(
-                    icon,
-                    color: iconColor,
-                    size: 20,
-                  ),
+                  child: Icon(icon, color: iconColor, size: 20),
                 ),
                 const SizedBox(width: 16),
                 Expanded(
@@ -429,7 +403,7 @@ class UserProfileScreen extends StatelessWidget {
 
   Widget _buildLogoutButton(BuildContext context) {
     final AuthService _authService = AuthService();
-    
+
     return Container(
       decoration: BoxDecoration(
         gradient: const LinearGradient(
@@ -475,11 +449,7 @@ class UserProfileScreen extends StatelessWidget {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: const [
-                Icon(
-                  Icons.logout,
-                  color: Colors.white,
-                  size: 20,
-                ),
+                Icon(Icons.logout, color: Colors.white, size: 20),
                 SizedBox(width: 8),
                 Text(
                   'Logout',
@@ -496,5 +466,4 @@ class UserProfileScreen extends StatelessWidget {
       ),
     );
   }
-
 }

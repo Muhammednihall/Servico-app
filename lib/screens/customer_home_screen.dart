@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'category_pages.dart';
+import 'sub_category_selection_screen.dart';
 import 'user_profile_screen.dart';
 import 'customer_bookings_screen.dart';
 import '../services/category_service.dart';
@@ -16,7 +16,6 @@ class CustomerHomeScreen extends StatefulWidget {
 class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
   int _selectedIndex = 0;
   final Color _primaryColor = const Color(0xFF2463eb);
-  final Color _backgroundLight = const Color(0xFFf6f6f8);
 
   static const List<Widget> _widgetOptions = <Widget>[
     CustomerHomeContent(),
@@ -28,11 +27,6 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
     setState(() {
       _selectedIndex = index;
     });
-  }
-
-  @override
-  void initState() {
-    super.initState();
   }
 
   @override
@@ -48,7 +42,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
           ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05),
+              color: Colors.black.withOpacity(0.05),
               blurRadius: 6,
               offset: const Offset(0, -4),
             ),
@@ -120,8 +114,6 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
 
 class CustomerHomeContent extends StatelessWidget {
   const CustomerHomeContent({super.key});
-
-  final Color _primaryColor = const Color(0xFF2463eb);
 
   @override
   Widget build(BuildContext context) {
@@ -203,23 +195,16 @@ class CustomerHomeContent extends StatelessWidget {
   Widget _buildHeader() {
     return Container(
       padding: const EdgeInsets.fromLTRB(24, 48, 24, 20),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
           colors: [Color(0xFF1e3a8a), Color(0xFF2463eb), Color(0xFF0ea5e9)],
           begin: Alignment.topLeft,
           end: Alignment.topRight,
         ),
-        borderRadius: const BorderRadius.only(
+        borderRadius: BorderRadius.only(
           bottomLeft: Radius.circular(32),
           bottomRight: Radius.circular(32),
         ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.1),
-            blurRadius: 20,
-            offset: const Offset(0, 4),
-          ),
-        ],
       ),
       child: Column(
         children: [
@@ -231,17 +216,17 @@ class CustomerHomeContent extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(12),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.1),
-                      blurRadius: 10,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
                 ),
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(12),
-                  child: Image.asset('assets/logo.png', fit: BoxFit.cover),
+                  child: Image.asset(
+                    'assets/logo.png',
+                    fit: BoxFit.cover,
+                    errorBuilder: (c, e, s) => const Icon(
+                      Icons.home_repair_service,
+                      color: Color(0xFF2463eb),
+                    ),
+                  ),
                 ),
               ),
               const SizedBox(width: 12),
@@ -269,14 +254,6 @@ class CustomerHomeContent extends StatelessWidget {
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.grey.shade100, width: 1),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.05),
-                  blurRadius: 8,
-                  offset: const Offset(0, 2),
-                ),
-              ],
             ),
             child: Row(
               children: [
@@ -333,40 +310,16 @@ class CustomerHomeContent extends StatelessWidget {
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(20),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.08),
-                          blurRadius: 15,
-                          offset: const Offset(0, 5),
-                        ),
-                      ],
                     ),
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(20),
                       child: Image.network(
                         carousel.imageUrl,
                         fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) {
-                          return Container(
-                            color: Colors.grey.shade100,
-                            child: const Center(
-                              child: Icon(
-                                Icons.image_not_supported_outlined,
-                                color: Colors.grey,
-                                size: 32,
-                              ),
-                            ),
-                          );
-                        },
-                        loadingBuilder: (context, child, loadingProgress) {
-                          if (loadingProgress == null) return child;
-                          return Container(
-                            color: Colors.grey.shade100,
-                            child: const Center(
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            ),
-                          );
-                        },
+                        errorBuilder: (context, error, stackTrace) => Container(
+                          color: Colors.grey.shade100,
+                          child: const Icon(Icons.image_not_supported_outlined),
+                        ),
                       ),
                     ),
                   );
@@ -383,31 +336,6 @@ class CustomerHomeContent extends StatelessWidget {
     BuildContext context,
     List<CategoryModel> categories,
   ) {
-    // Prioritize Water, Gas, Electricity, Cleaning
-    final priorityNames = [
-      'Water',
-      'Gas',
-      'Electricity',
-      'Cleaning',
-      'Plumbing',
-      'Electrical',
-    ];
-
-    final sorted = [...categories];
-    sorted.sort((a, b) {
-      int aIdx = priorityNames.indexWhere(
-        (name) => a.name.toLowerCase().contains(name.toLowerCase()),
-      );
-      int bIdx = priorityNames.indexWhere(
-        (name) => b.name.toLowerCase().contains(name.toLowerCase()),
-      );
-      if (aIdx == -1) aIdx = 1000;
-      if (bIdx == -1) bIdx = 1000;
-      return aIdx.compareTo(bIdx);
-    });
-
-    final topCategories = sorted.take(4).toList();
-
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24),
       child: Column(
@@ -424,13 +352,13 @@ class CustomerHomeContent extends StatelessWidget {
           const SizedBox(height: 12),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: topCategories.asMap().entries.map((entry) {
+            children: categories.asMap().entries.map((entry) {
               final index = entry.key;
               final cat = entry.value;
               return Expanded(
                 child: Padding(
                   padding: EdgeInsets.only(
-                    right: index < topCategories.length - 1 ? 8 : 0,
+                    right: index < categories.length - 1 ? 8 : 0,
                   ),
                   child: _buildTopCategoryCard(context: context, category: cat),
                 ),
@@ -462,13 +390,6 @@ class CustomerHomeContent extends StatelessWidget {
           color: Colors.white,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(color: Colors.grey.shade100, width: 1),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.03),
-              blurRadius: 4,
-              offset: const Offset(0, 2),
-            ),
-          ],
         ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -524,49 +445,28 @@ class CustomerHomeContent extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 16),
-          if (displayCategories.isEmpty)
-            Center(
-              child: Column(
-                children: [
-                  const Icon(
-                    Icons.category_outlined,
-                    size: 48,
-                    color: Colors.grey,
-                  ),
-                  const SizedBox(height: 12),
-                  const Text('No categories found'),
-                  const SizedBox(height: 8),
-                  ElevatedButton(
-                    onPressed: () {},
-                    child: const Text('Search Categories'),
-                  ),
-                ],
-              ),
-            )
-          else
-            GridView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              padding: EdgeInsets.zero,
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 3,
-                mainAxisSpacing: 16,
-                crossAxisSpacing: 16,
-                childAspectRatio: 0.88,
-              ),
-              itemCount: displayCategories.length,
-              itemBuilder: (context, index) {
-                final cat = displayCategories[index];
-                return _buildServiceCategory(
-                  context: context,
-                  icon: cat.getIconData(),
-                  label: cat.name,
-                  color: cat.getColor(),
-                  bgColor: Colors.white,
-                  category: cat,
-                );
-              },
+          GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            padding: EdgeInsets.zero,
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 3,
+              mainAxisSpacing: 16,
+              crossAxisSpacing: 16,
+              childAspectRatio: 0.88,
             ),
+            itemCount: displayCategories.length,
+            itemBuilder: (context, index) {
+              final cat = displayCategories[index];
+              return _buildServiceCategory(
+                context: context,
+                icon: cat.getIconData(),
+                label: cat.name,
+                color: cat.getColor(),
+                category: cat,
+              );
+            },
+          ),
         ],
       ),
     );
@@ -577,7 +477,6 @@ class CustomerHomeContent extends StatelessWidget {
     required IconData icon,
     required String label,
     required Color color,
-    required Color bgColor,
     required CategoryModel category,
   }) {
     return GestureDetector(
@@ -593,16 +492,9 @@ class CustomerHomeContent extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
         decoration: BoxDecoration(
-          color: bgColor,
+          color: Colors.white,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(color: Colors.grey.shade100, width: 1.5),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.03),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
-            ),
-          ],
         ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -642,29 +534,18 @@ class CustomerHomeContent extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [const Color(0xFFeff6ff), Colors.white],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
+          color: const Color(0xFFeff6ff),
           borderRadius: BorderRadius.circular(16),
           border: Border.all(color: const Color(0xFFdbeafe), width: 1),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05),
-              blurRadius: 4,
-              offset: const Offset(0, 2),
-            ),
-          ],
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
+            const Row(
               children: [
-                Icon(Icons.info_outline, color: _primaryColor, size: 20),
-                const SizedBox(width: 8),
-                const Text(
+                Icon(Icons.info_outline, color: Color(0xFF2463eb), size: 20),
+                SizedBox(width: 8),
+                Text(
                   'About Servico',
                   style: TextStyle(
                     color: Color(0xFF1e293b),
@@ -676,7 +557,7 @@ class CustomerHomeContent extends StatelessWidget {
             ),
             const SizedBox(height: 16),
             const Text(
-              'Your AI-enabled city companion. We connect you with top-rated local professionals instantly, ensuring quality and trust.',
+              'Your AI-enabled city companion. We connect you with top-rated local professionals instantly.',
               style: TextStyle(
                 color: Color(0xFF475569),
                 fontSize: 14,
@@ -686,7 +567,7 @@ class CustomerHomeContent extends StatelessWidget {
             const SizedBox(height: 16),
             _buildAboutPoint('Fast & Easy Booking'),
             _buildAboutPoint('100% Verified Professionals'),
-            _buildAboutPoint('Secure AI-Powered Payments'),
+            _buildAboutPoint('Secure Payments'),
           ],
         ),
       ),

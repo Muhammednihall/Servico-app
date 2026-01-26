@@ -5,12 +5,12 @@ import 'login_screen.dart';
 import '../services/auth_service.dart';
 import '../widgets/phone_input_field.dart';
 
-
 class WorkerRegistrationScreen extends StatefulWidget {
   const WorkerRegistrationScreen({super.key});
 
   @override
-  State<WorkerRegistrationScreen> createState() => _WorkerRegistrationScreenState();
+  State<WorkerRegistrationScreen> createState() =>
+      _WorkerRegistrationScreenState();
 }
 
 class _WorkerRegistrationScreenState extends State<WorkerRegistrationScreen> {
@@ -18,7 +18,6 @@ class _WorkerRegistrationScreenState extends State<WorkerRegistrationScreen> {
   bool _isConfirmPasswordVisible = false;
   bool _isLoading = false;
   List<String> _selectedServices = [];
-  String _selectedCountry = 'IN';
   String? _selectedCity;
   String? _selectedRegion;
   Map<String, dynamic>? _cityData;
@@ -27,7 +26,8 @@ class _WorkerRegistrationScreenState extends State<WorkerRegistrationScreen> {
   final TextEditingController _phoneController = TextEditingController();
   final TextEditingController _experienceController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
-  final TextEditingController _confirmPasswordController = TextEditingController();
+  final TextEditingController _confirmPasswordController =
+      TextEditingController();
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
   final Color _primaryColor = const Color(0xFF2463eb);
   final Color _backgroundLight = const Color(0xFFf6f6f8);
@@ -197,9 +197,7 @@ class _WorkerRegistrationScreenState extends State<WorkerRegistrationScreen> {
                   hint: '9876543210',
                   controller: _phoneController,
                   onCountryChanged: (country) {
-                    setState(() {
-                      _selectedCountry = country;
-                    });
+                    // Country changed
                   },
                   validator: (value) {
                     if (value == null || value.isEmpty) {
@@ -315,10 +313,7 @@ class _WorkerRegistrationScreenState extends State<WorkerRegistrationScreen> {
           decoration: BoxDecoration(
             color: const Color(0xFFf8f9fc),
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: const Color(0xFFe2e8f0),
-              width: 1,
-            ),
+            border: Border.all(color: const Color(0xFFe2e8f0), width: 1),
           ),
           child: TextFormField(
             controller: controller,
@@ -335,13 +330,12 @@ class _WorkerRegistrationScreenState extends State<WorkerRegistrationScreen> {
                 color: Color(0xFF94a3b8),
                 fontSize: 16,
               ),
-              prefixIcon: Icon(
-                icon,
-                color: const Color(0xFF9ca3af),
-                size: 20,
-              ),
+              prefixIcon: Icon(icon, color: const Color(0xFF9ca3af), size: 20),
               border: InputBorder.none,
-              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 16,
+              ),
             ),
             validator: validator,
           ),
@@ -388,18 +382,16 @@ class _WorkerRegistrationScreenState extends State<WorkerRegistrationScreen> {
             });
           },
           dropdownMenuEntries: const [
-            DropdownMenuEntry(
-              value: 'city_kozhikode',
-              label: 'Kozhikode',
-            ),
+            DropdownMenuEntry(value: 'city_kozhikode', label: 'Kozhikode'),
           ],
           width: double.infinity,
           inputDecorationTheme: InputDecorationTheme(
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            prefixIconColor: const Color(0xFF9ca3af),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 12,
             ),
+            prefixIconColor: const Color(0xFF9ca3af),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
               borderSide: const BorderSide(color: Color(0xFFe2e8f0)),
@@ -455,15 +447,20 @@ class _WorkerRegistrationScreenState extends State<WorkerRegistrationScreen> {
           dropdownMenuEntries: _buildRegionItems(),
           width: double.infinity,
           inputDecorationTheme: InputDecorationTheme(
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            prefixIconColor: isEnabled ? const Color(0xFF9ca3af) : Colors.grey.shade400,
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 12,
             ),
+            prefixIconColor: isEnabled
+                ? const Color(0xFF9ca3af)
+                : Colors.grey.shade400,
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
               borderSide: BorderSide(
-                color: isEnabled ? const Color(0xFFe2e8f0) : Colors.grey.shade300,
+                color: isEnabled
+                    ? const Color(0xFFe2e8f0)
+                    : Colors.grey.shade300,
               ),
             ),
             disabledBorder: OutlineInputBorder(
@@ -494,10 +491,7 @@ class _WorkerRegistrationScreenState extends State<WorkerRegistrationScreen> {
     final regions = _cityData!['regions'] as Map<String, dynamic>;
     return regions.entries.map((entry) {
       final regionName = entry.value['regionName'] as String;
-      return DropdownMenuEntry(
-        value: entry.key,
-        label: regionName,
-      );
+      return DropdownMenuEntry(value: entry.key, label: regionName);
     }).toList();
   }
 
@@ -542,15 +536,10 @@ class _WorkerRegistrationScreenState extends State<WorkerRegistrationScreen> {
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: const Color(0xFFe2e8f0),
-              width: 1,
-            ),
+            border: Border.all(color: const Color(0xFFe2e8f0), width: 1),
           ),
           child: Theme(
-            data: Theme.of(context).copyWith(
-              canvasColor: Colors.white,
-            ),
+            data: Theme.of(context).copyWith(canvasColor: Colors.white),
             child: PopupMenuButton<String>(
               onSelected: (String value) {
                 setState(() {
@@ -587,7 +576,9 @@ class _WorkerRegistrationScreenState extends State<WorkerRegistrationScreen> {
                                 } else {
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     const SnackBar(
-                                      content: Text('You can select maximum 2 services'),
+                                      content: Text(
+                                        'You can select maximum 2 services',
+                                      ),
                                       backgroundColor: Colors.orange,
                                       duration: Duration(seconds: 2),
                                     ),
@@ -614,7 +605,10 @@ class _WorkerRegistrationScreenState extends State<WorkerRegistrationScreen> {
                 }).toList();
               },
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 16,
+                ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
@@ -687,10 +681,7 @@ class _WorkerRegistrationScreenState extends State<WorkerRegistrationScreen> {
           decoration: BoxDecoration(
             color: const Color(0xFFf8f9fc),
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: const Color(0xFFe2e8f0),
-              width: 1,
-            ),
+            border: Border.all(color: const Color(0xFFe2e8f0), width: 1),
           ),
           child: TextFormField(
             controller: controller,
@@ -713,14 +704,19 @@ class _WorkerRegistrationScreenState extends State<WorkerRegistrationScreen> {
               ),
               suffixIcon: IconButton(
                 icon: Icon(
-                  isVisible ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+                  isVisible
+                      ? Icons.visibility_outlined
+                      : Icons.visibility_off_outlined,
                   color: const Color(0xFF94a3b8),
                   size: 20,
                 ),
                 onPressed: onToggleVisibility,
               ),
               border: InputBorder.none,
-              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 16,
+              ),
             ),
             validator: validator,
           ),
@@ -830,10 +826,7 @@ class _WorkerRegistrationScreenState extends State<WorkerRegistrationScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(e.toString()),
-            backgroundColor: Colors.red,
-          ),
+          SnackBar(content: Text(e.toString()), backgroundColor: Colors.red),
         );
       }
     } finally {

@@ -167,7 +167,10 @@ class _CustomerBookingsScreenState extends State<CustomerBookingsScreen> {
                       color: _primaryColor.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: Icon(Icons.handyman_outlined, color: _primaryColor),
+                    child: Icon(
+                      _getIconForService(booking['serviceName'] ?? ''),
+                      color: _primaryColor,
+                    ),
                   ),
                   const SizedBox(width: 16),
                   Expanded(
@@ -298,6 +301,18 @@ class _CustomerBookingsScreenState extends State<CustomerBookingsScreen> {
         ),
       ),
     );
+  }
+
+  IconData _getIconForService(String service) {
+    service = service.toLowerCase();
+    if (service.contains('clean')) return Icons.cleaning_services_outlined;
+    if (service.contains('plumb')) return Icons.plumbing_outlined;
+    if (service.contains('elect')) return Icons.electrical_services_outlined;
+    if (service.contains('paint')) return Icons.format_paint_outlined;
+    if (service.contains('pest')) return Icons.bug_report_outlined;
+    if (service.contains('ac') || service.contains('repair'))
+      return Icons.home_repair_service_outlined;
+    return Icons.handyman_outlined;
   }
 
   void _showCancelDialog(String requestId) {

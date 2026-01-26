@@ -1,15 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'booking_confirmed_screen.dart';
 import 'booking_request_screen.dart';
 import 'worker_public_profile_screen.dart';
 import '../services/worker_service.dart';
 import '../services/booking_service.dart';
-import '../services/category_service.dart';
 import '../services/auth_service.dart';
 
-/// Base class for category service list screens
-/// This allows all service categories to use the same design pattern
+class SubCategoryModel {
+  final String name;
+  final IconData icon;
+
+  const SubCategoryModel({required this.name, required this.icon});
+}
+
 class CategoryServiceScreen extends StatefulWidget {
   final String categoryName;
   final IconData categoryIcon;
@@ -82,7 +85,6 @@ class _CategoryServiceScreenState extends State<CategoryServiceScreen> {
     setState(() {
       Iterable<Map<String, dynamic>> workers = _allWorkers;
 
-      // Apply Subcategory Filter
       if (_selectedSubcategory != null && _selectedSubcategory != 'All') {
         workers = workers.where((worker) {
           final workerSubcategory = worker['subcategory'] as String? ?? '';
@@ -91,7 +93,6 @@ class _CategoryServiceScreenState extends State<CategoryServiceScreen> {
         });
       }
 
-      // Apply Search Query
       if (_searchQuery.isNotEmpty) {
         final query = _searchQuery.toLowerCase();
         workers = workers.where((worker) {
@@ -107,7 +108,6 @@ class _CategoryServiceScreenState extends State<CategoryServiceScreen> {
         });
       }
 
-      // Apply Sorting/Filter Tabs
       List<Map<String, dynamic>> workersList = workers.toList();
 
       if (_selectedFilter == 'Rating 4.0+') {
@@ -266,8 +266,6 @@ class _CategoryServiceScreenState extends State<CategoryServiceScreen> {
             const SizedBox(width: 12),
             _buildFilterChip('Price: Low to High'),
             const SizedBox(width: 12),
-            _buildFilterChip('Distance'),
-            const SizedBox(width: 12),
             _buildFilterChip('Availability'),
           ],
         ),
@@ -280,7 +278,6 @@ class _CategoryServiceScreenState extends State<CategoryServiceScreen> {
     return GestureDetector(
       onTap: () {
         setState(() {
-          // If already selected, clicking again de-selects it (All)
           _selectedFilter = isSelected ? 'All' : label;
           _applyFilters();
         });
@@ -297,8 +294,8 @@ class _CategoryServiceScreenState extends State<CategoryServiceScreen> {
           boxShadow: [
             BoxShadow(
               color: isSelected
-                  ? _primaryColor.withValues(alpha: 0.1)
-                  : Colors.black.withValues(alpha: 0.05),
+                  ? _primaryColor.withOpacity(0.1)
+                  : Colors.black.withOpacity(0.05),
               blurRadius: 4,
               offset: const Offset(0, 2),
             ),
@@ -339,13 +336,9 @@ class _CategoryServiceScreenState extends State<CategoryServiceScreen> {
           children: [
             Icon(Icons.error_outline, size: 48, color: Colors.red.shade300),
             const SizedBox(height: 16),
-            Text(
+            const Text(
               'Error loading workers',
-              style: TextStyle(
-                color: Colors.grey.shade700,
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-              ),
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: 8),
             TextButton(onPressed: _loadWorkers, child: const Text('Retry')),
@@ -369,11 +362,6 @@ class _CategoryServiceScreenState extends State<CategoryServiceScreen> {
                 fontWeight: FontWeight.w600,
               ),
             ),
-            const SizedBox(height: 8),
-            Text(
-              'Check back later for available service providers',
-              style: TextStyle(color: Colors.grey.shade500, fontSize: 14),
-            ),
           ],
         ),
       );
@@ -394,7 +382,6 @@ class _CategoryServiceScreenState extends State<CategoryServiceScreen> {
     final totalReviews = worker['totalReviews'] ?? 0;
     final experience = worker['experience'] ?? '0';
     final isAvailable = worker['isAvailable'] ?? false;
-    final phone = worker['phone'] ?? '';
 
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
@@ -404,7 +391,7 @@ class _CategoryServiceScreenState extends State<CategoryServiceScreen> {
         border: Border.all(color: Colors.grey.shade100, width: 1),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
+            color: Colors.black.withOpacity(0.05),
             blurRadius: 4,
             offset: const Offset(0, 2),
           ),
@@ -507,8 +494,6 @@ class _CategoryServiceScreenState extends State<CategoryServiceScreen> {
                           color: Colors.grey.shade500,
                           fontSize: 14,
                         ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
                       ),
                     ],
                   ),
@@ -572,7 +557,6 @@ class _CategoryServiceScreenState extends State<CategoryServiceScreen> {
                           );
                         }
 
-                        // Get customer info
                         final user = _authService.getCurrentUser();
                         String? customerName;
                         String? customerAddress;
@@ -732,36 +716,6 @@ class _CategoryServiceScreenState extends State<CategoryServiceScreen> {
                 ],
               ),
               const SizedBox(height: 32),
-              if (selectedHours == 6)
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.amber.shade50,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.amber.shade200),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(
-                        Icons.info_outline,
-                        color: Colors.amber.shade800,
-                        size: 20,
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          'For more than 6 hours, please request the provider after booking.',
-                          style: TextStyle(
-                            color: Colors.amber.shade900,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              const SizedBox(height: 24),
               ElevatedButton(
                 onPressed: () => Navigator.pop(context, selectedHours),
                 style: ElevatedButton.styleFrom(
@@ -798,172 +752,12 @@ class _CategoryServiceScreenState extends State<CategoryServiceScreen> {
           color: onTap != null
               ? const Color(0xFF2463eb).withOpacity(0.1)
               : Colors.grey.shade100,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(28),
         ),
         child: Icon(
           icon,
           color: onTap != null ? const Color(0xFF2463eb) : Colors.grey.shade400,
         ),
-      ),
-    );
-  }
-}
-
-/// Screen to select a subcategory before viewing the worker list
-class SubCategorySelectionScreen extends StatelessWidget {
-  final CategoryModel category;
-
-  const SubCategorySelectionScreen({super.key, required this.category});
-
-  @override
-  Widget build(BuildContext context) {
-    final Color primaryColor = category.getColor();
-    final Color bgColor = primaryColor.withOpacity(0.05);
-
-    return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(
-        title: Text(
-          category.name,
-          style: const TextStyle(
-            fontWeight: FontWeight.bold,
-            color: Color(0xFF1e293b),
-          ),
-        ),
-        centerTitle: true,
-        backgroundColor: Colors.white,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(
-            Icons.arrow_back_ios_new,
-            color: Color(0xFF1e293b),
-            size: 20,
-          ),
-          onPressed: () => Navigator.pop(context),
-        ),
-      ),
-      body: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(24.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'What ${category.name} service',
-                  style: const TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.w800,
-                    color: Color(0xFF1e293b),
-                    letterSpacing: -0.5,
-                  ),
-                ),
-                const Text(
-                  'do you need today?',
-                  style: TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.w800,
-                    color: Color(0xFF1e293b),
-                    letterSpacing: -0.5,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Select a subcategory to find available experts',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Colors.grey.shade600,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Expanded(
-            child: GridView.builder(
-              padding: const EdgeInsets.symmetric(horizontal: 24),
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 2,
-                mainAxisSpacing: 16,
-                crossAxisSpacing: 16,
-                childAspectRatio: 1.1,
-              ),
-              itemCount: category.subcategories.length,
-              itemBuilder: (context, index) {
-                final sub = category.subcategories[index];
-                return GestureDetector(
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => CategoryServiceScreen(
-                          categoryName: category.name,
-                          categoryIcon: category.getIconData(),
-                          categoryColor: category.getColor(),
-                          categoryBgColor: category.getColor().withOpacity(0.1),
-                          subcategories: category.subcategories,
-                          initialSubcategory: sub.name,
-                        ),
-                      ),
-                    );
-                  },
-                  child: Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(24),
-                      border: Border.all(
-                        color: Colors.grey.shade100,
-                        width: 1.5,
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.03),
-                          blurRadius: 10,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
-                    ),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Container(
-                          width: 52,
-                          height: 52,
-                          decoration: BoxDecoration(
-                            color: primaryColor.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                          child: Icon(
-                            sub.getIconData(),
-                            color: primaryColor,
-                            size: 28,
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          sub.name,
-                          textAlign: TextAlign.center,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            color: primaryColor.withOpacity(0.9),
-                            fontSize: 13,
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: -0.2,
-                            height: 1.1,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                );
-              },
-            ),
-          ),
-          const SizedBox(height: 24),
-        ],
       ),
     );
   }

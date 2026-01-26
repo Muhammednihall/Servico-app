@@ -278,10 +278,8 @@ class WorkerService {
           throw 'Wallet not found for worker: $workerId';
         }
 
-        final currentBalance =
-            (walletDoc.data()?['balance'] as num?)?.toDouble() ?? 0.0;
-        final totalEarned =
-            (walletDoc.data()?['totalEarned'] as num?)?.toDouble() ?? 0.0;
+        final currentBalance = walletDoc.data()?['balance'] as num? ?? 0.0;
+        final totalEarned = walletDoc.data()?['totalEarned'] as num? ?? 0.0;
 
         transaction.update(walletRef, {
           'balance': currentBalance + amount,

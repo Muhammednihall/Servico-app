@@ -3,6 +3,7 @@ import 'customer_home_screen.dart';
 import '../services/booking_service.dart';
 import 'package:intl/intl.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../widgets/abstract_map_widget.dart';
 
 class BookingConfirmedScreen extends StatefulWidget {
   final Map<String, dynamic>? bookingData;
@@ -146,10 +147,10 @@ class _BookingConfirmedScreenState extends State<BookingConfirmedScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Row(
+          Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
+              const Text(
                 'Professional is arriving',
                 style: TextStyle(
                   fontSize: 18,
@@ -159,7 +160,7 @@ class _BookingConfirmedScreenState extends State<BookingConfirmedScreen> {
                 ),
               ),
               Text(
-                '8 mins',
+                '${(DateTime.now().minute % 15) + 3} mins',
                 style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w700,
@@ -169,68 +170,8 @@ class _BookingConfirmedScreenState extends State<BookingConfirmedScreen> {
             ],
           ),
           const SizedBox(height: 16),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(20),
-            child: SizedBox(
-              height: 200,
-              width: double.infinity,
-              child: Stack(
-                children: [
-                  Image.network(
-                    'https://images.unsplash.com/photo-1569336415962-a4bd9f6dfc0f?auto=format&fit=crop&q=80&w=800',
-                    fit: BoxFit.cover,
-                    width: double.infinity,
-                    height: double.infinity,
-                  ),
-                  Container(color: Colors.black.withOpacity(0.1)),
-                  const Center(
-                    child: Stack(
-                      alignment: Alignment.center,
-                      children: [
-                        _AnimatedPulse(size: 80),
-                        _AnimatedPulse(size: 50),
-                        Icon(
-                          Icons.location_history_rounded,
-                          color: Color(0xFF2463eb),
-                          size: 32,
-                        ),
-                      ],
-                    ),
-                  ),
-                  Positioned(
-                    top: 40,
-                    right: 60,
-                    child: Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: const BoxDecoration(
-                        color: Colors.white,
-                        shape: BoxShape.circle,
-                        boxShadow: [
-                          BoxShadow(color: Colors.black26, blurRadius: 4),
-                        ],
-                      ),
-                      child: const Icon(
-                        Icons.my_location,
-                        size: 20,
-                        color: Colors.green,
-                      ),
-                    ),
-                  ),
-                  Positioned(
-                    bottom: 12,
-                    right: 12,
-                    child: Column(
-                      children: [
-                        _buildMapAction(Icons.add),
-                        const SizedBox(height: 8),
-                        _buildMapAction(Icons.remove),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
+          const SizedBox(height: 16),
+          const AbstractMapWidget(height: 200),
           const SizedBox(height: 16),
           Row(
             children: [
@@ -252,21 +193,6 @@ class _BookingConfirmedScreenState extends State<BookingConfirmedScreen> {
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildMapAction(IconData icon) {
-    return Container(
-      width: 32,
-      height: 32,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(8),
-        boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 4),
-        ],
-      ),
-      child: Icon(icon, size: 18, color: const Color(0xFF1e293b)),
     );
   }
 
@@ -466,14 +392,13 @@ class _BookingConfirmedScreenState extends State<BookingConfirmedScreen> {
               ),
               if (data['status'] == 'accepted')
                 Container(
-                  padding: const EdgeInsets.all(8),
+                  padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
                     color: _primaryColor.withOpacity(0.1),
-                    shape: BoxShape.circle,
+                    borderRadius: BorderRadius.circular(12),
                   ),
                   child: Icon(
-                    Icons.chat_bubble_rounded,
-                    size: 18,
+                    _getIconForService(data['serviceName'] ?? ''),
                     color: _primaryColor,
                   ),
                 ),
@@ -609,6 +534,18 @@ class _BookingConfirmedScreenState extends State<BookingConfirmedScreen> {
         ),
       ],
     );
+  }
+
+  IconData _getIconForService(String service) {
+    service = service.toLowerCase();
+    if (service.contains('clean')) return Icons.cleaning_services_outlined;
+    if (service.contains('plumb')) return Icons.plumbing_outlined;
+    if (service.contains('elect')) return Icons.electrical_services_outlined;
+    if (service.contains('paint')) return Icons.format_paint_outlined;
+    if (service.contains('pest')) return Icons.bug_report_outlined;
+    if (service.contains('ac') || service.contains('repair'))
+      return Icons.home_repair_service_outlined;
+    return Icons.handyman_outlined;
   }
 
   void _showCancelConfirmation(BuildContext context, String requestId) {
@@ -769,23 +706,6 @@ class _BookingConfirmedScreenState extends State<BookingConfirmedScreen> {
             ),
           ),
       ],
-    );
-  }
-}
-
-class _AnimatedPulse extends StatelessWidget {
-  final double size;
-  const _AnimatedPulse({required this.size});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: size,
-      height: size,
-      decoration: BoxDecoration(
-        color: const Color(0xFF2463eb).withOpacity(0.2),
-        shape: BoxShape.circle,
-      ),
     );
   }
 }

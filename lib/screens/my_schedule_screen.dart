@@ -1,11 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'worker_dashboard_screen.dart';
-import 'earnings_payments_screen.dart';
-import 'worker_profile_screen.dart';
-import '../widgets/worker_bottom_nav_bar.dart';
-import '../utils/custom_page_route.dart';
 import '../services/booking_service.dart';
 import '../services/auth_service.dart';
 
@@ -18,9 +13,7 @@ class MyScheduleScreen extends StatefulWidget {
 
 class _MyScheduleScreenState extends State<MyScheduleScreen> {
   int _selectedTab = 0; // 0 = Upcoming, 1 = Completed
-  int _selectedNavIndex = 1;
   final Color _primaryColor = const Color(0xFF2463eb);
-  final Color _backgroundLight = const Color(0xFFf6f6f8);
 
   final BookingService _bookingService = BookingService();
   final AuthService _authService = AuthService();

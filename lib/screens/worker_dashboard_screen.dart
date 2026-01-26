@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/auth_service.dart';
 import '../services/worker_service.dart';
 import '../services/booking_service.dart';
+import 'job_details_screen.dart';
 
 class WorkerDashboardScreen extends StatefulWidget {
   const WorkerDashboardScreen({super.key});
@@ -174,7 +175,13 @@ class _WorkerDashboardScreenState extends State<WorkerDashboardScreen> {
                 ),
               ),
               GestureDetector(
-                onTap: () => _showNotifications(context),
+                onTap: () {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Notifications feature coming soon!'),
+                    ),
+                  );
+                },
                 child: Stack(
                   children: [
                     Container(
@@ -230,6 +237,13 @@ class _WorkerDashboardScreenState extends State<WorkerDashboardScreen> {
                 const SizedBox(width: 8),
                 Expanded(
                   child: TextField(
+                    onSubmitted: (v) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Search feature coming soon!'),
+                        ),
+                      );
+                    },
                     decoration: InputDecoration(
                       hintText: 'Search for jobs...',
                       hintStyle: TextStyle(
@@ -633,7 +647,11 @@ class _WorkerDashboardScreenState extends State<WorkerDashboardScreen> {
     required Color bgColor,
   }) {
     return GestureDetector(
-      onTap: () {},
+      onTap: () {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('$label feature coming soon!')));
+      },
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
@@ -1029,216 +1047,226 @@ class _WorkerDashboardScreenState extends State<WorkerDashboardScreen> {
   }
 
   Widget _buildActiveJobCard(Map<String, dynamic> job) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => JobDetailsScreen(jobData: job),
           ),
-        ],
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        job['serviceName'] ?? 'Active Job',
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFF1e293b),
+        );
+      },
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          job['serviceName'] ?? 'Active Job',
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF1e293b),
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 4),
-                      Row(
-                        children: [
-                          const Icon(
-                            Icons.person_outline,
-                            size: 14,
-                            color: Colors.grey,
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            job['customerName'] ?? 'Customer',
-                            style: TextStyle(
-                              color: Colors.grey.shade600,
-                              fontSize: 13,
+                        const SizedBox(height: 4),
+                        Row(
+                          children: [
+                            const Icon(
+                              Icons.person_outline,
+                              size: 14,
+                              color: Colors.grey,
                             ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 5,
-                  ),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFecfdf5),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: const Text(
-                    'IN PROGRESS',
-                    style: TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF10b981),
+                            const SizedBox(width: 4),
+                            Text(
+                              job['customerName'] ?? 'Customer',
+                              style: TextStyle(
+                                color: Colors.grey.shade600,
+                                fontSize: 13,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
                     ),
                   ),
-                ),
-              ],
-            ),
-            const Divider(height: 24),
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: _primaryColor.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Icon(
-                    Icons.access_time,
-                    size: 20,
-                    color: _primaryColor,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'BOOKED',
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 5,
+                    ),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFecfdf5),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: const Text(
+                      'IN PROGRESS',
                       style: TextStyle(
                         fontSize: 10,
                         fontWeight: FontWeight.bold,
-                        color: Colors.grey,
-                        letterSpacing: 1,
-                      ),
-                    ),
-                    Text(
-                      '${job['duration']} Hour(s)',
-                      style: const TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF1e293b),
-                      ),
-                    ),
-                  ],
-                ),
-                const Spacer(),
-                Text(
-                  '\$${(job['price'] as num?)?.toStringAsFixed(2) ?? '0.00'}',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w900,
-                    color: _primaryColor,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            // Map Mock for Active Job
-            Container(
-              width: double.infinity,
-              height: 100,
-              decoration: BoxDecoration(
-                color: Colors.grey.shade100,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Stack(
-                children: [
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
-                    child: Container(
-                      color: const Color(0xFFe2e8f0),
-                      child: Center(
-                        child: Icon(
-                          Icons.location_on_outlined,
-                          size: 32,
-                          color: Colors.grey.shade400,
-                        ),
-                      ),
-                    ),
-                  ),
-                  Positioned(
-                    bottom: 8,
-                    left: 8,
-                    right: 8,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.9),
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: Text(
-                        job['customerAddress'] ?? 'Location...',
-                        style: const TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w500,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                        color: Color(0xFF10b981),
                       ),
                     ),
                   ),
                 ],
               ),
-            ),
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: () => _showExtraTimeDialog(job['id']),
-                    icon: const Icon(Icons.more_time, size: 18),
-                    label: const Text('Add Time'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: _primaryColor,
-                      foregroundColor: Colors.white,
-                      minimumSize: const Size(0, 48),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+              const Divider(height: 24),
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: _primaryColor.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Icon(
+                      Icons.access_time,
+                      size: 20,
+                      color: _primaryColor,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'BOOKED',
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.grey,
+                          letterSpacing: 1,
+                        ),
+                      ),
+                      Text(
+                        '${job['duration']} Hour(s)',
+                        style: const TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF1e293b),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const Spacer(),
+                  Text(
+                    '\$${(job['price'] as num?)?.toStringAsFixed(2) ?? '0.00'}',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w900,
+                      color: _primaryColor,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              // Map Mock for Active Job
+              Container(
+                width: double.infinity,
+                height: 100,
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade100,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Stack(
+                  children: [
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: Container(
+                        color: const Color(0xFFe2e8f0),
+                        child: Center(
+                          child: Icon(
+                            Icons.location_on_outlined,
+                            size: 32,
+                            color: Colors.grey.shade400,
+                          ),
+                        ),
+                      ),
+                    ),
+                    Positioned(
+                      bottom: 8,
+                      left: 8,
+                      right: 8,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.9),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          job['customerAddress'] ?? 'Location...',
+                          style: const TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w500,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: () => _showExtraTimeDialog(job['id']),
+                      icon: const Icon(Icons.more_time, size: 18),
+                      label: const Text('Add Time'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: _primaryColor,
+                        foregroundColor: Colors.white,
+                        minimumSize: const Size(0, 48),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                       ),
                     ),
                   ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: () => _bookingService.completeJob(job['id']),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: const Color(0xFF10b981),
-                      side: const BorderSide(color: Color(0xFF10b981)),
-                      minimumSize: const Size(0, 48),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () => _bookingService.completeJob(job['id']),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: const Color(0xFF10b981),
+                        side: const BorderSide(color: Color(0xFF10b981)),
+                        minimumSize: const Size(0, 48),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                       ),
+                      child: const Text('Complete'),
                     ),
-                    child: const Text('Complete'),
                   ),
-                ),
-              ],
-            ),
-          ],
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -1292,39 +1320,6 @@ class _WorkerDashboardScreenState extends State<WorkerDashboardScreen> {
               },
               child: const Text('Send'),
             ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _showNotifications(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (context) => Container(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text(
-              'Notifications',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 30),
-            Icon(
-              Icons.notifications_none_outlined,
-              size: 48,
-              color: Colors.grey.shade300,
-            ),
-            const SizedBox(height: 12),
-            const Text(
-              'No new notifications',
-              style: TextStyle(color: Colors.grey),
-            ),
-            const SizedBox(height: 30),
           ],
         ),
       ),

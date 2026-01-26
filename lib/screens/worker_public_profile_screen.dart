@@ -17,7 +17,6 @@ class _WorkerPublicProfileScreenState extends State<WorkerPublicProfileScreen> {
   final BookingService _bookingService = BookingService();
   final AuthService _authService = AuthService();
   final Color _primaryColor = const Color(0xFF2463eb);
-  int _selectedDuration = 1;
 
   @override
   Widget build(BuildContext context) {

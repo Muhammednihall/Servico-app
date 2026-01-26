@@ -1,27 +1,54 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:intl/intl.dart';
+import '../services/booking_service.dart';
+import '../widgets/abstract_map_widget.dart';
 
-class JobDetailsScreen extends StatelessWidget {
-  const JobDetailsScreen({super.key});
+class JobDetailsScreen extends StatefulWidget {
+  final Map<String, dynamic> jobData;
+
+  const JobDetailsScreen({super.key, required this.jobData});
+
+  @override
+  State<JobDetailsScreen> createState() => _JobDetailsScreenState();
+}
+
+class _JobDetailsScreenState extends State<JobDetailsScreen> {
+  final BookingService _bookingService = BookingService();
+  final Color _primaryColor = const Color(0xFF2463eb);
+  bool _isProcessing = false;
 
   @override
   Widget build(BuildContext context) {
+    final status = widget.jobData['status'] ?? 'accepted';
+    final createdAt =
+        (widget.jobData['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now();
+
     return Scaffold(
+      backgroundColor: const Color(0xFFf8fafc),
       appBar: AppBar(
-        title: const Text('Job Details'),
-        backgroundColor: Colors.deepPurple,
+        title: const Text(
+          'Job Details',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
+        backgroundColor: Colors.white,
+        foregroundColor: Colors.black,
+        elevation: 0,
+        centerTitle: true,
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.all(20.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _buildCustomerInfoCard(),
             const SizedBox(height: 20),
-            _buildJobDetailsCard(),
+            _buildJobDetailsCard(createdAt),
             const SizedBox(height: 20),
             _buildLocationCard(),
-            const SizedBox(height: 20),
-            _buildActionButtons(context),
+            const SizedBox(height: 32),
+            if (status == 'accepted') _buildActionButtons(context),
+            if (status == 'completed') _buildCompletedBanner(),
           ],
         ),
       ),
@@ -29,228 +56,136 @@ class JobDetailsScreen extends StatelessWidget {
   }
 
   Widget _buildCustomerInfoCard() {
-    return Card(
-      elevation: 4,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      child: const Padding(
-        padding: EdgeInsets.all(16.0),
-        child: Row(
-          children: [
-            CircleAvatar(
-              radius: 30,
-              backgroundImage: NetworkImage(
-                'https://via.placeholder.com/150',
-              ), // Placeholder
-            ),
-            SizedBox(width: 15),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Customer Name',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                ),
-                SizedBox(height: 5),
-                Row(
-                  children: [
-                    Icon(Icons.star, color: Colors.amber, size: 16),
-                    Text('5.0'),
-                  ],
-                ),
-              ],
-            ),
-            Spacer(),
-            Icon(Icons.message, color: Colors.deepPurple),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildJobDetailsCard() {
-    return Card(
-      elevation: 4,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Job Details',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            const Divider(height: 20),
-            _buildDetailRow(
-              icon: Icons.category,
-              title: 'Service',
-              subtitle: 'House Cleaning',
-            ),
-            _buildDetailRow(
-              icon: Icons.calendar_today,
-              title: 'Date',
-              subtitle: 'Dec 30, 2025',
-            ),
-            _buildDetailRow(
-              icon: Icons.access_time,
-              title: 'Time',
-              subtitle: '10:00 AM',
-            ),
-            _buildDetailRow(
-              icon: Icons.hourglass_bottom,
-              title: 'Duration',
-              subtitle: '2 hours',
-            ),
-            const Divider(height: 20),
-            const Text(
-              'Special Instructions',
-              style: TextStyle(fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 5),
-            const Text(
-              'Please bring your own cleaning supplies. The dog is friendly.',
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildLocationCard() {
     return Container(
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.06),
-            blurRadius: 20,
-            offset: const Offset(0, 10),
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          CircleAvatar(
+            radius: 30,
+            backgroundColor: _primaryColor.withOpacity(0.1),
+            child: Icon(Icons.person, color: _primaryColor, size: 30),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  widget.jobData['customerName'] ?? 'Customer',
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF1e293b),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    const Icon(Icons.star, color: Colors.amber, size: 16),
+                    const SizedBox(width: 4),
+                    Text(
+                      '5.0 Rating',
+                      style: TextStyle(
+                        color: Colors.grey.shade600,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: const Color(0xFFf0fdf4),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.message_rounded,
+              color: Color(0xFF22c55e),
+              size: 22,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildJobDetailsCard(DateTime date) {
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
           ),
         ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
-            child: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: Colors.blue.shade50,
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: const Icon(
-                    Icons.location_on,
-                    color: Color(0xFF2463eb),
-                    size: 20,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                const Text(
-                  'Service Location',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w800,
-                    color: Color(0xFF1e293b),
-                  ),
-                ),
-              ],
+          const Text(
+            'Service Information',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: Color(0xFF1e293b),
             ),
           ),
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 20),
-            child: Text(
-              '123 Premium Avenue, High-End District, NY 10001',
-              style: TextStyle(
-                color: Color(0xFF64748b),
-                fontSize: 14,
-                height: 1.5,
-              ),
+          const SizedBox(height: 20),
+          _buildDetailRow(
+            Icons.category_rounded,
+            'Service',
+            widget.jobData['serviceName'] ?? 'General Service',
+          ),
+          _buildDetailRow(
+            Icons.calendar_today_rounded,
+            'Date',
+            DateFormat('MMM dd, yyyy').format(date),
+          ),
+          _buildDetailRow(
+            Icons.access_time_rounded,
+            'Time',
+            DateFormat('hh:mm a').format(date),
+          ),
+          _buildDetailRow(
+            Icons.hourglass_bottom_rounded,
+            'Duration',
+            '${widget.jobData['duration'] ?? 1} Hour(s)',
+          ),
+          const Divider(height: 32),
+          const Text(
+            'Notes:',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 14,
+              color: Color(0xFF64748b),
             ),
           ),
-          const SizedBox(height: 16),
-          Container(
-            height: 180,
-            margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(20),
-              image: const DecorationImage(
-                image: NetworkImage(
-                  'https://images.unsplash.com/photo-1526778548025-fa2f459cd5c1?auto=format&fit=crop&q=80&w=800',
-                ),
-                fit: BoxFit.cover,
-                colorFilter: ColorFilter.mode(Colors.black12, BlendMode.darken),
-              ),
-            ),
-            child: Stack(
-              alignment: Alignment.center,
-              children: [
-                // Pulse Animation effect using multiple containers
-                _buildPulseCircle(80, 0.2),
-                _buildPulseCircle(50, 0.4),
-                // The Pin
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: const BoxDecoration(
-                    color: Color(0xFF2463eb),
-                    shape: BoxShape.circle,
-                    boxShadow: [
-                      BoxShadow(
-                        color: Color(0x402463eb),
-                        blurRadius: 15,
-                        spreadRadius: 5,
-                      ),
-                    ],
-                  ),
-                  child: const Icon(
-                    Icons.person_pin_circle_rounded,
-                    color: Colors.white,
-                    size: 28,
-                  ),
-                ),
-                // Glassmorphism Button
-                Positioned(
-                  bottom: 12,
-                  right: 12,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 8,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.9),
-                      borderRadius: BorderRadius.circular(12),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.1),
-                          blurRadius: 10,
-                        ),
-                      ],
-                    ),
-                    child: const Row(
-                      children: [
-                        Icon(
-                          Icons.directions,
-                          size: 16,
-                          color: Color(0xFF2463eb),
-                        ),
-                        SizedBox(width: 6),
-                        Text(
-                          'Open Maps',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFF1e293b),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
+          const SizedBox(height: 8),
+          Text(
+            widget.jobData['notes'] ??
+                'No special instructions provided for this job.',
+            style: TextStyle(
+              color: Colors.grey.shade700,
+              height: 1.5,
+              fontSize: 14,
             ),
           ),
         ],
@@ -258,13 +193,53 @@ class JobDetailsScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildPulseCircle(double size, double opacity) {
+  Widget _buildLocationCard() {
     return Container(
-      width: size,
-      height: size,
+      padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: const Color(0xFF2463eb).withOpacity(opacity),
-        shape: BoxShape.circle,
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(
+                Icons.location_on_rounded,
+                color: Color(0xFFef4444),
+                size: 20,
+              ),
+              const SizedBox(width: 8),
+              const Text(
+                'Job Location',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF1e293b),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(
+            widget.jobData['customerAddress'] ?? 'Address not available',
+            style: TextStyle(
+              color: Colors.grey.shade600,
+              fontSize: 14,
+              height: 1.5,
+            ),
+          ),
+          const SizedBox(height: 20),
+          const AbstractMapWidget(height: 150, showLiveTag: false),
+        ],
       ),
     );
   }
@@ -272,47 +247,126 @@ class JobDetailsScreen extends StatelessWidget {
   Widget _buildActionButtons(BuildContext context) {
     return Column(
       children: [
-        ElevatedButton(
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.green,
-            minimumSize: const Size(double.infinity, 50),
+        SizedBox(
+          width: double.infinity,
+          height: 60,
+          child: ElevatedButton(
+            onPressed: _isProcessing ? null : _handleCompleteJob,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF10b981),
+              foregroundColor: Colors.white,
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+            ),
+            child: _isProcessing
+                ? const CircularProgressIndicator(color: Colors.white)
+                : const Text(
+                    'Complete Job',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
           ),
-          onPressed: () {
-            // TODO: Implement Start Job
-          },
-          child: const Text('Start Job'),
         ),
-        const SizedBox(height: 10),
-        OutlinedButton(
-          style: OutlinedButton.styleFrom(
-            minimumSize: const Size(double.infinity, 50),
+        const SizedBox(height: 16),
+        SizedBox(
+          width: double.infinity,
+          height: 60,
+          child: OutlinedButton(
+            onPressed: () {
+              // Show cancel dialog
+            },
+            style: OutlinedButton.styleFrom(
+              foregroundColor: Colors.red,
+              side: const BorderSide(color: Color(0xFFfee2e2)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+              backgroundColor: const Color(0xFFfef2f2),
+            ),
+            child: const Text(
+              'Cancel Job',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
           ),
-          onPressed: () {
-            // TODO: Implement Cancel Job
-          },
-          child: const Text('Cancel Job'),
         ),
       ],
     );
   }
 
-  Widget _buildDetailRow({
-    required IconData icon,
-    required String title,
-    required String subtitle,
-  }) {
+  Widget _buildCompletedBanner() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: const Color(0xFFecfdf5),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFF10b981).withOpacity(0.2)),
+      ),
+      child: Row(
+        children: const [
+          Icon(Icons.check_circle_rounded, color: Color(0xFF10b981)),
+          SizedBox(width: 12),
+          Text(
+            'This job has been completed.',
+            style: TextStyle(
+              color: Color(0xFF065f46),
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _handleCompleteJob() async {
+    setState(() => _isProcessing = true);
+    try {
+      await _bookingService.completeJob(widget.jobData['id']);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Job marked as completed!'),
+            backgroundColor: Color(0xFF10b981),
+          ),
+        );
+        Navigator.pop(context);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isProcessing = false);
+    }
+  }
+
+  Widget _buildDetailRow(IconData icon, String label, String value) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8.0),
+      padding: const EdgeInsets.only(bottom: 12),
       child: Row(
         children: [
-          Icon(icon, color: Colors.grey[600]),
-          const SizedBox(width: 15),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
-              Text(subtitle, style: const TextStyle(color: Colors.black54)),
-            ],
+          Icon(icon, color: Colors.grey.shade400, size: 20),
+          const SizedBox(width: 12),
+          Text(
+            '$label:',
+            style: TextStyle(
+              color: Colors.grey.shade500,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              value,
+              textAlign: TextAlign.end,
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF1e293b),
+              ),
+            ),
           ),
         ],
       ),
