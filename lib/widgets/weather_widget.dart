@@ -10,7 +10,7 @@ class WeatherWidget extends StatelessWidget {
 
   Widget _buildWeatherWidget() {
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         gradient: LinearGradient(
@@ -134,5 +134,4 @@ class WeatherWidget extends StatelessWidget {
       ),
     );
   }
-
 }

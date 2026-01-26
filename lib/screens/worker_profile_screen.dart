@@ -2,11 +2,7 @@ import 'package:flutter/material.dart';
 import 'login_screen.dart';
 import '../services/auth_service.dart';
 import '../services/worker_service.dart';
-import '../widgets/worker_bottom_nav_bar.dart';
-import 'worker_dashboard_screen.dart';
-import 'my_schedule_screen.dart';
-import 'earnings_payments_screen.dart';
-import '../utils/custom_page_route.dart';
+import 'edit_profile_screen.dart';
 
 class WorkerProfileScreen extends StatefulWidget {
   const WorkerProfileScreen({super.key});
@@ -17,112 +13,50 @@ class WorkerProfileScreen extends StatefulWidget {
 
 class _WorkerProfileScreenState extends State<WorkerProfileScreen> {
   final Color _primaryColor = const Color(0xFF2463eb);
-  final Color _backgroundLight = const Color(0xFFf6f6f8);
-  final int _selectedNavIndex = 3; // Profile is index 3
-  
+
   final AuthService _authService = AuthService();
   final WorkerService _workerService = WorkerService();
-  
-  Map<String, dynamic>? _workerData;
-  bool _isLoading = true;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadWorkerProfile();
-  }
-
-  Future<void> _loadWorkerProfile() async {
-    try {
-      final user = _authService.getCurrentUser();
-      if (user != null) {
-        final data = await _workerService.getWorkerProfile(user.uid);
-        if (mounted) {
-          setState(() {
-            _workerData = data;
-            _isLoading = false;
-          });
-        }
-      }
-    } catch (e) {
-      print('Error loading worker profile: $e');
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
-    }
-  }
-
-  void _onNavItemTapped(int index) {
-    if (index == 0) {
-      Navigator.pushReplacement(
-        context,
-        FastPageRoute(
-          builder: (context) => const WorkerDashboardScreen(),
-        ),
-      );
-    } else if (index == 1) {
-      Navigator.pushReplacement(
-        context,
-        FastPageRoute(
-          builder: (context) => const MyScheduleScreen(),
-        ),
-      );
-    } else if (index == 2) {
-      Navigator.pushReplacement(
-        context,
-        FastPageRoute(
-          builder: (context) => const EarningsPaymentsScreen(),
-        ),
-      );
-    } else if (index == 3) {
-      // Already on profile
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: _backgroundLight,
-      body: Stack(
-        children: [
-          Column(
+    final user = _authService.getCurrentUser();
+    if (user == null) {
+      return const Center(child: Text('Please login'));
+    }
+
+    return StreamBuilder<Map<String, dynamic>?>(
+      stream: _workerService.streamWorkerProfile(user.uid),
+      builder: (context, snapshot) {
+        final workerData = snapshot.data;
+
+        return SingleChildScrollView(
+          padding: const EdgeInsets.only(bottom: 100),
+          child: Column(
             children: [
-              _buildHeader(),
-              Expanded(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.fromLTRB(10, 140, 20, 100),
+              _buildHeader(workerData),
+              Transform.translate(
+                offset: const Offset(0, -32),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
                   child: Column(
                     children: [
+                      _buildAccountInfo(workerData),
+                      const SizedBox(height: 20),
                       _buildSettings(),
                       const SizedBox(height: 20),
                       _buildLogoutButton(context),
-                      const SizedBox(height: 24),
                     ],
                   ),
                 ),
               ),
             ],
           ),
-          // Account Info Card positioned to overlap header
-          Positioned(
-            top: 240,
-            left: 16,
-            right: 16,
-            child: _buildAccountInfo(),
-          ),
-        ],
-      ),
-      bottomNavigationBar: WorkerBottomNavBar(
-        selectedIndex: _selectedNavIndex,
-        onItemTapped: _onNavItemTapped,
-        primaryColor: _primaryColor,
-      ),
+        );
+      },
     );
   }
 
-  Widget _buildHeader() {
+  Widget _buildHeader(Map<String, dynamic>? workerData) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.only(top: 20, bottom: 60),
@@ -165,18 +99,21 @@ class _WorkerProfileScreenState extends State<WorkerProfileScreen> {
                       ),
                     ],
                   ),
-                  child: Icon(
-                    Icons.person,
-                    size: 64,
-                    color: _primaryColor,
-                  ),
+                  child: Icon(Icons.person, size: 64, color: _primaryColor),
                 ),
-                Positioned(
-                  bottom: 0,
-                  right: 0,
+                GestureDetector(
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const EditProfileScreen(),
+                      ),
+                    );
+                  },
                   child: Container(
                     width: 36,
                     height: 36,
+                    margin: const EdgeInsets.only(left: 92, top: 92),
                     decoration: BoxDecoration(
                       color: const Color(0xFF1e293b),
                       shape: BoxShape.circle,
@@ -200,7 +137,7 @@ class _WorkerProfileScreenState extends State<WorkerProfileScreen> {
             ),
             const SizedBox(height: 16),
             Text(
-              _workerData?['name'] ?? 'Worker Profile',
+              workerData?['name'] ?? 'Worker Profile',
               style: const TextStyle(
                 color: Colors.white,
                 fontSize: 24,
@@ -209,14 +146,13 @@ class _WorkerProfileScreenState extends State<WorkerProfileScreen> {
               ),
             ),
             const SizedBox(height: 4),
-            const SizedBox(height: 0),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildAccountInfo() {
+  Widget _buildAccountInfo(Map<String, dynamic>? workerData) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -263,23 +199,23 @@ class _WorkerProfileScreenState extends State<WorkerProfileScreen> {
           const SizedBox(height: 14),
           _buildInfoRow(
             label: 'Role',
-            value: (_workerData?['role'] ?? 'Worker').toString().toUpperCase(),
+            value: (workerData?['role'] ?? 'Worker').toString().toUpperCase(),
           ),
           _buildInfoRow(
             label: 'Service Type',
-            value: _workerData?['serviceType'] ?? 'Not Set',
+            value: workerData?['serviceType'] ?? 'Not Set',
           ),
           _buildInfoRow(
             label: 'Experience',
-            value: '${_workerData?['experience'] ?? 0} Years',
+            value: '${workerData?['experience'] ?? 0} Years',
           ),
           _buildInfoRow(
             label: 'Phone',
-            value: _workerData?['phone'] ?? 'Not Set',
+            value: workerData?['phone'] ?? 'Not Set',
           ),
           _buildInfoRow(
             label: 'Service Area',
-            value: _workerData?['serviceArea'] ?? 'Not Set',
+            value: workerData?['serviceArea'] ?? 'Not Set',
           ),
           Padding(
             padding: const EdgeInsets.only(top: 10),
@@ -295,9 +231,13 @@ class _WorkerProfileScreenState extends State<WorkerProfileScreen> {
                   ),
                 ),
                 Text(
-                  (_workerData?['isAvailable'] ?? false) ? 'AVAILABLE' : 'UNAVAILABLE',
+                  (workerData?['isAvailable'] ?? false)
+                      ? 'AVAILABLE'
+                      : 'UNAVAILABLE',
                   style: TextStyle(
-                    color: (_workerData?['isAvailable'] ?? false) ? Colors.green : Colors.red,
+                    color: (workerData?['isAvailable'] ?? false)
+                        ? Colors.green
+                        : Colors.red,
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
                   ),
@@ -310,18 +250,12 @@ class _WorkerProfileScreenState extends State<WorkerProfileScreen> {
     );
   }
 
-  Widget _buildInfoRow({
-    required String label,
-    required String value,
-  }) {
+  Widget _buildInfoRow({required String label, required String value}) {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 10),
       decoration: BoxDecoration(
         border: Border(
-          bottom: BorderSide(
-            color: Colors.grey.shade100,
-            width: 1,
-          ),
+          bottom: BorderSide(color: Colors.grey.shade100, width: 1),
         ),
       ),
       child: Row(
@@ -382,6 +316,14 @@ class _WorkerProfileScreenState extends State<WorkerProfileScreen> {
             icon: Icons.edit_outlined,
             iconColor: _primaryColor,
             label: 'Edit Profile',
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const EditProfileScreen(),
+                ),
+              );
+            },
           ),
           _buildSettingsItem(
             icon: Icons.notifications_outlined,
@@ -411,23 +353,21 @@ class _WorkerProfileScreenState extends State<WorkerProfileScreen> {
     required IconData icon,
     required Color iconColor,
     required String label,
+    VoidCallback? onTap,
     bool showBorder = true,
   }) {
     return Container(
       decoration: showBorder
           ? BoxDecoration(
               border: Border(
-                bottom: BorderSide(
-                  color: Colors.grey.shade50,
-                  width: 1,
-                ),
+                bottom: BorderSide(color: Colors.grey.shade50, width: 1),
               ),
             )
           : null,
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          onTap: () {},
+          onTap: onTap ?? () {},
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
             child: Row(
@@ -439,11 +379,7 @@ class _WorkerProfileScreenState extends State<WorkerProfileScreen> {
                     color: const Color(0xFFeff6ff),
                     borderRadius: BorderRadius.circular(10),
                   ),
-                  child: Icon(
-                    icon,
-                    color: iconColor,
-                    size: 20,
-                  ),
+                  child: Icon(icon, color: iconColor, size: 20),
                 ),
                 const SizedBox(width: 16),
                 Expanded(
@@ -471,7 +407,7 @@ class _WorkerProfileScreenState extends State<WorkerProfileScreen> {
 
   Widget _buildLogoutButton(BuildContext context) {
     final authService = AuthService();
-    
+
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
@@ -518,11 +454,7 @@ class _WorkerProfileScreenState extends State<WorkerProfileScreen> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: const [
-                Icon(
-                  Icons.logout,
-                  color: Colors.white,
-                  size: 20,
-                ),
+                Icon(Icons.logout, color: Colors.white, size: 20),
                 SizedBox(width: 8),
                 Text(
                   'Logout',

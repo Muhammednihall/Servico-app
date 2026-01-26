@@ -23,7 +23,7 @@ class _BookingRequestScreenState extends State<BookingRequestScreen> {
   void _syncTimer(DateTime expiresAt) {
     final now = DateTime.now();
     final difference = expiresAt.difference(now).inSeconds;
-    
+
     if (difference <= 0) {
       if (!_isExpired) {
         setState(() {
@@ -70,62 +70,75 @@ class _BookingRequestScreenState extends State<BookingRequestScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
-      body: StreamBuilder<DocumentSnapshot>(
-        stream: _bookingService.streamBookingRequest(widget.requestId),
-        builder: (context, snapshot) {
-          if (snapshot.hasError) {
-            return Center(child: Text('Error: ${snapshot.error}'));
-          }
+    return PopScope(
+      canPop: true,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) {
+          _bookingService.updateRequestStatus(widget.requestId, 'cancelled');
+        }
+      },
+      child: Scaffold(
+        backgroundColor: Colors.white,
+        body: StreamBuilder<DocumentSnapshot>(
+          stream: _bookingService.streamBookingRequest(widget.requestId),
+          builder: (context, snapshot) {
+            if (snapshot.hasError) {
+              return Center(child: Text('Error: ${snapshot.error}'));
+            }
 
-          if (!snapshot.hasData || !snapshot.data!.exists) {
-            return const Center(child: CircularProgressIndicator());
-          }
+            if (!snapshot.hasData || !snapshot.data!.exists) {
+              return const Center(child: CircularProgressIndicator());
+            }
 
-          final data = snapshot.data!.data() as Map<String, dynamic>;
-          final status = data['status'];
-          final expiresAt = (data['expiresAt'] as Timestamp).toDate();
+            final data = snapshot.data!.data() as Map<String, dynamic>;
+            final status = data['status'];
+            final expiresAt = (data['expiresAt'] as Timestamp).toDate();
 
-          // Sync timer with Firestore expiration time
-          if (status == 'pending' && !_isExpired && _lastSyncedExpiresAt != expiresAt) {
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              if (mounted) _syncTimer(expiresAt);
-            });
-          }
+            // Sync timer with Firestore expiration time
+            if (status == 'pending' &&
+                !_isExpired &&
+                _lastSyncedExpiresAt != expiresAt) {
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (mounted) _syncTimer(expiresAt);
+              });
+            }
 
-          if (status == 'accepted') {
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              if (mounted) {
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => BookingConfirmedScreen(
-                      bookingData: {
-                        ...data,
-                        if (data['createdAt'] != null)
-                          'createdAt': (data['createdAt'] as Timestamp).toDate(),
-                      },
+            if (status == 'accepted') {
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (mounted) {
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => BookingConfirmedScreen(
+                        bookingData: {
+                          ...data,
+                          if (data['createdAt'] != null)
+                            'createdAt': (data['createdAt'] as Timestamp)
+                                .toDate(),
+                        },
+                      ),
                     ),
-                  ),
-                );
-              }
-            });
-          }
+                  );
+                }
+              });
+            }
 
-          if (status == 'rejected' || status == 'expired') {
-            return _buildStatusScreen(
-              icon: status == 'rejected' ? Icons.cancel : Icons.timer_off,
-              color: Colors.red,
-              title: status == 'rejected' ? 'Request Rejected' : 'Request Expired',
-              message: status == 'rejected' 
-                ? 'The worker is currently unavailable. Please try another worker.' 
-                : 'The worker did not respond in time. Please try again or choose another worker.',
-            );
-          }
+            if (status == 'rejected' || status == 'expired') {
+              return _buildStatusScreen(
+                icon: status == 'rejected' ? Icons.cancel : Icons.timer_off,
+                color: Colors.red,
+                title: status == 'rejected'
+                    ? 'Request Rejected'
+                    : 'Request Expired',
+                message: status == 'rejected'
+                    ? 'The worker is currently unavailable. Please try another worker.'
+                    : 'The worker did not respond in time. Please try again or choose another worker.',
+              );
+            }
 
-          return _buildWaitingScreen(data);
-        },
+            return _buildWaitingScreen(data);
+          },
+        ),
       ),
     );
   }
@@ -158,10 +171,7 @@ class _BookingRequestScreenState extends State<BookingRequestScreen> {
           Text(
             'Waiting for the worker to accept your ${data['duration'] ?? 1} hour request...',
             textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 16,
-              color: Colors.grey.shade600,
-            ),
+            style: TextStyle(fontSize: 16, color: Colors.grey.shade600),
           ),
           const SizedBox(height: 40),
           Container(
@@ -191,17 +201,25 @@ class _BookingRequestScreenState extends State<BookingRequestScreen> {
             width: double.infinity,
             child: OutlinedButton(
               onPressed: () {
-                _bookingService.updateRequestStatus(widget.requestId, 'cancelled');
+                _bookingService.updateRequestStatus(
+                  widget.requestId,
+                  'cancelled',
+                );
                 Navigator.pop(context);
               },
               style: OutlinedButton.styleFrom(
                 padding: const EdgeInsets.symmetric(vertical: 16),
                 side: const BorderSide(color: Colors.red),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
               ),
               child: const Text(
                 'Cancel Request',
-                style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
+                style: TextStyle(
+                  color: Colors.red,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ),
           ),
@@ -225,10 +243,7 @@ class _BookingRequestScreenState extends State<BookingRequestScreen> {
           const SizedBox(height: 24),
           Text(
             title,
-            style: const TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-            ),
+            style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 16),
           Text(
@@ -244,9 +259,17 @@ class _BookingRequestScreenState extends State<BookingRequestScreen> {
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF2463eb),
                 padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
               ),
-              child: const Text('Go Back', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
+              child: const Text(
+                'Go Back',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+              ),
             ),
           ),
         ],

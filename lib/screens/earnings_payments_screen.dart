@@ -1,10 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'worker_dashboard_screen.dart';
-import 'my_schedule_screen.dart';
-import 'worker_profile_screen.dart';
-import '../widgets/worker_bottom_nav_bar.dart';
-import '../utils/custom_page_route.dart';
 import '../services/auth_service.dart';
 import '../services/worker_service.dart';
 
@@ -18,126 +13,65 @@ class EarningsPaymentsScreen extends StatefulWidget {
 class _EarningsPaymentsScreenState extends State<EarningsPaymentsScreen> {
   final Color _primaryColor = const Color(0xFF2463eb);
   final Color _backgroundLight = const Color(0xFFf6f6f8);
-  final int _selectedNavIndex = 2; // Earnings is index 2
-  
+
   final AuthService _authService = AuthService();
   final WorkerService _workerService = WorkerService();
-  
-  late String _workerId;
-  double _totalBalance = 0.0;
-  double _totalEarned = 0.0;
-  DateTime? _nextPayoutDate;
-  List<Map<String, dynamic>> _transactions = [];
-  bool _isLoading = true;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadEarningsData();
-  }
-
-  Future<void> _loadEarningsData() async {
-    final user = _authService.getCurrentUser();
-    if (user != null) {
-      _workerId = user.uid;
-      
-      try {
-        // Load wallet data
-        final wallet = await _workerService.getWorkerWallet(_workerId);
-        if (wallet != null) {
-          setState(() {
-            _totalBalance = (wallet['balance'] as num?)?.toDouble() ?? 0.0;
-            _totalEarned = (wallet['totalEarned'] as num?)?.toDouble() ?? 0.0;
-            if (wallet['nextPayoutDate'] != null) {
-              final payoutDate = wallet['nextPayoutDate'];
-              if (payoutDate is Timestamp) {
-                _nextPayoutDate = payoutDate.toDate();
-              } else if (payoutDate is DateTime) {
-                _nextPayoutDate = payoutDate;
-              }
-            }
-          });
-        }
-        
-        // Load transactions
-        final transactions = await _workerService.getWorkerTransactions(_workerId, limit: 20);
-        setState(() {
-          _transactions = transactions;
-          _isLoading = false;
-        });
-      } catch (e) {
-        print('Error loading earnings data: $e');
-        setState(() {
-          _isLoading = false;
-        });
-      }
-    }
-  }
-
-  void _onNavItemTapped(int index) {
-    if (index == 0) {
-      Navigator.pushReplacement(
-        context,
-        FastPageRoute(
-          builder: (context) => const WorkerDashboardScreen(),
-        ),
-      );
-    } else if (index == 1) {
-      Navigator.pushReplacement(
-        context,
-        FastPageRoute(
-          builder: (context) => const MyScheduleScreen(),
-        ),
-      );
-    } else if (index == 2) {
-      // Already on earnings
-    } else if (index == 3) {
-      Navigator.pushReplacement(
-        context,
-        FastPageRoute(
-          builder: (context) => const WorkerProfileScreen(),
-        ),
-      );
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: _backgroundLight,
-      body: Stack(
-        children: [
-          Column(
+    final user = _authService.getCurrentUser();
+    if (user == null) {
+      return const Center(child: Text('Please login'));
+    }
+
+    return StreamBuilder<Map<String, dynamic>?>(
+      stream: _workerService.streamWorkerWallet(user.uid),
+      builder: (context, walletSnapshot) {
+        final wallet = walletSnapshot.data;
+        final balance = (wallet?['balance'] as num?)?.toDouble() ?? 0.0;
+        final totalEarned = (wallet?['totalEarned'] as num?)?.toDouble() ?? 0.0;
+
+        DateTime? nextPayout;
+        if (wallet?['nextPayoutDate'] != null) {
+          final payoutDate = wallet!['nextPayoutDate'];
+          if (payoutDate is Timestamp) {
+            nextPayout = payoutDate.toDate();
+          } else if (payoutDate is DateTime) {
+            nextPayout = payoutDate;
+          }
+        }
+
+        return Container(
+          color: _backgroundLight,
+          child: Stack(
             children: [
-              _buildHeader(context),
-              Expanded(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.fromLTRB(16, 210, 16, 100),
-                  child: Column(
-                    children: [
-                      _buildPayoutDetailsCard(),
-                      const SizedBox(height: 20),
-                      _buildRecentTransactions(),
-                    ],
+              Column(
+                children: [
+                  _buildHeader(context),
+                  Expanded(
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.fromLTRB(16, 210, 16, 100),
+                      child: Column(
+                        children: [
+                          _buildPayoutDetailsCard(nextPayout, totalEarned),
+                          const SizedBox(height: 20),
+                          _buildRecentTransactionsStream(user.uid),
+                        ],
+                      ),
+                    ),
                   ),
-                ),
+                ],
+              ),
+              Positioned(
+                top: 120,
+                left: 32,
+                right: 32,
+                child: _buildTotalEarningsCard(balance),
               ),
             ],
           ),
-          // Card positioned to overlap header
-          Positioned(
-            top: 120,
-            left: 32,
-            right: 32,
-            child: _buildTotalEarningsCard(),
-          ),
-        ],
-      ),
-      bottomNavigationBar: WorkerBottomNavBar(
-        selectedIndex: _selectedNavIndex,
-        onItemTapped: _onNavItemTapped,
-        primaryColor: _primaryColor,
-      ),
+        );
+      },
     );
   }
 
@@ -182,17 +116,14 @@ class _EarningsPaymentsScreenState extends State<EarningsPaymentsScreen> {
     );
   }
 
-  Widget _buildTotalEarningsCard() {
+  Widget _buildTotalEarningsCard(double balance) {
     return AspectRatio(
-      aspectRatio: 1.587, // Standard VISA card ratio (3.375 / 2.125)
+      aspectRatio: 1.587,
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           gradient: LinearGradient(
-            colors: [
-              const Color(0xFF1a5f4a),
-              const Color(0xFF0d3d2e),
-            ],
+            colors: [const Color(0xFF1a5f4a), const Color(0xFF0d3d2e)],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
@@ -209,20 +140,15 @@ class _EarningsPaymentsScreenState extends State<EarningsPaymentsScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Top row with chip and logo
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                // Chip
                 Container(
                   width: 40,
                   height: 32,
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
-                      colors: [
-                        Colors.amber.shade600,
-                        Colors.amber.shade700,
-                      ],
+                      colors: [Colors.amber.shade600, Colors.amber.shade700],
                     ),
                     borderRadius: BorderRadius.circular(6),
                   ),
@@ -255,7 +181,6 @@ class _EarningsPaymentsScreenState extends State<EarningsPaymentsScreen> {
                     ],
                   ),
                 ),
-                // VISA Logo
                 Text(
                   'VISA',
                   style: TextStyle(
@@ -268,7 +193,6 @@ class _EarningsPaymentsScreenState extends State<EarningsPaymentsScreen> {
               ],
             ),
             const Spacer(),
-            // Balance text and amount
             Text(
               'Total Balance',
               style: TextStyle(
@@ -279,7 +203,6 @@ class _EarningsPaymentsScreenState extends State<EarningsPaymentsScreen> {
               ),
             ),
             const SizedBox(height: 4),
-            // Amount
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -293,7 +216,7 @@ class _EarningsPaymentsScreenState extends State<EarningsPaymentsScreen> {
                 ),
                 const SizedBox(width: 2),
                 Text(
-                  _totalBalance.toStringAsFixed(2),
+                  balance.toStringAsFixed(2),
                   style: const TextStyle(
                     color: Colors.white,
                     fontSize: 32,
@@ -304,7 +227,6 @@ class _EarningsPaymentsScreenState extends State<EarningsPaymentsScreen> {
               ],
             ),
             const Spacer(),
-            // Card holder and expiry
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -362,16 +284,13 @@ class _EarningsPaymentsScreenState extends State<EarningsPaymentsScreen> {
     );
   }
 
-  Widget _buildPayoutDetailsCard() {
+  Widget _buildPayoutDetailsCard(DateTime? nextPayout, double totalEarned) {
     return Container(
       padding: const EdgeInsets.all(15),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: Colors.grey.shade100,
-          width: 1,
-        ),
+        border: Border.all(color: Colors.grey.shade100, width: 1),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.05),
@@ -413,15 +332,15 @@ class _EarningsPaymentsScreenState extends State<EarningsPaymentsScreen> {
           _buildDetailRow(
             icon: Icons.calendar_today,
             title: 'Next Payout',
-            value: _nextPayoutDate != null 
-                ? '${_nextPayoutDate!.month}/${_nextPayoutDate!.day}/${_nextPayoutDate!.year}'
+            value: nextPayout != null
+                ? '${nextPayout.month}/${nextPayout.day}/${nextPayout.year}'
                 : 'Not scheduled',
           ),
           const SizedBox(height: 12),
           _buildDetailRow(
             icon: Icons.account_balance,
             title: 'Total Earned',
-            value: '\$${_totalEarned.toStringAsFixed(2)}',
+            value: '\$${totalEarned.toStringAsFixed(2)}',
           ),
           const SizedBox(height: 20),
           SizedBox(
@@ -451,88 +370,93 @@ class _EarningsPaymentsScreenState extends State<EarningsPaymentsScreen> {
     );
   }
 
-  Widget _buildRecentTransactions() {
-    return Container(
-      padding: const EdgeInsets.all(15),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: Colors.grey.shade100,
-          width: 1,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text(
-                'Recent Transactions',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
-                  color: Color(0xFF1e293b),
-                ),
-              ),
-              TextButton(
-                onPressed: () {},
-                child: Text(
-                  'View All',
-                  style: TextStyle(
-                    color: _primaryColor,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
+  Widget _buildRecentTransactionsStream(String uid) {
+    return StreamBuilder<List<Map<String, dynamic>>>(
+      stream: _workerService.streamWorkerTransactions(uid, limit: 10),
+      builder: (context, snapshot) {
+        final transactions = snapshot.data ?? [];
+
+        return Container(
+          padding: const EdgeInsets.all(15),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: Colors.grey.shade100, width: 1),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.05),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
               ),
             ],
           ),
-          const SizedBox(height: 16),
-          if (_isLoading)
-            const Center(
-              child: CircularProgressIndicator(),
-            )
-          else if (_transactions.isEmpty)
-            Center(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 32),
-                child: Text(
-                  'No transactions yet',
-                  style: TextStyle(
-                    color: Colors.grey.shade500,
-                    fontSize: 14,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Recent Transactions',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF1e293b),
+                    ),
                   ),
-                ),
+                  TextButton(
+                    onPressed: () {},
+                    child: Text(
+                      'View All',
+                      style: TextStyle(
+                        color: _primaryColor,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
               ),
-            )
-          else
-            ..._transactions.map((transaction) {
-              final isCredit = transaction['type'] == 'credit';
-              final amount = (transaction['amount'] as num).toDouble();
-              final description = transaction['description'] ?? 'Transaction';
-              final createdAt = (transaction['createdAt'] as Timestamp?)?.toDate();
-              
-              return _buildTransactionItem(
-                service: description,
-                date: createdAt != null 
-                    ? '${createdAt.month}/${createdAt.day}/${createdAt.year}'
-                    : 'Unknown date',
-                amount: '${isCredit ? '+' : '-'}\$${amount.toStringAsFixed(2)}',
-                isCredit: isCredit,
-                icon: isCredit ? Icons.add_circle : Icons.remove_circle,
-              );
-            }),
-        ],
-      ),
+              const SizedBox(height: 16),
+              if (snapshot.connectionState == ConnectionState.waiting)
+                const Center(child: CircularProgressIndicator())
+              else if (transactions.isEmpty)
+                Center(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 32),
+                    child: Text(
+                      'No transactions yet',
+                      style: TextStyle(
+                        color: Colors.grey.shade500,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ),
+                )
+              else
+                ...transactions.map((transaction) {
+                  final isCredit = transaction['type'] == 'credit';
+                  final amount = (transaction['amount'] as num).toDouble();
+                  final description =
+                      transaction['description'] ?? 'Transaction';
+                  final createdAt = (transaction['createdAt'] as Timestamp?)
+                      ?.toDate();
+
+                  return _buildTransactionItem(
+                    service: description,
+                    date: createdAt != null
+                        ? '${createdAt.month}/${createdAt.day}/${createdAt.year}'
+                        : 'Unknown date',
+                    amount:
+                        '${isCredit ? '+' : '-'}\$${amount.toStringAsFixed(2)}',
+                    isCredit: isCredit,
+                    icon: isCredit ? Icons.add_circle : Icons.remove_circle,
+                  );
+                }),
+            ],
+          ),
+        );
+      },
     );
   }
 
@@ -622,10 +546,7 @@ class _EarningsPaymentsScreenState extends State<EarningsPaymentsScreen> {
                 const SizedBox(height: 2),
                 Text(
                   date,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.grey.shade500,
-                  ),
+                  style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
                 ),
               ],
             ),
@@ -644,5 +565,4 @@ class _EarningsPaymentsScreenState extends State<EarningsPaymentsScreen> {
       ),
     );
   }
-
 }

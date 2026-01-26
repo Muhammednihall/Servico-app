@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'category_pages.dart';
 import 'user_profile_screen.dart';
-import 'all_services_screen.dart';
+import 'customer_bookings_screen.dart';
 import '../services/category_service.dart';
-import '../services/worker_service.dart';
+import '../services/carousel_service.dart';
 import '../widgets/weather_widget.dart';
 
 class CustomerHomeScreen extends StatefulWidget {
@@ -20,6 +20,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
 
   static const List<Widget> _widgetOptions = <Widget>[
     CustomerHomeContent(),
+    CustomerBookingsScreen(),
     UserProfileScreen(),
   ];
 
@@ -32,7 +33,6 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
   @override
   void initState() {
     super.initState();
-    // Category data is already managed by the database
   }
 
   @override
@@ -44,10 +44,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
         decoration: BoxDecoration(
           color: Colors.white,
           border: Border(
-            top: BorderSide(
-              color: Colors.grey.shade200,
-              width: 1,
-            ),
+            top: BorderSide(color: Colors.grey.shade200, width: 1),
           ),
           boxShadow: [
             BoxShadow(
@@ -71,10 +68,16 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                   onTap: () => _onItemTapped(0),
                 ),
                 _buildNavItem(
-                  icon: Icons.person_outline,
-                  label: 'Profile',
+                  icon: Icons.assignment_outlined,
+                  label: 'Bookings',
                   isSelected: _selectedIndex == 1,
                   onTap: () => _onItemTapped(1),
+                ),
+                _buildNavItem(
+                  icon: Icons.person_outline,
+                  label: 'Profile',
+                  isSelected: _selectedIndex == 2,
+                  onTap: () => _onItemTapped(2),
                 ),
               ],
             ),
@@ -119,7 +122,6 @@ class CustomerHomeContent extends StatelessWidget {
   const CustomerHomeContent({super.key});
 
   final Color _primaryColor = const Color(0xFF2463eb);
-  final Color _backgroundLight = const Color(0xFFf6f6f8);
 
   @override
   Widget build(BuildContext context) {
@@ -127,27 +129,71 @@ class CustomerHomeContent extends StatelessWidget {
       children: [
         _buildHeader(),
         Expanded(
-          child: RefreshIndicator(
-            onRefresh: () async {
-              // Refresh is handled by StreamBuilder automatically
-              await Future.delayed(const Duration(seconds: 1));
+          child: StreamBuilder<List<CategoryModel>>(
+            stream: CategoryService().streamCategories(),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator());
+              }
+
+              final allCategories = snapshot.data ?? [];
+
+              // Calculate Top Categories (Emergency & Daily)
+              final priorityNames = [
+                'Water',
+                'Gas',
+                'Electricity',
+                'Cleaning',
+                'Plumbing',
+                'Electrical',
+              ];
+
+              final sortedForTop = [...allCategories];
+              sortedForTop.sort((a, b) {
+                int aIdx = priorityNames.indexWhere(
+                  (name) => a.name.toLowerCase().contains(name.toLowerCase()),
+                );
+                int bIdx = priorityNames.indexWhere(
+                  (name) => b.name.toLowerCase().contains(name.toLowerCase()),
+                );
+                if (aIdx == -1) aIdx = 1000;
+                if (bIdx == -1) bIdx = 1000;
+                return aIdx.compareTo(bIdx);
+              });
+
+              final topCategories = sortedForTop.take(4).toList();
+              final topIds = topCategories.map((c) => c.id).toSet();
+
+              // Calculate Bottom Categories (Filtered & Non-Duplicate)
+              final bottomCategories = allCategories
+                  .where(
+                    (c) =>
+                        c.name != 'Health & Wellness' && !topIds.contains(c.id),
+                  )
+                  .toList();
+
+              return RefreshIndicator(
+                onRefresh: () async {
+                  await Future.delayed(const Duration(seconds: 1));
+                },
+                child: ListView(
+                  padding: EdgeInsets.zero,
+                  children: [
+                    const SizedBox(height: 16),
+                    _buildPromotions(context),
+                    const SizedBox(height: 20),
+                    _buildTopCategories(context, topCategories),
+                    const SizedBox(height: 24),
+                    _buildServiceCategories(context, bottomCategories),
+                    const SizedBox(height: 24),
+                    const WeatherWidget(),
+                    const SizedBox(height: 20),
+                    _buildAboutServico(),
+                    const SizedBox(height: 32),
+                  ],
+                ),
+              );
             },
-            child: ListView(
-              padding: EdgeInsets.zero,
-              children: [
-                const SizedBox(height: 16),
-                _buildPromotions(context),
-                const SizedBox(height: 20),
-                _buildTopCategories(context),
-                const SizedBox(height: 20),
-                const WeatherWidget(),
-                const SizedBox(height: 20),
-                _buildServiceCategories(context),
-                const SizedBox(height: 20),
-                _buildAboutServico(),
-                const SizedBox(height: 32),
-              ],
-            ),
           ),
         ),
       ],
@@ -195,10 +241,7 @@ class CustomerHomeContent extends StatelessWidget {
                 ),
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(12),
-                  child: Image.asset(
-                    'assets/logo.png',
-                    fit: BoxFit.cover,
-                  ),
+                  child: Image.asset('assets/logo.png', fit: BoxFit.cover),
                 ),
               ),
               const SizedBox(width: 12),
@@ -215,42 +258,7 @@ class CustomerHomeContent extends StatelessWidget {
                         letterSpacing: -0.5,
                       ),
                     ),
-                    Text(
-                      'City Service Finder',
-                      style: TextStyle(
-                        color: Color(0xFFbfdbfe),
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
                   ],
-                ),
-              ),
-              Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(22),
-                ),
-                child: const Icon(
-                  Icons.notifications_outlined,
-                  color: Colors.white,
-                  size: 24,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(22),
-                ),
-                child: const Icon(
-                  Icons.menu,
-                  color: Colors.white,
-                  size: 24,
                 ),
               ),
             ],
@@ -261,10 +269,7 @@ class CustomerHomeContent extends StatelessWidget {
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color: Colors.grey.shade100,
-                width: 1,
-              ),
+              border: Border.all(color: Colors.grey.shade100, width: 1),
               boxShadow: [
                 BoxShadow(
                   color: Colors.black.withValues(alpha: 0.05),
@@ -276,11 +281,7 @@ class CustomerHomeContent extends StatelessWidget {
             child: Row(
               children: [
                 const SizedBox(width: 12),
-                Icon(
-                  Icons.search,
-                  color: Colors.grey.shade400,
-                  size: 20,
-                ),
+                Icon(Icons.search, color: Colors.grey.shade400, size: 20),
                 const SizedBox(width: 8),
                 Expanded(
                   child: TextField(
@@ -302,171 +303,118 @@ class CustomerHomeContent extends StatelessWidget {
     );
   }
 
-  Widget _buildSearchBar() {
-    return Transform.translate(
-      offset: const Offset(0, -40),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 24),
-        child: Container(
-          height: 56,
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: Colors.grey.shade100,
-              width: 1,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.05),
-                blurRadius: 10,
-                offset: const Offset(0, 2),
-              ),
-            ],
-          ),
-          child: Row(
-            children: [
-              const SizedBox(width: 16),
-              Icon(
-                Icons.search,
-                color: Colors.grey.shade400,
-                size: 24,
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: TextField(
-                  decoration: InputDecoration(
-                    hintText: 'Search for services...',
-                    hintStyle: TextStyle(
-                      color: Colors.grey.shade400,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w500,
-                    ),
-                    border: InputBorder.none,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
   Widget _buildPromotions(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        return SizedBox(
-          height: 176,
-          child: ListView(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 24),
-            children: [
-              _buildPromoCard(
-                width: constraints.maxWidth * 0.85,
-                badge: 'LIMITED TIME',
-                title: 'Get 20% off\ncleaning',
-                subtitle: 'Book now for summer specials',
-                gradient: const [Color(0xFF6366f1), Color(0xFF9333ea)],
+    return StreamBuilder<List<CarouselModel>>(
+      stream: CarouselService().streamCarousel(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const SizedBox(
+            height: 176,
+            child: Center(child: CircularProgressIndicator()),
+          );
+        }
+
+        final carousels = snapshot.data ?? [];
+        if (carousels.isEmpty) return const SizedBox.shrink();
+
+        return LayoutBuilder(
+          builder: (context, constraints) {
+            return SizedBox(
+              height: 176,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                itemCount: carousels.length,
+                separatorBuilder: (context, index) => const SizedBox(width: 16),
+                itemBuilder: (context, index) {
+                  final carousel = carousels[index];
+                  return Container(
+                    width: constraints.maxWidth * 0.85,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(20),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.08),
+                          blurRadius: 15,
+                          offset: const Offset(0, 5),
+                        ),
+                      ],
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(20),
+                      child: Image.network(
+                        carousel.imageUrl,
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) {
+                          return Container(
+                            color: Colors.grey.shade100,
+                            child: const Center(
+                              child: Icon(
+                                Icons.image_not_supported_outlined,
+                                color: Colors.grey,
+                                size: 32,
+                              ),
+                            ),
+                          );
+                        },
+                        loadingBuilder: (context, child, loadingProgress) {
+                          if (loadingProgress == null) return child;
+                          return Container(
+                            color: Colors.grey.shade100,
+                            child: const Center(
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  );
+                },
               ),
-              const SizedBox(width: 16),
-              _buildPromoCard(
-                width: constraints.maxWidth * 0.85,
-                badge: 'URGENT CARE',
-                title: 'Emergency Plumbers\n24/7 Service',
-                subtitle: 'We arrive in under 30 mins',
-                gradient: const [Color(0xFF2563eb), Color(0xFF06b6d4)],
-              ),
-              const SizedBox(width: 16),
-              _buildPromoCard(
-                width: constraints.maxWidth * 0.85,
-                badge: 'NEW FEATURE',
-                title: 'AI-Powered\nDiagnostics',
-                subtitle: 'Identify issues with a photo',
-                gradient: const [Color(0xFF10b981), Color(0xFF0d9488)],
-              ),
-            ],
-          ),
+            );
+          },
         );
       },
     );
   }
 
-  Widget _buildPromoCard({
-    required double width,
-    required String badge,
-    required String title,
-    required String subtitle,
-    required List<Color> gradient,
-  }) {
-    return Container(
-      width: width,
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: gradient,
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: gradient[0].withValues(alpha: 0.3),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      padding: const EdgeInsets.all(20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.2),
-              borderRadius: BorderRadius.circular(4),
-            ),
-            child: Text(
-              badge,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 12,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ),
-          const SizedBox(height: 12),
-          Text(
-            title,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 20,
-              fontWeight: FontWeight.w700,
-              height: 1.2,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            subtitle,
-            style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.8),
-              fontSize: 14,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+  Widget _buildTopCategories(
+    BuildContext context,
+    List<CategoryModel> categories,
+  ) {
+    // Prioritize Water, Gas, Electricity, Cleaning
+    final priorityNames = [
+      'Water',
+      'Gas',
+      'Electricity',
+      'Cleaning',
+      'Plumbing',
+      'Electrical',
+    ];
 
-  Widget _buildTopCategories(BuildContext context) {
+    final sorted = [...categories];
+    sorted.sort((a, b) {
+      int aIdx = priorityNames.indexWhere(
+        (name) => a.name.toLowerCase().contains(name.toLowerCase()),
+      );
+      int bIdx = priorityNames.indexWhere(
+        (name) => b.name.toLowerCase().contains(name.toLowerCase()),
+      );
+      if (aIdx == -1) aIdx = 1000;
+      if (bIdx == -1) bIdx = 1000;
+      return aIdx.compareTo(bIdx);
+    });
+
+    final topCategories = sorted.take(4).toList();
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
-            'Top Services',
+            'Emergency & Daily Services',
             style: TextStyle(
               color: Color(0xFF1e293b),
               fontSize: 20,
@@ -474,37 +422,20 @@ class CustomerHomeContent extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 12),
-          StreamBuilder<List<CategoryModel>>(
-            stream: CategoryService().streamTopCategories(limit: 4),
-            builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return const Center(
-                  child: Padding(
-                    padding: EdgeInsets.all(24.0),
-                    child: CircularProgressIndicator(),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: topCategories.asMap().entries.map((entry) {
+              final index = entry.key;
+              final cat = entry.value;
+              return Expanded(
+                child: Padding(
+                  padding: EdgeInsets.only(
+                    right: index < topCategories.length - 1 ? 8 : 0,
                   ),
-                );
-              }
-
-              final categories = snapshot.data ?? [];
-
-              return Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: categories.asMap().entries.map((entry) {
-                  final index = entry.key;
-                  final cat = entry.value;
-                  return Expanded(
-                    child: Padding(
-                      padding: EdgeInsets.only(right: index < categories.length - 1 ? 8 : 0),
-                      child: _buildTopCategoryCard(
-                        context: context,
-                        category: cat,
-                      ),
-                    ),
-                  );
-                }).toList(),
+                  child: _buildTopCategoryCard(context: context, category: cat),
+                ),
               );
-            },
+            }).toList(),
           ),
         ],
       ),
@@ -520,9 +451,8 @@ class CustomerHomeContent extends StatelessWidget {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => SubCategorySelectionScreen(
-              category: category,
-            ),
+            builder: (context) =>
+                SubCategorySelectionScreen(category: category),
           ),
         );
       },
@@ -531,10 +461,7 @@ class CustomerHomeContent extends StatelessWidget {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: Colors.grey.shade100,
-            width: 1,
-          ),
+          border: Border.all(color: Colors.grey.shade100, width: 1),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.03),
@@ -577,167 +504,69 @@ class CustomerHomeContent extends StatelessWidget {
     );
   }
 
-  Widget _buildServiceCategories(BuildContext context) {
+  Widget _buildServiceCategories(
+    BuildContext context,
+    List<CategoryModel> categories,
+  ) {
+    final displayCategories = categories.take(9).toList();
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text(
-                'Service Categories',
-                style: TextStyle(
-                  color: Color(0xFF1e293b),
-                  fontSize: 20,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              TextButton(
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => const AllServicesScreen()),
-                  );
-                },
-                child: Text(
-                  'See all',
-                  style: TextStyle(
-                    color: _primaryColor,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          StreamBuilder<List<CategoryModel>>(
-            stream: CategoryService().streamCategories(),
-            builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return const Center(child: Padding(
-                  padding: EdgeInsets.all(24.0),
-                  child: CircularProgressIndicator(),
-                ));
-              }
-
-              final categories = (snapshot.data ?? []).take(6).toList();
-
-              if (categories.isEmpty) {
-                return Center(
-                  child: Column(
-                    children: [
-                      const Icon(Icons.category_outlined, size: 48, color: Colors.grey),
-                      const SizedBox(height: 12),
-                      const Text('No categories found'),
-                      const SizedBox(height: 8),
-                      ElevatedButton(
-                        onPressed: () {},
-                        child: const Text('Search Categories'),
-                      ),
-                    ],
-                  ),
-                );
-              }
-
-              return GridView.builder(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 3,
-                  mainAxisSpacing: 16,
-                  crossAxisSpacing: 16,
-                  childAspectRatio: 0.88,
-                ),
-                itemCount: categories.length,
-                itemBuilder: (context, index) {
-                  final cat = categories[index];
-                  return _buildServiceCategory(
-                    context: context,
-                    icon: cat.getIconData(),
-                    label: cat.name,
-                    color: cat.getColor(),
-                    bgColor: cat.getColor().withOpacity(0.1),
-                    category: cat,
-                  );
-                },
-              );
-            },
-          ),
-          const SizedBox(height: 16),
-          GestureDetector(
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const AllServicesScreen()),
-              );
-            },
-            child: Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(
-                  color: Colors.grey.shade100,
-                  width: 1,
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.05),
-                    blurRadius: 4,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: Row(
-                children: [
-                  Container(
-                    width: 48,
-                    height: 48,
-                    decoration: BoxDecoration(
-                      color: Colors.grey.shade100,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Icon(
-                      Icons.more_horiz,
-                      color: Colors.grey.shade600,
-                      size: 24,
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  const Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'View All Services',
-                          style: TextStyle(
-                            color: Color(0xFF1e293b),
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        SizedBox(height: 4),
-                        Text(
-                          'Cleaning, Relocation, Wellness...',
-                          style: TextStyle(
-                            color: Color(0xFF64748b),
-                            fontSize: 12,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Icon(
-                    Icons.arrow_forward_rounded,
-                    color: _primaryColor,
-                    size: 20,
-                  ),
-                ],
-              ),
+          const Text(
+            'Service Categories',
+            style: TextStyle(
+              color: Color(0xFF1e293b),
+              fontSize: 20,
+              fontWeight: FontWeight.w700,
             ),
           ),
+          const SizedBox(height: 16),
+          if (displayCategories.isEmpty)
+            Center(
+              child: Column(
+                children: [
+                  const Icon(
+                    Icons.category_outlined,
+                    size: 48,
+                    color: Colors.grey,
+                  ),
+                  const SizedBox(height: 12),
+                  const Text('No categories found'),
+                  const SizedBox(height: 8),
+                  ElevatedButton(
+                    onPressed: () {},
+                    child: const Text('Search Categories'),
+                  ),
+                ],
+              ),
+            )
+          else
+            GridView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              padding: EdgeInsets.zero,
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 3,
+                mainAxisSpacing: 16,
+                crossAxisSpacing: 16,
+                childAspectRatio: 0.88,
+              ),
+              itemCount: displayCategories.length,
+              itemBuilder: (context, index) {
+                final cat = displayCategories[index];
+                return _buildServiceCategory(
+                  context: context,
+                  icon: cat.getIconData(),
+                  label: cat.name,
+                  color: cat.getColor(),
+                  bgColor: Colors.white,
+                  category: cat,
+                );
+              },
+            ),
         ],
       ),
     );
@@ -756,9 +585,8 @@ class CustomerHomeContent extends StatelessWidget {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => SubCategorySelectionScreen(
-              category: category,
-            ),
+            builder: (context) =>
+                SubCategorySelectionScreen(category: category),
           ),
         );
       },
@@ -767,13 +595,10 @@ class CustomerHomeContent extends StatelessWidget {
         decoration: BoxDecoration(
           color: bgColor,
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: color.withOpacity(0.1),
-            width: 1.5,
-          ),
+          border: Border.all(color: Colors.grey.shade100, width: 1.5),
           boxShadow: [
             BoxShadow(
-              color: color.withOpacity(0.05),
+              color: Colors.black.withValues(alpha: 0.03),
               blurRadius: 10,
               offset: const Offset(0, 4),
             ),
@@ -786,21 +611,10 @@ class CustomerHomeContent extends StatelessWidget {
               width: 44,
               height: 44,
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: color.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(14),
-                boxShadow: [
-                  BoxShadow(
-                    color: color.withOpacity(0.15),
-                    blurRadius: 6,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
               ),
-              child: Icon(
-                icon,
-                color: color,
-                size: 24,
-              ),
+              child: Icon(icon, color: color, size: 24),
             ),
             const SizedBox(height: 12),
             Text(
@@ -829,18 +643,12 @@ class CustomerHomeContent extends StatelessWidget {
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
           gradient: LinearGradient(
-            colors: [
-              const Color(0xFFeff6ff),
-              Colors.white,
-            ],
+            colors: [const Color(0xFFeff6ff), Colors.white],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: const Color(0xFFdbeafe),
-            width: 1,
-          ),
+          border: Border.all(color: const Color(0xFFdbeafe), width: 1),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.05),
@@ -854,11 +662,7 @@ class CustomerHomeContent extends StatelessWidget {
           children: [
             Row(
               children: [
-                Icon(
-                  Icons.info_outline,
-                  color: _primaryColor,
-                  size: 20,
-                ),
+                Icon(Icons.info_outline, color: _primaryColor, size: 20),
                 const SizedBox(width: 8),
                 const Text(
                   'About Servico',
@@ -894,18 +698,11 @@ class CustomerHomeContent extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: 8),
       child: Row(
         children: [
-          const Icon(
-            Icons.check_circle,
-            color: Color(0xFF10b981),
-            size: 20,
-          ),
+          const Icon(Icons.check_circle, color: Color(0xFF10b981), size: 20),
           const SizedBox(width: 8),
           Text(
             text,
-            style: const TextStyle(
-              color: Color(0xFF1e293b),
-              fontSize: 14,
-            ),
+            style: const TextStyle(color: Color(0xFF1e293b), fontSize: 14),
           ),
         ],
       ),

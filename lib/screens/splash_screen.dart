@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'login_screen.dart';
 import 'customer_home_screen.dart';
-import 'worker_dashboard_screen.dart';
+import 'worker_main_screen.dart';
 import '../services/auth_service.dart';
 
 class SplashScreen extends StatefulWidget {
@@ -68,11 +68,8 @@ class _SplashScreenState extends State<SplashScreen>
                     const CustomerHomeScreen(),
                 transitionsBuilder:
                     (context, animation, secondaryAnimation, child) {
-                  return FadeTransition(
-                    opacity: animation,
-                    child: child,
-                  );
-                },
+                      return FadeTransition(opacity: animation, child: child);
+                    },
                 transitionDuration: const Duration(milliseconds: 500),
               ),
             );
@@ -80,14 +77,11 @@ class _SplashScreenState extends State<SplashScreen>
             Navigator.of(context).pushReplacement(
               PageRouteBuilder(
                 pageBuilder: (context, animation, secondaryAnimation) =>
-                    const WorkerDashboardScreen(),
+                    const WorkerMainScreen(),
                 transitionsBuilder:
                     (context, animation, secondaryAnimation, child) {
-                  return FadeTransition(
-                    opacity: animation,
-                    child: child,
-                  );
-                },
+                      return FadeTransition(opacity: animation, child: child);
+                    },
                 transitionDuration: const Duration(milliseconds: 500),
               ),
             );
@@ -116,10 +110,7 @@ class _SplashScreenState extends State<SplashScreen>
         pageBuilder: (context, animation, secondaryAnimation) =>
             const LoginScreen(),
         transitionsBuilder: (context, animation, secondaryAnimation, child) {
-          return FadeTransition(
-            opacity: animation,
-            child: child,
-          );
+          return FadeTransition(opacity: animation, child: child);
         },
         transitionDuration: const Duration(milliseconds: 500),
       ),
@@ -155,7 +146,9 @@ class _SplashScreenState extends State<SplashScreen>
                         borderRadius: BorderRadius.circular(30),
                         boxShadow: [
                           BoxShadow(
-                            color: const Color(0xFF2463eb).withValues(alpha: 0.2),
+                            color: const Color(
+                              0xFF2463eb,
+                            ).withValues(alpha: 0.2),
                             blurRadius: 30,
                             offset: const Offset(0, 10),
                           ),
