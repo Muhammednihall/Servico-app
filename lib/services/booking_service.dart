@@ -15,6 +15,8 @@ class BookingService {
     String? customerName,
     String? customerAddress,
     Map<String, double>? customerCoordinates,
+    bool isTokenBooking = false,
+    DateTime? startTime,
   }) async {
     final docRef = _firestore.collection('booking_requests').doc();
     final now = DateTime.now();
@@ -34,6 +36,8 @@ class BookingService {
           customerCoordinates ??
           {'lat': 40.7128, 'lng': -74.0060}, // Mock coordinates (NYC)
       'status': 'pending',
+      'isTokenBooking': isTokenBooking,
+      'startTime': startTime != null ? Timestamp.fromDate(startTime) : null,
       'createdAt': FieldValue.serverTimestamp(),
       'expiresAt': expiresAt,
       'extraTimeRequest': null,

@@ -144,24 +144,30 @@ class _BookingRequestScreenState extends State<BookingRequestScreen> {
   }
 
   Widget _buildWaitingScreen(Map<String, dynamic> data) {
+    final bool isToken = data['isTokenBooking'] ?? false;
+    final Timestamp? startTimeStamp = data['startTime'];
+    final DateTime? startTime = startTimeStamp?.toDate();
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(24.0),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const SizedBox(
+          SizedBox(
             width: 100,
             height: 100,
             child: CircularProgressIndicator(
               strokeWidth: 8,
-              valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF2463eb)),
+              valueColor: AlwaysStoppedAnimation<Color>(
+                isToken ? Colors.orange : const Color(0xFF2463eb),
+              ),
             ),
           ),
           const SizedBox(height: 40),
-          const Text(
-            'Booking Request Sent!',
-            style: TextStyle(
+          Text(
+            isToken ? 'Token Request Sent!' : 'Booking Request Sent!',
+            style: const TextStyle(
               fontSize: 24,
               fontWeight: FontWeight.bold,
               color: Color(0xFF0e121b),
@@ -169,10 +175,31 @@ class _BookingRequestScreenState extends State<BookingRequestScreen> {
           ),
           const SizedBox(height: 16),
           Text(
-            'Waiting for the worker to accept your ${data['duration'] ?? 1} hour request...',
+            isToken
+                ? 'Your request for ${data['duration'] ?? 1} hours starting at ${startTime != null ? TimeOfDay.fromDateTime(startTime).format(context) : 'later'} has been sent.'
+                : 'Waiting for the worker to accept your ${data['duration'] ?? 1} hour request...',
             textAlign: TextAlign.center,
             style: TextStyle(fontSize: 16, color: Colors.grey.shade600),
           ),
+          if (isToken) ...[
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              decoration: BoxDecoration(
+                color: Colors.orange.shade50,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.orange.shade200),
+              ),
+              child: Text(
+                'Token Booking Style',
+                style: TextStyle(
+                  color: Colors.orange.shade900,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 12,
+                ),
+              ),
+            ),
+          ],
           const SizedBox(height: 40),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),

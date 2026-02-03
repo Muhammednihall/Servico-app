@@ -216,45 +216,48 @@ class _WorkerDashboardScreenState extends State<WorkerDashboardScreen> {
             ],
           ),
           const SizedBox(height: 20),
-          Container(
-            height: 48,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.grey.shade100, width: 1),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
-                  blurRadius: 8,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-            child: Row(
-              children: [
-                const SizedBox(width: 12),
-                Icon(Icons.search, color: Colors.grey.shade400, size: 20),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: TextField(
-                    onSubmitted: (v) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Search feature coming soon!'),
+          Material(
+            color: Colors.transparent,
+            child: Container(
+              height: 48,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.grey.shade100, width: 1),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Row(
+                children: [
+                  const SizedBox(width: 12),
+                  Icon(Icons.search, color: Colors.grey.shade400, size: 20),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: TextField(
+                      onSubmitted: (v) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Search feature coming soon!'),
+                          ),
+                        );
+                      },
+                      decoration: InputDecoration(
+                        hintText: 'Search for jobs...',
+                        hintStyle: TextStyle(
+                          color: Colors.grey.shade400,
+                          fontSize: 14,
                         ),
-                      );
-                    },
-                    decoration: InputDecoration(
-                      hintText: 'Search for jobs...',
-                      hintStyle: TextStyle(
-                        color: Colors.grey.shade400,
-                        fontSize: 14,
+                        border: InputBorder.none,
                       ),
-                      border: InputBorder.none,
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ],
@@ -759,13 +762,38 @@ class _WorkerDashboardScreenState extends State<WorkerDashboardScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
-                              request['serviceName'] ?? 'New Request',
-                              style: const TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                                color: Color(0xFF1e293b),
-                              ),
+                            Row(
+                              children: [
+                                Text(
+                                  request['serviceName'] ?? 'New Request',
+                                  style: const TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                    color: Color(0xFF1e293b),
+                                  ),
+                                ),
+                                if (request['isTokenBooking'] ?? false) ...[
+                                  const SizedBox(width: 8),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 8,
+                                      vertical: 2,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: Colors.orange.shade100,
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                    child: const Text(
+                                      'TOKEN',
+                                      style: TextStyle(
+                                        color: Colors.orange,
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ],
                             ),
                             const SizedBox(height: 4),
                             Row(
@@ -818,7 +846,7 @@ class _WorkerDashboardScreenState extends State<WorkerDashboardScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           const Text(
-                            'DURATION',
+                            'PERIOD / DURATION',
                             style: TextStyle(
                               fontSize: 10,
                               fontWeight: FontWeight.bold,
@@ -827,7 +855,9 @@ class _WorkerDashboardScreenState extends State<WorkerDashboardScreen> {
                             ),
                           ),
                           Text(
-                            '${request['duration']} Hour(s)',
+                            request['isTokenBooking'] ?? false
+                                ? '${request['startTime'] != null ? TimeOfDay.fromDateTime((request['startTime'] as Timestamp).toDate()).format(context) : 'Later'} / ${request['duration']} Hr'
+                                : '${request['duration']} Hour(s)',
                             style: const TextStyle(
                               fontSize: 15,
                               fontWeight: FontWeight.bold,
@@ -1081,13 +1111,38 @@ class _WorkerDashboardScreenState extends State<WorkerDashboardScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          job['serviceName'] ?? 'Active Job',
-                          style: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFF1e293b),
-                          ),
+                        Row(
+                          children: [
+                            Text(
+                              job['serviceName'] ?? 'Active Job',
+                              style: const TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF1e293b),
+                              ),
+                            ),
+                            if (job['isTokenBooking'] ?? false) ...[
+                              const SizedBox(width: 8),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 2,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.orange.shade100,
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: const Text(
+                                  'TOKEN',
+                                  style: TextStyle(
+                                    color: Colors.orange,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ],
                         ),
                         const SizedBox(height: 4),
                         Row(

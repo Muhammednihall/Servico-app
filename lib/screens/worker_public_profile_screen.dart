@@ -17,6 +17,77 @@ class _WorkerPublicProfileScreenState extends State<WorkerPublicProfileScreen> {
   final BookingService _bookingService = BookingService();
   final AuthService _authService = AuthService();
   final Color _primaryColor = const Color(0xFF2463eb);
+  bool _isBusy = false;
+  bool _isLoadingStatus = true;
+  int _tokenCount = 0;
+  bool _alreadyBookedByMe = false;
+  String? _myBookingStatus;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkWorkerStatus();
+  }
+
+  Future<void> _checkWorkerStatus() async {
+    try {
+      final workerId = widget.worker['id'];
+      if (workerId == null) return;
+
+      // Check for active jobs
+      final jobsSnapshot = await FirebaseFirestore.instance
+          .collection('booking_requests')
+          .where('workerId', isEqualTo: workerId)
+          .where('status', isEqualTo: 'accepted')
+          .get();
+
+      // Check for token bookings today
+      final now = DateTime.now();
+      final startOfDay = DateTime(now.year, now.month, now.day);
+      final tokensSnapshot = await FirebaseFirestore.instance
+          .collection('booking_requests')
+          .where('workerId', isEqualTo: workerId)
+          .where('isTokenBooking', isEqualTo: true)
+          .where('status', isEqualTo: 'pending')
+          .get();
+
+      // Check if current user has an active/pending booking with this worker
+      final user = _authService.getCurrentUser();
+      bool userHasBooking = false;
+      String? userBookingStatus;
+
+      if (user != null) {
+        final myBookingsSnapshot = await FirebaseFirestore.instance
+            .collection('booking_requests')
+            .where('workerId', isEqualTo: workerId)
+            .where('customerId', isEqualTo: user.uid)
+            .where('status', whereIn: ['pending', 'accepted'])
+            .get();
+
+        if (myBookingsSnapshot.docs.isNotEmpty) {
+          userHasBooking = true;
+          userBookingStatus = myBookingsSnapshot.docs.first.data()['status'];
+        }
+      }
+
+      if (mounted) {
+        setState(() {
+          _isBusy = jobsSnapshot.docs.isNotEmpty;
+          _tokenCount = tokensSnapshot.docs.length;
+          _alreadyBookedByMe = userHasBooking;
+          _myBookingStatus = userBookingStatus;
+          _isLoadingStatus = false;
+        });
+      }
+    } catch (e) {
+      print('Error checking worker status: $e');
+      if (mounted) {
+        setState(() {
+          _isLoadingStatus = false;
+        });
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -77,21 +148,96 @@ class _WorkerPublicProfileScreenState extends State<WorkerPublicProfileScreen> {
               widget.worker['bio'] ?? 'No description provided.',
               style: TextStyle(color: Colors.grey.shade600, height: 1.5),
             ),
-            const SizedBox(height: 40),
+            if (!_isLoadingStatus && _alreadyBookedByMe)
+              Container(
+                margin: const EdgeInsets.only(bottom: 24),
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.blue.shade50,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.blue.shade200),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.check_circle_outline, color: Colors.blue.shade800),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'You have an active booking',
+                            style: TextStyle(
+                              color: Colors.blue.shade900,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          Text(
+                            'Status: ${_myBookingStatus?.toUpperCase() ?? 'PENDING'}. Next booking will be added as a token.',
+                            style: TextStyle(
+                              color: Colors.blue.shade800,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              )
+            else if (!_isLoadingStatus && _isBusy)
+              Container(
+                margin: const EdgeInsets.only(bottom: 24),
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.orange.shade50,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.orange.shade200),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.info_outline, color: Colors.orange.shade800),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Worker is currently in work',
+                            style: TextStyle(
+                              color: Colors.orange.shade900,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          Text(
+                            'You can book a token for later. Currently $_tokenCount people in queue.',
+                            style: TextStyle(
+                              color: Colors.orange.shade800,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             SizedBox(
               width: double.infinity,
               height: 56,
               child: ElevatedButton(
-                onPressed: _onBookNow,
+                onPressed: _isLoadingStatus ? null : _onBookNow,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: _primaryColor,
+                  backgroundColor: (_isBusy || _alreadyBookedByMe)
+                      ? Colors.orange
+                      : _primaryColor,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(16),
                   ),
                 ),
-                child: const Text(
-                  'Book Now',
-                  style: TextStyle(
+                child: Text(
+                  (_isBusy || _alreadyBookedByMe) ? 'Book Token' : 'Book Now',
+                  style: const TextStyle(
                     color: Colors.white,
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
@@ -107,8 +253,12 @@ class _WorkerPublicProfileScreenState extends State<WorkerPublicProfileScreen> {
 
   Future<void> _onBookNow() async {
     try {
-      final int? duration = await _showDurationPicker(context);
-      if (duration == null) return;
+      final result = await _showBookingDetailsPicker(context);
+      if (result == null) return;
+
+      final int duration = result['duration'];
+      final DateTime? startTime = result['startTime'];
+      final bool isToken = _isBusy || _alreadyBookedByMe;
 
       if (!mounted) return;
       showDialog(
@@ -141,6 +291,8 @@ class _WorkerPublicProfileScreenState extends State<WorkerPublicProfileScreen> {
         duration: duration,
         customerName: customerName,
         customerAddress: customerAddress,
+        isTokenBooking: isToken,
+        startTime: startTime,
       );
 
       if (mounted) Navigator.pop(context); // Pop loader
@@ -166,9 +318,21 @@ class _WorkerPublicProfileScreenState extends State<WorkerPublicProfileScreen> {
     }
   }
 
-  Future<int?> _showDurationPicker(BuildContext context) async {
+  Future<Map<String, dynamic>?> _showBookingDetailsPicker(
+    BuildContext context,
+  ) async {
     int selectedHours = 1;
-    return showModalBottomSheet<int>(
+    DateTime selectedTime = DateTime.now().add(const Duration(hours: 1));
+    // Round to next hour
+    selectedTime = DateTime(
+      selectedTime.year,
+      selectedTime.month,
+      selectedTime.day,
+      selectedTime.hour,
+      0,
+    );
+
+    return showModalBottomSheet<Map<String, dynamic>>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
@@ -184,19 +348,22 @@ class _WorkerPublicProfileScreenState extends State<WorkerPublicProfileScreen> {
           padding: const EdgeInsets.fromLTRB(24, 12, 24, 32),
           child: Column(
             mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade300,
-                  borderRadius: BorderRadius.circular(2),
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade300,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
                 ),
               ),
               const SizedBox(height: 24),
-              const Text(
-                'Select Duration',
-                style: TextStyle(
+              Text(
+                (_isBusy || _alreadyBookedByMe) ? 'Token Booking' : 'Select Duration',
+                style: const TextStyle(
                   fontSize: 22,
                   fontWeight: FontWeight.w800,
                   color: Color(0xFF1e293b),
@@ -204,10 +371,19 @@ class _WorkerPublicProfileScreenState extends State<WorkerPublicProfileScreen> {
               ),
               const SizedBox(height: 8),
               Text(
-                'Select how many hours you need the service.',
+                _alreadyBookedByMe
+                    ? 'You already have an active booking. This will be added as a token.'
+                    : _isBusy
+                        ? 'Worker is busy. Select your preferred time period.'
+                        : 'Select how many hours you need the service.',
                 style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
               ),
               const SizedBox(height: 32),
+              const Text(
+                'Duration (Hours)',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              ),
+              const SizedBox(height: 16),
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
@@ -249,49 +425,72 @@ class _WorkerPublicProfileScreenState extends State<WorkerPublicProfileScreen> {
                 ],
               ),
               const SizedBox(height: 32),
-              if (selectedHours == 6)
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.amber.shade50,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.amber.shade200),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(
-                        Icons.info_outline,
-                        color: Colors.amber.shade800,
-                        size: 20,
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          'For more than 6 hours, please request the provider after booking.',
-                          style: TextStyle(
-                            color: Colors.amber.shade900,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w500,
-                          ),
+              if (_isBusy || _alreadyBookedByMe) ...[
+                const Text(
+                  'Select Time Period',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                ),
+                const SizedBox(height: 16),
+                InkWell(
+                  onTap: () async {
+                    final TimeOfDay? time = await showTimePicker(
+                      context: context,
+                      initialTime: TimeOfDay.fromDateTime(selectedTime),
+                    );
+                    if (time != null) {
+                      setState(() {
+                        selectedTime = DateTime(
+                          selectedTime.year,
+                          selectedTime.month,
+                          selectedTime.day,
+                          time.hour,
+                          time.minute,
+                        );
+                      });
+                    }
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Colors.grey.shade300),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Row(
+                          children: [
+                            const Icon(Icons.access_time, color: Colors.blue),
+                            const SizedBox(width: 12),
+                            Text(
+                              'Starts at: ${TimeOfDay.fromDateTime(selectedTime).format(context)}',
+                              style: const TextStyle(fontSize: 16),
+                            ),
+                          ],
                         ),
-                      ),
-                    ],
+                        const Icon(Icons.arrow_forward_ios, size: 16),
+                      ],
+                    ),
                   ),
                 ),
-              const SizedBox(height: 24),
+                const SizedBox(height: 24),
+              ],
               ElevatedButton(
-                onPressed: () => Navigator.pop(context, selectedHours),
+                onPressed: () => Navigator.pop(context, {
+                  'duration': selectedHours,
+                  'startTime': (_isBusy || _alreadyBookedByMe) ? selectedTime : null,
+                }),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF2463eb),
+                  backgroundColor: (_isBusy || _alreadyBookedByMe) ? Colors.orange : const Color(0xFF2463eb),
                   minimumSize: const Size(double.infinity, 56),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(16),
                   ),
                   elevation: 0,
                 ),
-                child: const Text(
-                  'Confirm Booking',
-                  style: TextStyle(
+                child: Text(
+                  (_isBusy || _alreadyBookedByMe) ? 'Confirm Token Booking' : 'Confirm Booking',
+                  style: const TextStyle(
                     color: Colors.white,
                     fontSize: 16,
                     fontWeight: FontWeight.w700,
