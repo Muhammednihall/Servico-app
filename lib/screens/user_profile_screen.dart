@@ -13,7 +13,6 @@ class UserProfileScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // No Scaffold here - it's embedded in CustomerHomeScreen which provides the Scaffold
     return Container(
       color: _backgroundLight,
       child: Column(
@@ -25,7 +24,7 @@ class UserProfileScreen extends StatelessWidget {
               child: Column(
                 children: [
                   _buildAccountInfo(),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 24),
                   _buildSettings(context),
                   const SizedBox(height: 20),
                   _buildLogoutButton(context),
@@ -336,7 +335,7 @@ class UserProfileScreen extends StatelessWidget {
             label: 'Help & Support',
             iconColor: const Color(0xFFa855f7),
             iconBg: const Color(0xFFfaf5ff),
-            showBorder: true,
+            showBorder: false,
             onTap: () {},
           ),
         ],

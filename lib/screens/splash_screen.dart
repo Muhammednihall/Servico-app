@@ -4,6 +4,7 @@ import 'login_screen.dart';
 import 'customer_home_screen.dart';
 import 'worker_main_screen.dart';
 import '../services/auth_service.dart';
+import '../services/location_service.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -18,6 +19,7 @@ class _SplashScreenState extends State<SplashScreen>
   late Animation<double> _fadeAnimation;
   late Animation<double> _scaleAnimation;
   final AuthService _authService = AuthService();
+  final LocationService _locationService = LocationService();
 
   @override
   void initState() {
@@ -44,12 +46,20 @@ class _SplashScreenState extends State<SplashScreen>
 
     _animationController.forward();
 
-    // Check user session and navigate accordingly
-    Future.delayed(const Duration(milliseconds: 2500), () {
-      if (mounted) {
-        _checkUserSession();
-      }
-    });
+    // Request location permission and check user session
+    _initializeApp();
+  }
+
+  Future<void> _initializeApp() async {
+    // Request location permission early (won't block if denied)
+    await _locationService.requestPermission();
+    
+    // Wait for animations
+    await Future.delayed(const Duration(milliseconds: 2500));
+    
+    if (mounted) {
+      _checkUserSession();
+    }
   }
 
   Future<void> _checkUserSession() async {
@@ -167,10 +177,10 @@ class _SplashScreenState extends State<SplashScreen>
                     const Text(
                       'Servico',
                       style: TextStyle(
-                        color: Color(0xFF2463eb),
+                        color: Color(0xFF1E293B),
                         fontSize: 32,
                         fontWeight: FontWeight.w800,
-                        letterSpacing: -0.5,
+                        letterSpacing: -1,
                       ),
                     ),
                     const SizedBox(height: 8),

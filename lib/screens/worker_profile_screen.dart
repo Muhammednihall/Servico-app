@@ -3,6 +3,7 @@ import 'login_screen.dart';
 import '../services/auth_service.dart';
 import '../services/worker_service.dart';
 import 'edit_profile_screen.dart';
+import '../widgets/modern_header.dart';
 
 class WorkerProfileScreen extends StatefulWidget {
   const WorkerProfileScreen({super.key});
@@ -24,84 +25,82 @@ class _WorkerProfileScreenState extends State<WorkerProfileScreen> {
       return const Center(child: Text('Please login'));
     }
 
-    return StreamBuilder<Map<String, dynamic>?>(
-      stream: _workerService.streamWorkerProfile(user.uid),
-      builder: (context, snapshot) {
-        final workerData = snapshot.data;
-
-        return SingleChildScrollView(
-          padding: const EdgeInsets.only(bottom: 100),
-          child: Column(
-            children: [
-              _buildHeader(workerData),
-              Transform.translate(
-                offset: const Offset(0, -32),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: Column(
-                    children: [
-                      _buildAccountInfo(workerData),
-                      const SizedBox(height: 20),
-                      _buildSettings(),
-                      const SizedBox(height: 20),
-                      _buildLogoutButton(context),
-                    ],
-                  ),
-                ),
-              ),
-            ],
+    return Scaffold(
+      backgroundColor: const Color(0xFFF8FAFC),
+      body: Column(
+        children: [
+          ModernHeader(
+            title: 'Profile',
+            subtitle: 'Manage your personal',
           ),
-        );
-      },
-    );
-  }
+          Expanded(
+            child: StreamBuilder<Map<String, dynamic>?>(
+              stream: _workerService.streamWorkerProfile(user.uid),
+              builder: (context, snapshot) {
+                final workerData = snapshot.data;
 
-  Widget _buildHeader(Map<String, dynamic>? workerData) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.only(top: 20, bottom: 60),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [const Color(0xFF3b82f6), _primaryColor],
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-        ),
-        borderRadius: const BorderRadius.only(
-          bottomLeft: Radius.circular(40),
-          bottomRight: Radius.circular(40),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.1),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
+                return ListView(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+                  children: [
+                    _buildProfileCard(workerData),
+                    const SizedBox(height: 32),
+                    _buildAccountInfo(workerData),
+                    const SizedBox(height: 32),
+                    _buildSettings(),
+                    const SizedBox(height: 32),
+                    _buildLogoutButton(context),
+                    const SizedBox(height: 120),
+                  ],
+                );
+              },
+            ),
           ),
         ],
       ),
-      child: SafeArea(
-        bottom: false,
-        child: Column(
-          children: [
-            Stack(
-              clipBehavior: Clip.none,
-              children: [
-                Container(
-                  width: 128,
-                  height: 128,
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    shape: BoxShape.circle,
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.15),
-                        blurRadius: 20,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                  child: Icon(Icons.person, size: 64, color: _primaryColor),
+    );
+  }
+
+  Widget _buildProfileCard(Map<String, dynamic>? workerData) {
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(28),
+        border: Border.all(color: Colors.grey.shade100, width: 1.5),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.03),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Stack(
+            children: [
+              Container(
+                width: 100,
+                height: 100,
+                decoration: BoxDecoration(
+                  color: _primaryColor.withOpacity(0.1),
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.white, width: 4),
+                  boxShadow: [
+                    BoxShadow(
+                      color: _primaryColor.withOpacity(0.1),
+                      blurRadius: 15,
+                      offset: const Offset(0, 5),
+                    ),
+                  ],
                 ),
-                GestureDetector(
+                child: Icon(Icons.person, size: 50, color: _primaryColor),
+              ),
+              Positioned(
+                bottom: 0,
+                right: 0,
+                child: GestureDetector(
                   onTap: () {
                     Navigator.push(
                       context,
@@ -111,43 +110,38 @@ class _WorkerProfileScreenState extends State<WorkerProfileScreen> {
                     );
                   },
                   child: Container(
-                    width: 36,
-                    height: 36,
-                    margin: const EdgeInsets.only(left: 92, top: 92),
+                    padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
                       color: const Color(0xFF1e293b),
                       shape: BoxShape.circle,
                       border: Border.all(color: Colors.white, width: 2),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.2),
-                          blurRadius: 8,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
                     ),
-                    child: const Icon(
-                      Icons.edit,
-                      size: 16,
-                      color: Colors.white,
-                    ),
+                    child: const Icon(Icons.edit, size: 14, color: Colors.white),
                   ),
                 ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            Text(
-              workerData?['name'] ?? 'Worker Profile',
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 24,
-                fontWeight: FontWeight.w800,
-                letterSpacing: -0.5,
               ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Text(
+            workerData?['name'] ?? 'Worker Name',
+            style: const TextStyle(
+              color: Color(0xFF1e293b),
+              fontSize: 22,
+              fontWeight: FontWeight.w800,
+              letterSpacing: -0.5,
             ),
-            const SizedBox(height: 4),
-          ],
-        ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            workerData?['serviceType'] ?? 'Professional Service',
+            style: TextStyle(
+              color: Colors.grey.shade500,
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -335,14 +329,11 @@ class _WorkerProfileScreenState extends State<WorkerProfileScreen> {
             iconColor: _primaryColor,
             label: 'Privacy & Security',
           ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-            child: _buildSettingsItem(
-              icon: Icons.help_outline,
-              iconColor: _primaryColor,
-              label: 'Help & Support',
-              showBorder: false,
-            ),
+          _buildSettingsItem(
+            icon: Icons.help_outline,
+            iconColor: _primaryColor,
+            label: 'Help & Support',
+            showBorder: false,
           ),
         ],
       ),

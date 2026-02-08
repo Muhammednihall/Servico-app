@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class WorkerService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -145,30 +146,52 @@ class WorkerService {
     }
   }
 
-  /// Get today's earnings
+  /// Get today's earnings with local persistence and daily reset
   Future<double> getTodaysEarnings(String uid) async {
     try {
+      final prefs = await SharedPreferences.getInstance();
       final today = DateTime.now();
-      final startOfDay = DateTime(today.year, today.month, today.day);
-      final endOfDay = DateTime(today.year, today.month, today.day, 23, 59, 59);
+      final dateKey = 'earnings_date_${uid}';
+      final amountKey = 'today_earnings_${uid}';
+      
+      final savedDate = prefs.getString(dateKey);
+      final todayStr = "${today.year}-${today.month}-${today.day}";
 
-      final snapshot = await _firestore
-          .collection('transactions')
-          .where('userId', isEqualTo: uid)
-          .where('type', isEqualTo: 'credit')
-          .where('createdAt', isGreaterThanOrEqualTo: startOfDay)
-          .where('createdAt', isLessThanOrEqualTo: endOfDay)
-          .get();
-
-      double total = 0;
-      for (final doc in snapshot.docs) {
-        total += (doc['amount'] as num).toDouble();
+      // Reset if it's a new day
+      if (savedDate != todayStr) {
+        await prefs.setString(dateKey, todayStr);
+        await prefs.setDouble(amountKey, 0.0);
+        return 0.0;
       }
 
-      return total;
+      return prefs.getDouble(amountKey) ?? 0.0;
     } catch (e) {
       print('❌ Error fetching today\'s earnings: $e');
       return 0.0;
+    }
+  }
+
+  /// Internal helper to add earnings to local storage
+  Future<void> _addEarningsLocally(String uid, double amount) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final today = DateTime.now();
+      final dateKey = 'earnings_date_${uid}';
+      final amountKey = 'today_earnings_${uid}';
+      
+      final todayStr = "${today.year}-${today.month}-${today.day}";
+      final savedDate = prefs.getString(dateKey);
+
+      double currentAmount = 0.0;
+      if (savedDate == todayStr) {
+        currentAmount = prefs.getDouble(amountKey) ?? 0.0;
+      }
+
+      await prefs.setString(dateKey, todayStr);
+      await prefs.setDouble(amountKey, currentAmount + amount);
+      print('✓ Local earnings updated: ${currentAmount + amount}');
+    } catch (e) {
+      print('❌ Error updating local earnings: $e');
     }
   }
 
@@ -213,6 +236,7 @@ class WorkerService {
     });
   }
 
+  /// Get workers by category
   Future<List<Map<String, dynamic>>> getWorkersByCategory(
     String category,
   ) async {
@@ -241,6 +265,7 @@ class WorkerService {
     }
   }
 
+  /// Stream worker jobs
   Stream<List<Map<String, dynamic>>> streamWorkerJobs(
     String uid, {
     String? status,
@@ -253,13 +278,13 @@ class WorkerService {
       query = query.where('status', isEqualTo: status);
     }
 
-    return query.orderBy('createdAt', descending: true).snapshots().map((
-      snapshot,
-    ) {
-      return snapshot.docs
-          .map((doc) => doc.data() as Map<String, dynamic>)
-          .toList();
-    });
+    return query.orderBy('createdAt', descending: true).snapshots().map(
+      (snapshot) {
+        return snapshot.docs
+            .map((doc) => doc.data() as Map<String, dynamic>)
+            .toList();
+      },
+    );
   }
 
   /// Credit worker balance after job completion
@@ -299,10 +324,129 @@ class WorkerService {
           'status': 'completed',
         });
       });
+
+      // Update local storage for instant dashboard reflection
+      await _addEarningsLocally(workerId, amount);
+      
       print('✓ Worker balance credited successfully');
     } catch (e) {
       print('❌ Error crediting worker balance: $e');
       rethrow;
+    }
+  }
+
+  /// Update worker availability status
+  Future<void> updateAvailability(String uid, bool isAvailable) async {
+    try {
+      await _firestore.collection('workers').doc(uid).update({
+        'isAvailable': isAvailable,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+      print('✓ Availability updated to: $isAvailable');
+    } catch (e) {
+      print('❌ Error updating availability: $e');
+      rethrow;
+    }
+  }
+
+  /// Check if worker is currently busy with a job
+  Future<Map<String, dynamic>?> getWorkerCurrentBooking(String workerId) async {
+    try {
+      // Check for active bookings (accepted status)
+      final activeBookings = await _firestore
+          .collection('booking_requests')
+          .where('workerId', isEqualTo: workerId)
+          .where('status', isEqualTo: 'accepted')
+          .limit(1)
+          .get();
+
+      if (activeBookings.docs.isNotEmpty) {
+        return activeBookings.docs.first.data();
+      }
+      return null;
+    } catch (e) {
+      print('❌ Error checking worker availability: $e');
+      return null;
+    }
+  }
+
+  /// Get count of token bookings in queue for a worker
+  Future<int> getTokenQueueCount(String workerId) async {
+    try {
+      final tokenBookings = await _firestore
+          .collection('booking_requests')
+          .where('workerId', isEqualTo: workerId)
+          .where('isTokenBooking', isEqualTo: true)
+          .where('status', isEqualTo: 'pending')
+          .get();
+      return tokenBookings.docs.length;
+    } catch (e) {
+      print('❌ Error getting token queue: $e');
+      return 0;
+    }
+  }
+
+  /// Update worker busy status with current booking details
+  Future<void> setWorkerBusy(String workerId, String bookingId, DateTime endTime) async {
+    try {
+      await _firestore.collection('workers').doc(workerId).update({
+        'isAvailable': false,
+        'currentBookingId': bookingId,
+        'currentBookingEndTime': Timestamp.fromDate(endTime),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+      print('✓ Worker marked as busy');
+    } catch (e) {
+      print('❌ Error setting worker busy: $e');
+    }
+  }
+
+  /// Clear worker busy status when job is complete
+  Future<void> setWorkerFree(String workerId) async {
+    try {
+      await _firestore.collection('workers').doc(workerId).update({
+        'isAvailable': true,
+        'currentBookingId': null,
+        'currentBookingEndTime': null,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+      print('✓ Worker marked as free');
+    } catch (e) {
+      print('❌ Error setting worker free: $e');
+    }
+  }
+
+  /// Get estimated start time for a new token booking
+  Future<DateTime> getEstimatedStartTime(String workerId, int newBookingDuration) async {
+    try {
+      // Get current booking end time
+      final currentBooking = await getWorkerCurrentBooking(workerId);
+      DateTime estimatedStart = DateTime.now();
+
+      if (currentBooking != null && currentBooking['startTime'] != null) {
+        final startTime = (currentBooking['startTime'] as Timestamp).toDate();
+        final duration = currentBooking['duration'] ?? 1;
+        estimatedStart = startTime.add(Duration(hours: duration));
+      }
+
+      // Add time for all pending token bookings
+      final pendingTokens = await _firestore
+          .collection('booking_requests')
+          .where('workerId', isEqualTo: workerId)
+          .where('isTokenBooking', isEqualTo: true)
+          .where('status', isEqualTo: 'pending')
+          .orderBy('tokenPosition')
+          .get();
+
+      for (var doc in pendingTokens.docs) {
+        final tokenDuration = doc.data()['duration'] ?? 1;
+        estimatedStart = estimatedStart.add(Duration(hours: tokenDuration));
+      }
+
+      return estimatedStart;
+    } catch (e) {
+      print('❌ Error calculating estimated start: $e');
+      return DateTime.now().add(const Duration(hours: 2));
     }
   }
 }

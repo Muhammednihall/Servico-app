@@ -5,6 +5,8 @@ import 'customer_bookings_screen.dart';
 import '../services/category_service.dart';
 import '../services/carousel_service.dart';
 import '../widgets/weather_widget.dart';
+import '../widgets/modern_header.dart';
+import '../widgets/modern_nav_bar.dart';
 
 class CustomerHomeScreen extends StatefulWidget {
   const CustomerHomeScreen({super.key});
@@ -15,111 +17,94 @@ class CustomerHomeScreen extends StatefulWidget {
 
 class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
   int _selectedIndex = 0;
-  final Color _primaryColor = const Color(0xFF2463eb);
+  final PageController _pageController = PageController();
 
-  static const List<Widget> _widgetOptions = <Widget>[
-    CustomerHomeContent(),
-    CustomerBookingsScreen(),
-    UserProfileScreen(),
+  final List<Widget> _widgetOptions = [
+    const CustomerHomeContent(),
+    const CustomerBookingsScreen(),
+    const UserProfileScreen(),
   ];
 
   void _onItemTapped(int index) {
     setState(() {
       _selectedIndex = index;
     });
+    _pageController.animateToPage(
+      index,
+      duration: const Duration(milliseconds: 400),
+      curve: Curves.easeInOut,
+    );
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
-      body: _widgetOptions.elementAt(_selectedIndex),
-      bottomNavigationBar: Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          border: Border(
-            top: BorderSide(color: Colors.grey.shade200, width: 1),
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              blurRadius: 6,
-              offset: const Offset(0, -4),
-            ),
-          ],
-        ),
-        child: SafeArea(
-          top: false,
-          child: SizedBox(
-            height: 56,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [
-                _buildNavItem(
-                  icon: Icons.home_repair_service,
-                  label: 'Home',
-                  isSelected: _selectedIndex == 0,
-                  onTap: () => _onItemTapped(0),
-                ),
-                _buildNavItem(
-                  icon: Icons.assignment_outlined,
-                  label: 'Bookings',
-                  isSelected: _selectedIndex == 1,
-                  onTap: () => _onItemTapped(1),
-                ),
-                _buildNavItem(
-                  icon: Icons.person_outline,
-                  label: 'Profile',
-                  isSelected: _selectedIndex == 2,
-                  onTap: () => _onItemTapped(2),
-                ),
-              ],
-            ),
-          ),
-        ),
+      backgroundColor: const Color(0xFFF8FAFC),
+      extendBody: true,
+      body: PageView(
+        controller: _pageController,
+        onPageChanged: (index) {
+          setState(() {
+            _selectedIndex = index;
+          });
+        },
+        children: _widgetOptions,
       ),
-    );
-  }
-
-  Widget _buildNavItem({
-    required IconData icon,
-    required String label,
-    required bool isSelected,
-    required VoidCallback onTap,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            icon,
-            color: isSelected ? _primaryColor : Colors.grey.shade400,
-            size: 28,
-          ),
-          const SizedBox(height: 4),
-          Text(
-            label,
-            style: TextStyle(
-              color: isSelected ? _primaryColor : Colors.grey.shade400,
-              fontSize: 10,
-              fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-            ),
-          ),
+      bottomNavigationBar: ModernNavBar(
+        selectedIndex: _selectedIndex,
+        onItemSelected: _onItemTapped,
+        items: [
+          NavItem(Icons.home_rounded, 'Home'),
+          NavItem(Icons.assignment_rounded, 'Bookings'),
+          NavItem(Icons.person_rounded, 'Profile'),
         ],
       ),
     );
   }
+
 }
 
-class CustomerHomeContent extends StatelessWidget {
+class CustomerHomeContent extends StatefulWidget {
   const CustomerHomeContent({super.key});
+
+  @override
+  State<CustomerHomeContent> createState() => _CustomerHomeContentState();
+}
+
+class _CustomerHomeContentState extends State<CustomerHomeContent> {
+  final PageController _promoController = PageController();
+  int _currentPromo = 0;
+
+  @override
+  void dispose() {
+    _promoController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     return Column(
       children: [
-        _buildHeader(),
+        ModernHeader(
+          title: 'Find Top Services',
+          subtitle: 'Welcome back, User 👋',
+          actions: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF1F5F9),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Icon(Icons.search, size: 22, color: Color(0xFF1E293B)),
+            ),
+          ],
+        ),
         Expanded(
           child: StreamBuilder<List<CategoryModel>>(
             stream: CategoryService().streamCategories(),
@@ -129,59 +114,35 @@ class CustomerHomeContent extends StatelessWidget {
               }
 
               final allCategories = snapshot.data ?? [];
-
-              // Calculate Top Categories (Emergency & Daily)
-              final priorityNames = [
-                'Water',
-                'Gas',
-                'Electricity',
-                'Cleaning',
-                'Plumbing',
-                'Electrical',
-              ];
-
+              final priorityNames = ['Water', 'Gas', 'Electricity', 'Cleaning', 'Plumbing', 'Electrical'];
               final sortedForTop = [...allCategories];
               sortedForTop.sort((a, b) {
-                int aIdx = priorityNames.indexWhere(
-                  (name) => a.name.toLowerCase().contains(name.toLowerCase()),
-                );
-                int bIdx = priorityNames.indexWhere(
-                  (name) => b.name.toLowerCase().contains(name.toLowerCase()),
-                );
-                if (aIdx == -1) aIdx = 1000;
-                if (bIdx == -1) bIdx = 1000;
-                return aIdx.compareTo(bIdx);
+                int aIdx = priorityNames.indexWhere((name) => a.name.toLowerCase().contains(name.toLowerCase()));
+                int bIdx = priorityNames.indexWhere((name) => b.name.toLowerCase().contains(name.toLowerCase()));
+                return (aIdx == -1 ? 1000 : aIdx).compareTo(bIdx == -1 ? 1000 : bIdx);
               });
 
               final topCategories = sortedForTop.take(4).toList();
               final topIds = topCategories.map((c) => c.id).toSet();
-
-              // Calculate Bottom Categories (Filtered & Non-Duplicate)
-              final bottomCategories = allCategories
-                  .where(
-                    (c) =>
-                        c.name != 'Health & Wellness' && !topIds.contains(c.id),
-                  )
-                  .toList();
+              final bottomCategories = allCategories.where((c) => c.name != 'Health & Wellness' && !topIds.contains(c.id)).toList();
 
               return RefreshIndicator(
-                onRefresh: () async {
-                  await Future.delayed(const Duration(seconds: 1));
-                },
+                onRefresh: () async => await Future.delayed(const Duration(seconds: 1)),
                 child: ListView(
-                  padding: EdgeInsets.zero,
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
                   children: [
-                    const SizedBox(height: 16),
                     _buildPromotions(context),
-                    const SizedBox(height: 20),
-                    _buildTopCategories(context, topCategories),
-                    const SizedBox(height: 24),
-                    _buildServiceCategories(context, bottomCategories),
-                    const SizedBox(height: 24),
-                    const WeatherWidget(),
-                    const SizedBox(height: 20),
-                    _buildAboutServico(),
                     const SizedBox(height: 32),
+                    _buildQuickActionCard(context),
+                    const SizedBox(height: 32),
+                    _buildTopCategories(context, topCategories),
+                    const SizedBox(height: 32),
+                    _buildServiceCategories(context, bottomCategories),
+                    const SizedBox(height: 32),
+                    const WeatherWidget(),
+                    const SizedBox(height: 32),
+                    _buildAboutServico(),
+                    const SizedBox(height: 120),
                   ],
                 ),
               );
@@ -192,88 +153,86 @@ class CustomerHomeContent extends StatelessWidget {
     );
   }
 
-  Widget _buildHeader() {
+  Widget _buildQuickActionCard(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(24, 48, 24, 20),
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          colors: [Color(0xFF1e3a8a), Color(0xFF2463eb), Color(0xFF0ea5e9)],
-          begin: Alignment.topLeft,
-          end: Alignment.topRight,
-        ),
-        borderRadius: BorderRadius.only(
-          bottomLeft: Radius.circular(32),
-          bottomRight: Radius.circular(32),
-        ),
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1E293B),
+        borderRadius: BorderRadius.circular(28),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF1E293B).withOpacity(0.2),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
+          ),
+        ],
       ),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
+              const Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Instant Service',
+                    style: TextStyle(color: Colors.white70, fontSize: 14, fontWeight: FontWeight.w500),
+                  ),
+                  SizedBox(height: 4),
+                  Text(
+                    'Book in 60s',
+                    style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w800),
+                  ),
+                ],
+              ),
               Container(
-                width: 48,
-                height: 48,
+                width: 56,
+                height: 56,
                 decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
+                  color: const Color(0xFF2463EB),
+                  borderRadius: BorderRadius.circular(28),
                 ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
-                  child: Image.asset(
-                    'assets/logo.png',
-                    fit: BoxFit.cover,
-                    errorBuilder: (c, e, s) => const Icon(
-                      Icons.home_repair_service,
-                      color: Color(0xFF2463eb),
+                child: const Icon(Icons.bolt_rounded, color: Colors.white, size: 30),
+              ),
+            ],
+          ),
+          const SizedBox(height: 24),
+          Row(
+            children: [
+              Expanded(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: const Center(
+                    child: Text(
+                      'Track Order',
+                      style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
                     ),
                   ),
                 ),
               ),
               const SizedBox(width: 12),
-              const Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Servico',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 24,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: -0.5,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Container(
-            height: 48,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Row(
-              children: [
-                const SizedBox(width: 12),
-                Icon(Icons.search, color: Colors.grey.shade400, size: 20),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: TextField(
-                    decoration: InputDecoration(
-                      hintText: 'Search for services...',
-                      hintStyle: TextStyle(
-                        color: Colors.grey.shade400,
-                        fontSize: 14,
-                      ),
-                      border: InputBorder.none,
+              Expanded(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: const Center(
+                    child: Text(
+                      'History',
+                      style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
                     ),
                   ),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ],
       ),
@@ -286,7 +245,7 @@ class CustomerHomeContent extends StatelessWidget {
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const SizedBox(
-            height: 176,
+            height: 180,
             child: Center(child: CircularProgressIndicator()),
           );
         }
@@ -294,25 +253,35 @@ class CustomerHomeContent extends StatelessWidget {
         final carousels = snapshot.data ?? [];
         if (carousels.isEmpty) return const SizedBox.shrink();
 
-        return LayoutBuilder(
-          builder: (context, constraints) {
-            return SizedBox(
+        return Column(
+          children: [
+            SizedBox(
               height: 176,
-              child: ListView.separated(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: PageView.builder(
+                controller: _promoController,
                 itemCount: carousels.length,
-                separatorBuilder: (context, index) => const SizedBox(width: 16),
+                onPageChanged: (index) {
+                  setState(() {
+                    _currentPromo = index;
+                  });
+                },
                 itemBuilder: (context, index) {
                   final carousel = carousels[index];
                   return Container(
-                    width: constraints.maxWidth * 0.85,
+                    margin: const EdgeInsets.symmetric(horizontal: 4),
                     decoration: BoxDecoration(
                       color: Colors.white,
-                      borderRadius: BorderRadius.circular(20),
+                      borderRadius: BorderRadius.circular(24),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.05),
+                          blurRadius: 10,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
                     ),
                     child: ClipRRect(
-                      borderRadius: BorderRadius.circular(20),
+                      borderRadius: BorderRadius.circular(24),
                       child: Image.network(
                         carousel.imageUrl,
                         fit: BoxFit.cover,
@@ -325,8 +294,25 @@ class CustomerHomeContent extends StatelessWidget {
                   );
                 },
               ),
-            );
-          },
+            ),
+            const SizedBox(height: 12),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: List.generate(
+                carousels.length,
+                (index) => AnimatedContainer(
+                  duration: const Duration(milliseconds: 300),
+                  margin: const EdgeInsets.symmetric(horizontal: 4),
+                  height: 6,
+                  width: _currentPromo == index ? 20 : 6,
+                  decoration: BoxDecoration(
+                    color: _currentPromo == index ? const Color(0xFF2463EB) : Colors.grey.shade300,
+                    borderRadius: BorderRadius.circular(3),
+                  ),
+                ),
+              ),
+            ),
+          ],
         );
       },
     );
@@ -336,37 +322,36 @@ class CustomerHomeContent extends StatelessWidget {
     BuildContext context,
     List<CategoryModel> categories,
   ) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Emergency & Daily Services',
-            style: TextStyle(
-              color: Color(0xFF1e293b),
-              fontSize: 20,
-              fontWeight: FontWeight.w700,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              'Emergency services',
+              style: Theme.of(context).textTheme.titleLarge,
             ),
-          ),
-          const SizedBox(height: 12),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: categories.asMap().entries.map((entry) {
-              final index = entry.key;
-              final cat = entry.value;
-              return Expanded(
-                child: Padding(
-                  padding: EdgeInsets.only(
-                    right: index < categories.length - 1 ? 8 : 0,
-                  ),
-                  child: _buildTopCategoryCard(context: context, category: cat),
+            const Icon(Icons.arrow_forward_ios_rounded, size: 16, color: Colors.grey),
+          ],
+        ),
+        const SizedBox(height: 20),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: categories.asMap().entries.map((entry) {
+            final index = entry.key;
+            final cat = entry.value;
+            return Expanded(
+              child: Padding(
+                padding: EdgeInsets.only(
+                  right: index < categories.length - 1 ? 12 : 0,
                 ),
-              );
-            }).toList(),
-          ),
-        ],
-      ),
+                child: _buildTopCategoryCard(context: context, category: cat),
+              ),
+            );
+          }).toList(),
+        ),
+      ],
     );
   }
 
@@ -388,8 +373,8 @@ class CustomerHomeContent extends StatelessWidget {
         padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.grey.shade100, width: 1),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: Colors.grey.shade100, width: 1.5),
         ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -431,44 +416,43 @@ class CustomerHomeContent extends StatelessWidget {
   ) {
     final displayCategories = categories.take(9).toList();
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Service Categories',
-            style: TextStyle(
-              color: Color(0xFF1e293b),
-              fontSize: 20,
-              fontWeight: FontWeight.w700,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              'For you',
+              style: Theme.of(context).textTheme.titleLarge,
             ),
+            const Icon(Icons.arrow_forward_ios_rounded, size: 16, color: Colors.grey),
+          ],
+        ),
+        const SizedBox(height: 20),
+        GridView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          padding: EdgeInsets.zero,
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 3,
+            mainAxisSpacing: 12,
+            crossAxisSpacing: 12,
+            childAspectRatio: 0.85,
           ),
-          const SizedBox(height: 16),
-          GridView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            padding: EdgeInsets.zero,
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 3,
-              mainAxisSpacing: 16,
-              crossAxisSpacing: 16,
-              childAspectRatio: 0.88,
-            ),
-            itemCount: displayCategories.length,
-            itemBuilder: (context, index) {
-              final cat = displayCategories[index];
-              return _buildServiceCategory(
-                context: context,
-                icon: cat.getIconData(),
-                label: cat.name,
-                color: cat.getColor(),
-                category: cat,
-              );
-            },
-          ),
-        ],
-      ),
+          itemCount: displayCategories.length,
+          itemBuilder: (context, index) {
+            final cat = displayCategories[index];
+            return _buildServiceCategory(
+              context: context,
+              icon: cat.getIconData(),
+              label: cat.name,
+              color: cat.getColor(),
+              category: cat,
+            );
+          },
+        ),
+      ],
     );
   }
 
@@ -484,8 +468,7 @@ class CustomerHomeContent extends StatelessWidget {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) =>
-                SubCategorySelectionScreen(category: category),
+            builder: (context) => SubCategorySelectionScreen(category: category),
           ),
         );
       },
@@ -493,7 +476,7 @@ class CustomerHomeContent extends StatelessWidget {
         padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(24),
           border: Border.all(color: Colors.grey.shade100, width: 1.5),
         ),
         child: Column(
@@ -529,47 +512,44 @@ class CustomerHomeContent extends StatelessWidget {
   }
 
   Widget _buildAboutServico() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 24),
-      child: Container(
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: const Color(0xFFeff6ff),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: const Color(0xFFdbeafe), width: 1),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Row(
-              children: [
-                Icon(Icons.info_outline, color: Color(0xFF2463eb), size: 20),
-                SizedBox(width: 8),
-                Text(
-                  'About Servico',
-                  style: TextStyle(
-                    color: Color(0xFF1e293b),
-                    fontSize: 18,
-                    fontWeight: FontWeight.w700,
-                  ),
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(28),
+        border: Border.all(color: Colors.grey.shade100, width: 1.5),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            children: [
+              Icon(Icons.info_outline, color: Color(0xFF2463eb), size: 20),
+              SizedBox(width: 8),
+              Text(
+                'About Servico',
+                style: TextStyle(
+                  color: Color(0xFF1e293b),
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
                 ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            const Text(
-              'Your AI-enabled city companion. We connect you with top-rated local professionals instantly.',
-              style: TextStyle(
-                color: Color(0xFF475569),
-                fontSize: 14,
-                height: 1.5,
               ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          const Text(
+            'Your AI-enabled city companion. We connect you with top-rated local professionals instantly.',
+            style: TextStyle(
+              color: Color(0xFF475569),
+              fontSize: 14,
+              height: 1.5,
             ),
-            const SizedBox(height: 16),
-            _buildAboutPoint('Fast & Easy Booking'),
-            _buildAboutPoint('100% Verified Professionals'),
-            _buildAboutPoint('Secure Payments'),
-          ],
-        ),
+          ),
+          const SizedBox(height: 16),
+          _buildAboutPoint('Fast & Easy Booking'),
+          _buildAboutPoint('100% Verified Professionals'),
+          _buildAboutPoint('Secure Payments'),
+        ],
       ),
     );
   }

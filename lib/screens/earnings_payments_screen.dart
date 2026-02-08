@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/auth_service.dart';
 import '../services/worker_service.dart';
+import '../widgets/modern_header.dart';
 
 class EarningsPaymentsScreen extends StatefulWidget {
   const EarningsPaymentsScreen({super.key});
@@ -24,94 +25,49 @@ class _EarningsPaymentsScreenState extends State<EarningsPaymentsScreen> {
       return const Center(child: Text('Please login'));
     }
 
-    return StreamBuilder<Map<String, dynamic>?>(
-      stream: _workerService.streamWorkerWallet(user.uid),
-      builder: (context, walletSnapshot) {
-        final wallet = walletSnapshot.data;
-        final balance = (wallet?['balance'] as num?)?.toDouble() ?? 0.0;
-        final totalEarned = (wallet?['totalEarned'] as num?)?.toDouble() ?? 0.0;
-
-        DateTime? nextPayout;
-        if (wallet?['nextPayoutDate'] != null) {
-          final payoutDate = wallet!['nextPayoutDate'];
-          if (payoutDate is Timestamp) {
-            nextPayout = payoutDate.toDate();
-          } else if (payoutDate is DateTime) {
-            nextPayout = payoutDate;
-          }
-        }
-
-        return Container(
-          color: _backgroundLight,
-          child: Stack(
-            children: [
-              Column(
-                children: [
-                  _buildHeader(context),
-                  Expanded(
-                    child: SingleChildScrollView(
-                      padding: const EdgeInsets.fromLTRB(16, 210, 16, 100),
-                      child: Column(
-                        children: [
-                          _buildPayoutDetailsCard(nextPayout, totalEarned),
-                          const SizedBox(height: 20),
-                          _buildRecentTransactionsStream(user.uid),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              Positioned(
-                top: 120,
-                left: 32,
-                right: 32,
-                child: _buildTotalEarningsCard(balance),
-              ),
-            ],
+    return Scaffold(
+      backgroundColor: const Color(0xFFF8FAFC),
+      body: Column(
+        children: [
+          ModernHeader(
+            title: 'Earnings',
+            subtitle: 'Overview of your',
           ),
-        );
-      },
-    );
-  }
+          Expanded(
+            child: StreamBuilder<Map<String, dynamic>?>(
+              stream: _workerService.streamWorkerWallet(user.uid),
+              builder: (context, walletSnapshot) {
+                final wallet = walletSnapshot.data;
+                final balance = (wallet?['balance'] as num?)?.toDouble() ?? 0.0;
+                final totalEarned =
+                    (wallet?['totalEarned'] as num?)?.toDouble() ?? 0.0;
 
-  Widget _buildHeader(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(24, 10, 24, 46),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [_primaryColor, const Color(0xFF60a5fa)],
-          begin: Alignment.topLeft,
-          end: Alignment.topRight,
-        ),
-        borderRadius: const BorderRadius.only(
-          bottomLeft: Radius.circular(24),
-          bottomRight: Radius.circular(24),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.1),
-            blurRadius: 20,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.only(top: 8, bottom: 8),
-          child: const Align(
-            alignment: Alignment.centerLeft,
-            child: Text(
-              'Earnings & Payments',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 24,
-                fontWeight: FontWeight.w800,
-                letterSpacing: -0.5,
-              ),
+                DateTime? nextPayout;
+                if (wallet?['nextPayoutDate'] != null) {
+                  final payoutDate = wallet!['nextPayoutDate'];
+                  if (payoutDate is Timestamp) {
+                    nextPayout = payoutDate.toDate();
+                  } else if (payoutDate is DateTime) {
+                    nextPayout = payoutDate;
+                  }
+                }
+
+                return ListView(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+                  children: [
+                    _buildTotalEarningsCard(balance),
+                    const SizedBox(height: 32),
+                    _buildPayoutDetailsCard(nextPayout, totalEarned),
+                    const SizedBox(height: 32),
+                    _buildRecentTransactionsStream(user.uid),
+                    const SizedBox(height: 120),
+                  ],
+                );
+              },
             ),
           ),
-        ),
+        ],
       ),
     );
   }
@@ -204,17 +160,16 @@ class _EarningsPaymentsScreenState extends State<EarningsPaymentsScreen> {
             ),
             const SizedBox(height: 4),
             Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 Text(
-                  '\$',
+                  '₹',
                   style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.9),
-                    fontSize: 20,
-                    fontWeight: FontWeight.w600,
+                    color: Colors.white,
+                    fontSize: 32,
+                    fontWeight: FontWeight.w800,
                   ),
                 ),
-                const SizedBox(width: 2),
                 Text(
                   balance.toStringAsFixed(2),
                   style: const TextStyle(

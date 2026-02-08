@@ -70,34 +70,19 @@ class _BookingRequestScreenState extends State<BookingRequestScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return PopScope(
-      canPop: true,
-      onPopInvokedWithResult: (didPop, result) {
-        if (didPop) {
-          _bookingService.updateRequestStatus(widget.requestId, 'cancelled');
-        }
-      },
-      child: Scaffold(
-        backgroundColor: Colors.white,
+    return Scaffold(
+        backgroundColor: const Color(0xFFF8FAFC),
         body: StreamBuilder<DocumentSnapshot>(
           stream: _bookingService.streamBookingRequest(widget.requestId),
           builder: (context, snapshot) {
-            if (snapshot.hasError) {
-              return Center(child: Text('Error: ${snapshot.error}'));
-            }
-
-            if (!snapshot.hasData || !snapshot.data!.exists) {
-              return const Center(child: CircularProgressIndicator());
-            }
+            if (snapshot.hasError) return Center(child: Text('Error: ${snapshot.error}'));
+            if (!snapshot.hasData || !snapshot.data!.exists) return const Center(child: CircularProgressIndicator());
 
             final data = snapshot.data!.data() as Map<String, dynamic>;
             final status = data['status'];
             final expiresAt = (data['expiresAt'] as Timestamp).toDate();
 
-            // Sync timer with Firestore expiration time
-            if (status == 'pending' &&
-                !_isExpired &&
-                _lastSyncedExpiresAt != expiresAt) {
+            if (status == 'pending' && !_isExpired && _lastSyncedExpiresAt != expiresAt) {
               WidgetsBinding.instance.addPostFrameCallback((_) {
                 if (mounted) _syncTimer(expiresAt);
               });
@@ -113,8 +98,7 @@ class _BookingRequestScreenState extends State<BookingRequestScreen> {
                         bookingData: {
                           ...data,
                           if (data['createdAt'] != null)
-                            'createdAt': (data['createdAt'] as Timestamp)
-                                .toDate(),
+                            'createdAt': (data['createdAt'] as Timestamp).toDate(),
                         },
                       ),
                     ),
@@ -125,21 +109,18 @@ class _BookingRequestScreenState extends State<BookingRequestScreen> {
 
             if (status == 'rejected' || status == 'expired') {
               return _buildStatusScreen(
-                icon: status == 'rejected' ? Icons.cancel : Icons.timer_off,
+                icon: status == 'rejected' ? Icons.cancel_rounded : Icons.timer_off_rounded,
                 color: Colors.red,
-                title: status == 'rejected'
-                    ? 'Request Rejected'
-                    : 'Request Expired',
+                title: status == 'rejected' ? 'Request Declined' : 'Request Expired',
                 message: status == 'rejected'
-                    ? 'The worker is currently unavailable. Please try another worker.'
-                    : 'The worker did not respond in time. Please try again or choose another worker.',
+                    ? 'The worker is currently unavailable. Please try another provider.'
+                    : 'The worker did not respond in time. Please try again.',
               );
             }
 
             return _buildWaitingScreen(data);
           },
         ),
-      ),
     );
   }
 
@@ -148,110 +129,103 @@ class _BookingRequestScreenState extends State<BookingRequestScreen> {
     final Timestamp? startTimeStamp = data['startTime'];
     final DateTime? startTime = startTimeStamp?.toDate();
 
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(24.0),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          SizedBox(
-            width: 100,
-            height: 100,
-            child: CircularProgressIndicator(
-              strokeWidth: 8,
-              valueColor: AlwaysStoppedAnimation<Color>(
-                isToken ? Colors.orange : const Color(0xFF2463eb),
-              ),
-            ),
-          ),
-          const SizedBox(height: 40),
-          Text(
-            isToken ? 'Token Request Sent!' : 'Booking Request Sent!',
-            style: const TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-              color: Color(0xFF0e121b),
-            ),
-          ),
-          const SizedBox(height: 16),
-          Text(
-            isToken
-                ? 'Your request for ${data['duration'] ?? 1} hours starting at ${startTime != null ? TimeOfDay.fromDateTime(startTime).format(context) : 'later'} has been sent.'
-                : 'Waiting for the worker to accept your ${data['duration'] ?? 1} hour request...',
-            textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 16, color: Colors.grey.shade600),
-          ),
-          if (isToken) ...[
-            const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              decoration: BoxDecoration(
-                color: Colors.orange.shade50,
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.orange.shade200),
-              ),
-              child: Text(
-                'Token Booking Style',
-                style: TextStyle(
-                  color: Colors.orange.shade900,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 12,
-                ),
-              ),
-            ),
-          ],
-          const SizedBox(height: 40),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-            decoration: BoxDecoration(
-              color: const Color(0xFFf3f4f6),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
+    return Column(
+      children: [
+        const SizedBox(height: 60),
+        Expanded(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 40),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Icon(Icons.timer_outlined, color: Color(0xFF2463eb)),
-                const SizedBox(width: 8),
+                Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    SizedBox(
+                      width: 140,
+                      height: 140,
+                      child: CircularProgressIndicator(
+                        value: _secondsRemaining / 60,
+                        strokeWidth: 4,
+                        backgroundColor: Colors.grey.shade100,
+                        valueColor: AlwaysStoppedAnimation<Color>(isToken ? Colors.orange : const Color(0xFF2463EB)),
+                      ),
+                    ),
+                    const Icon(Icons.bolt_rounded, size: 60, color: Color(0xFF1E293B)),
+                  ],
+                ),
+                const SizedBox(height: 48),
                 Text(
-                  '${(_secondsRemaining ~/ 60).toString().padLeft(2, '0')}:${(_secondsRemaining % 60).toString().padLeft(2, '0')}',
-                  style: const TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF2463eb),
+                  isToken ? 'Token Issued' : 'Finding Provider',
+                  style: Theme.of(context).textTheme.headlineMedium,
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  isToken
+                      ? 'Scheduled for ${startTime != null ? TimeOfDay.fromDateTime(startTime).format(context) : 'later'}. Wait for worker to confirm.'
+                      : 'We\'ve sent your request. The worker has 60s to respond.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: Colors.grey.shade500, height: 1.5),
+                ),
+                const SizedBox(height: 48),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: Colors.grey.shade100),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.timer_rounded, color: Color(0xFF2463EB), size: 20),
+                      const SizedBox(width: 12),
+                      Text(
+                        '${(_secondsRemaining % 60).toString().padLeft(2, '0')}s',
+                        style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: Color(0xFF1E293B)),
+                      ),
+                    ],
                   ),
                 ),
               ],
             ),
           ),
-          const SizedBox(height: 60),
-          SizedBox(
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(24, 0, 24, 12),
+          child: SizedBox(
             width: double.infinity,
-            child: OutlinedButton(
+            child: ElevatedButton.icon(
               onPressed: () {
-                _bookingService.updateRequestStatus(
-                  widget.requestId,
-                  'cancelled',
-                );
-                Navigator.pop(context);
+                // Go back to home without cancelling the request
+                Navigator.of(context).popUntil((route) => route.isFirst);
               },
-              style: OutlinedButton.styleFrom(
+              icon: const Icon(Icons.home_rounded, size: 20),
+              label: const Text('Continue in Background', style: TextStyle(fontWeight: FontWeight.w700)),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF1E293B),
+                foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(vertical: 16),
-                side: const BorderSide(color: Colors.red),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-              child: const Text(
-                'Cancel Request',
-                style: TextStyle(
-                  color: Colors.red,
-                  fontWeight: FontWeight.bold,
-                ),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                elevation: 0,
               ),
             ),
           ),
-        ],
-      ),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
+          child: SizedBox(
+            width: double.infinity,
+            child: TextButton(
+              onPressed: () {
+                _bookingService.updateRequestStatus(widget.requestId, 'cancelled');
+                Navigator.pop(context);
+              },
+              child: const Text('Cancel Request', style: TextStyle(color: Colors.red, fontWeight: FontWeight.w700)),
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -262,41 +236,30 @@ class _BookingRequestScreenState extends State<BookingRequestScreen> {
     required String message,
   }) {
     return Padding(
-      padding: const EdgeInsets.all(24.0),
+      padding: const EdgeInsets.all(40),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(icon, size: 80, color: color),
-          const SizedBox(height: 24),
-          Text(
-            title,
-            style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(color: color.withOpacity(0.1), shape: BoxShape.circle),
+            child: Icon(icon, size: 60, color: color),
           ),
+          const SizedBox(height: 32),
+          Text(title, style: Theme.of(context).textTheme.headlineMedium),
           const SizedBox(height: 16),
-          Text(
-            message,
-            textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 16, color: Colors.grey.shade600),
-          ),
-          const SizedBox(height: 40),
+          Text(message, textAlign: TextAlign.center, style: TextStyle(color: Colors.grey.shade500, height: 1.5)),
+          const SizedBox(height: 48),
           SizedBox(
             width: double.infinity,
             child: ElevatedButton(
               onPressed: () => Navigator.pop(context),
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF2463eb),
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
+                backgroundColor: const Color(0xFF1E293B),
+                padding: const EdgeInsets.symmetric(vertical: 20),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
               ),
-              child: const Text(
-                'Go Back',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                ),
-              ),
+              child: const Text('Go Back', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800)),
             ),
           ),
         ],

@@ -3,7 +3,7 @@ import 'worker_dashboard_screen.dart';
 import 'my_schedule_screen.dart';
 import 'earnings_payments_screen.dart';
 import 'worker_profile_screen.dart';
-import '../widgets/worker_bottom_nav_bar.dart';
+import '../widgets/modern_nav_bar.dart';
 
 class WorkerMainScreen extends StatefulWidget {
   const WorkerMainScreen({super.key});
@@ -14,7 +14,6 @@ class WorkerMainScreen extends StatefulWidget {
 
 class _WorkerMainScreenState extends State<WorkerMainScreen> {
   int _selectedIndex = 0;
-  final Color _primaryColor = const Color(0xFF2463eb);
 
   final List<Widget> _pages = [
     const WorkerDashboardScreen(),
@@ -32,11 +31,18 @@ class _WorkerMainScreenState extends State<WorkerMainScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFFF8FAFC),
+      extendBody: true,
       body: IndexedStack(index: _selectedIndex, children: _pages),
-      bottomNavigationBar: WorkerBottomNavBar(
+      bottomNavigationBar: ModernNavBar(
         selectedIndex: _selectedIndex,
-        onItemTapped: _onItemTapped,
-        primaryColor: _primaryColor,
+        onItemSelected: _onItemTapped,
+        items: [
+          NavItem(Icons.dashboard_rounded, 'Home'),
+          NavItem(Icons.calendar_month_rounded, 'Schedule'),
+          NavItem(Icons.payments_rounded, 'Earnings'),
+          NavItem(Icons.person_rounded, 'Profile'),
+        ],
       ),
     );
   }

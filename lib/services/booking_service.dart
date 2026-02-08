@@ -3,6 +3,7 @@ import 'worker_service.dart';
 
 class BookingService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final WorkerService _workerService = WorkerService();
 
   /// Create a new booking request
   Future<String> createBookingRequest({
@@ -16,11 +17,17 @@ class BookingService {
     String? customerAddress,
     Map<String, double>? customerCoordinates,
     bool isTokenBooking = false,
+    int? tokenPosition,
     DateTime? startTime,
+    DateTime? estimatedStartTime,
   }) async {
     final docRef = _firestore.collection('booking_requests').doc();
     final now = DateTime.now();
-    final expiresAt = now.add(const Duration(minutes: 1));
+    
+    // Token bookings don't expire as quickly
+    final expiresAt = isTokenBooking 
+        ? now.add(const Duration(hours: 24)) 
+        : now.add(const Duration(minutes: 1));
 
     await docRef.set({
       'id': docRef.id,
@@ -37,6 +44,10 @@ class BookingService {
           {'lat': 40.7128, 'lng': -74.0060}, // Mock coordinates (NYC)
       'status': 'pending',
       'isTokenBooking': isTokenBooking,
+      'tokenPosition': tokenPosition,
+      'estimatedStartTime': estimatedStartTime != null 
+          ? Timestamp.fromDate(estimatedStartTime) 
+          : null,
       'startTime': startTime != null ? Timestamp.fromDate(startTime) : null,
       'createdAt': FieldValue.serverTimestamp(),
       'expiresAt': expiresAt,
@@ -51,13 +62,17 @@ class BookingService {
     return _firestore.collection('booking_requests').doc(requestId).snapshots();
   }
 
-  /// Stream all bookings for a customer
-  Stream<List<Map<String, dynamic>>> streamCustomerBookings(String customerId) {
-    return _firestore
+  /// Stream all bookings for a customer (with optional limit for pagination)
+  Stream<List<Map<String, dynamic>>> streamCustomerBookings(String customerId, {int? limit}) {
+    var query = _firestore
         .collection('booking_requests')
-        .where('customerId', isEqualTo: customerId)
-        .snapshots()
-        .map((snapshot) {
+        .where('customerId', isEqualTo: customerId);
+    
+    if (limit != null) {
+      query = query.limit(limit);
+    }
+
+    return query.snapshots().map((snapshot) {
           final docs = snapshot.docs.map((doc) => doc.data()).toList();
           docs.sort((a, b) {
             final t1 = (a['createdAt'] as Timestamp?);
@@ -69,23 +84,63 @@ class BookingService {
         });
   }
 
-  /// Stream pending requests for a worker
-  Stream<List<Map<String, dynamic>>> streamWorkerRequests(String workerId) {
+  /// Stream upcoming schedule (pending & accepted requests) for a worker
+  Stream<List<Map<String, dynamic>>> streamUpcomingSchedule(String workerId) {
     return _firestore
         .collection('booking_requests')
         .where('workerId', isEqualTo: workerId)
-        .where('status', isEqualTo: 'pending')
+        .where('status', whereIn: ['pending', 'accepted', 'assigned', 'in_progress'])
         .snapshots()
-        .map(
-          (snapshot) => snapshot.docs
+        .map((snapshot) {
+          final list = snapshot.docs
               .map((doc) => doc.data())
-              .where(
-                (data) => (data['expiresAt'] as Timestamp).toDate().isAfter(
-                  DateTime.now(),
-                ),
-              )
-              .toList(),
-        );
+              .where((data) {
+                if (data['status'] == 'pending') {
+                  final expiresAt = (data['expiresAt'] as Timestamp?)?.toDate();
+                  return expiresAt == null || expiresAt.isAfter(DateTime.now());
+                }
+                return true;
+              })
+              .toList();
+
+          list.sort((a, b) {
+            final t1 = (a['startTime'] ?? a['createdAt']) as Timestamp?;
+            final t2 = (b['startTime'] ?? b['createdAt']) as Timestamp?;
+            if (t1 == null || t2 == null) return 0;
+            return t1.compareTo(t2);
+          });
+
+          return list;
+        });
+  }
+
+  /// Stream the count of urgent notifications (new requests & reminders)
+  Stream<int> streamNotificationCount(String workerId) {
+    return streamUpcomingSchedule(workerId).map((list) {
+      final now = DateTime.now();
+      int count = 0;
+      for (var job in list) {
+        if (job['status'] == 'pending') {
+          count++;
+        } else if (job['status'] == 'accepted' || job['status'] == 'assigned') {
+          final startTime = (job['startTime'] as Timestamp?)?.toDate();
+          if (startTime != null) {
+            final diff = startTime.difference(now);
+            if (diff.inHours >= 0 && diff.inHours <= 12) {
+              count++;
+            }
+          }
+        }
+      }
+      return count;
+    });
+  }
+
+  /// Simplified stream for dashboard compatibility
+  Stream<List<Map<String, dynamic>>> streamWorkerRequests(String workerId) {
+    return streamUpcomingSchedule(workerId).map((list) => 
+      list.where((job) => job['status'] == 'pending').toList()
+    );
   }
 
   /// Stream active jobs (accepted requests) for a worker
@@ -95,7 +150,16 @@ class BookingService {
         .where('workerId', isEqualTo: workerId)
         .where('status', isEqualTo: 'accepted')
         .snapshots()
-        .map((snapshot) => snapshot.docs.map((doc) => doc.data()).toList());
+        .map((snapshot) {
+          final docs = snapshot.docs.map((doc) => doc.data()).toList();
+          docs.sort((a, b) {
+            final t1 = a['startTime'] as Timestamp?;
+            final t2 = b['startTime'] as Timestamp?;
+            if (t1 == null || t2 == null) return 0;
+            return t1.compareTo(t2); // Ascending: earliest first
+          });
+          return docs;
+        });
   }
 
   Stream<List<Map<String, dynamic>>> streamCancelledJobs(String workerId) {

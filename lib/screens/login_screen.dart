@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'customer_home_screen.dart';
 import 'customer_registration_screen.dart';
-import 'worker_dashboard_screen.dart';
+import 'worker_main_screen.dart';
 import 'worker_registration_screen.dart';
 import '../services/auth_service.dart';
 
@@ -276,7 +276,7 @@ class _LoginScreenState extends State<LoginScreen> {
         } else if (userRole == 'worker') {
           Navigator.pushReplacement(
             context,
-            MaterialPageRoute(builder: (context) => const WorkerDashboardScreen()),
+            MaterialPageRoute(builder: (context) => const WorkerMainScreen()),
           );
         }
       }

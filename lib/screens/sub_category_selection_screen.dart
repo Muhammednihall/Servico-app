@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/category_service.dart';
 import 'category_pages.dart';
+import '../widgets/modern_header.dart';
 
 class SubCategorySelectionScreen extends StatelessWidget {
   final CategoryModel category;
@@ -10,126 +11,80 @@ class SubCategorySelectionScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final Color primaryColor = category.getColor();
-    final Color bgColor = primaryColor.withOpacity(0.05);
+    final Color bgColor = primaryColor.withOpacity(0.08);
 
     return Scaffold(
-      backgroundColor: const Color(0xFFf8fafc),
-      body: CustomScrollView(
-        slivers: [
-          _buildSliverAppBar(context, primaryColor),
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
+      backgroundColor: const Color(0xFFF8FAFC),
+      body: Column(
+        children: [
+          ModernHeader(
+            title: category.name,
+            subtitle: 'Explore services in',
+            showBackButton: true,
+          ),
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    'What kind of ${category.name.toLowerCase()} service do you need?',
-                    style: const TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.w800,
-                      color: Color(0xFF1e293b),
+                  const Text(
+                    'Select a category',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w900,
+                      color: Color(0xFF1E293B),
                       letterSpacing: -0.5,
-                      height: 1.3,
                     ),
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'Select a sub-category to find the right professional for your needs.',
+                    'What kind of ${category.name.toLowerCase()} service do you need today?',
                     style: TextStyle(
-                      fontSize: 15,
+                      fontSize: 14,
                       color: Colors.grey.shade600,
-                      height: 1.5,
                     ),
                   ),
+                  const SizedBox(height: 24),
+                  GridView.builder(
+                    shrinkWrap: true,
+                    padding: EdgeInsets.zero,
+                    physics: const NeverScrollableScrollPhysics(),
+                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: 2,
+                      mainAxisSpacing: 16,
+                      crossAxisSpacing: 16,
+                      childAspectRatio: 1.0,
+                    ),
+                    itemCount: category.subcategories.length + 1,
+                    itemBuilder: (context, index) {
+                      if (index == 0) {
+                        return _buildSubCategoryCard(
+                          context,
+                          'All',
+                          category.getIconData(),
+                          primaryColor,
+                          bgColor,
+                          isAll: true,
+                        );
+                      }
+
+                      final sub = category.subcategories[index - 1];
+                      return _buildSubCategoryCard(
+                        context,
+                        sub.name,
+                        sub.getIconData(),
+                        primaryColor,
+                        bgColor,
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 40),
                 ],
               ),
             ),
           ),
-          SliverPadding(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-            sliver: SliverGrid(
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 2,
-                mainAxisSpacing: 16,
-                crossAxisSpacing: 16,
-                childAspectRatio: 0.9,
-              ),
-              delegate: SliverChildBuilderDelegate((context, index) {
-                // Add an "All" option at the beginning
-                if (index == 0) {
-                  return _buildSubCategoryCard(
-                    context,
-                    'All',
-                    category.getIconData(),
-                    primaryColor,
-                    bgColor,
-                    isAll: true,
-                  );
-                }
-
-                final sub = category.subcategories[index - 1];
-                return _buildSubCategoryCard(
-                  context,
-                  sub.name,
-                  sub.getIconData(),
-                  primaryColor,
-                  bgColor,
-                );
-              }, childCount: category.subcategories.length + 1),
-            ),
-          ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildSliverAppBar(BuildContext context, Color primaryColor) {
-    return SliverAppBar(
-      expandedHeight: 200.0,
-      floating: false,
-      pinned: true,
-      elevation: 0,
-      backgroundColor: primaryColor,
-      leading: IconButton(
-        icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white),
-        onPressed: () => Navigator.pop(context),
-      ),
-      flexibleSpace: FlexibleSpaceBar(
-        centerTitle: true,
-        title: Text(
-          category.name,
-          style: const TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
-            fontSize: 18,
-          ),
-        ),
-        background: Stack(
-          fit: StackFit.expand,
-          children: [
-            // Background Pattern or Image
-            Container(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [primaryColor, primaryColor.withOpacity(0.8)],
-                ),
-              ),
-            ),
-            // Decorative Icon
-            Positioned(
-              right: -20,
-              bottom: -20,
-              child: Icon(
-                category.getIconData(),
-                size: 180,
-                color: Colors.white.withOpacity(0.15),
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }
@@ -144,7 +99,6 @@ class SubCategorySelectionScreen extends StatelessWidget {
   }) {
     return GestureDetector(
       onTap: () {
-        // Navigate to CategoryServiceScreen with the selected subcategory
         Navigator.push(
           context,
           MaterialPageRoute(
@@ -161,31 +115,36 @@ class SubCategorySelectionScreen extends StatelessWidget {
       child: Container(
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(24),
+          borderRadius: BorderRadius.circular(28),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withOpacity(0.04),
-              blurRadius: 12,
-              offset: const Offset(0, 4),
+              blurRadius: 15,
+              offset: const Offset(0, 5),
             ),
           ],
-          border: Border.all(color: Colors.grey.shade100, width: 1),
+          border: Border.all(color: Colors.grey.shade100, width: 1.5),
         ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Container(
               padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(color: bgColor, shape: BoxShape.circle),
+              decoration: BoxDecoration(
+                color: bgColor,
+                borderRadius: BorderRadius.circular(20),
+              ),
               child: Icon(icon, color: primaryColor, size: 28),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 12),
             Text(
               name,
+              textAlign: TextAlign.center,
               style: const TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w700,
-                color: Color(0xFF334155),
+                fontSize: 14,
+                fontWeight: FontWeight.w800,
+                color: Color(0xFF1E293B),
+                letterSpacing: -0.3,
               ),
             ),
           ],

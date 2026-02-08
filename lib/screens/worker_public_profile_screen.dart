@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:intl/intl.dart';
 import '../services/booking_service.dart';
 import '../services/auth_service.dart';
 import 'booking_request_screen.dart';
+import '../widgets/modern_header.dart';
 
 class WorkerPublicProfileScreen extends StatefulWidget {
   final Map<String, dynamic> worker;
@@ -92,160 +94,170 @@ class _WorkerPublicProfileScreenState extends State<WorkerPublicProfileScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(
-        title: Text(widget.worker['name'] ?? 'Worker Profile'),
-        elevation: 0,
-        backgroundColor: Colors.transparent,
-        foregroundColor: Colors.black,
+      backgroundColor: const Color(0xFFF8FAFC),
+      body: Column(
+        children: [
+          ModernHeader(
+            title: widget.worker['name'] ?? 'Profile',
+            subtitle: widget.worker['serviceType'] ?? 'Service Provider',
+            showBackButton: true,
+          ),
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildProfileOverview(),
+                  const SizedBox(height: 32),
+                  if (!_isLoadingStatus && _alreadyBookedByMe)
+                    _buildAlreadyBookedBanner(),
+                  if (!_isLoadingStatus && _isBusy && !_alreadyBookedByMe)
+                    _buildBusyBanner(),
+                  const SizedBox(height: 32),
+                  Text('About Service', style: Theme.of(context).textTheme.titleLarge),
+                  const SizedBox(height: 12),
+                  Text(
+                    widget.worker['bio'] ?? 'No description provided.',
+                    style: TextStyle(color: Colors.grey.shade600, height: 1.6, fontSize: 15),
+                  ),
+                  const SizedBox(height: 32),
+                  _buildActionButtons(),
+                  const SizedBox(height: 40),
+                ],
+              ),
+            ),
+          ),
+        ],
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Center(
-              child: CircleAvatar(
-                radius: 50,
-                backgroundColor: _primaryColor.withOpacity(0.1),
-                child: Icon(Icons.person, size: 50, color: _primaryColor),
-              ),
-            ),
-            const SizedBox(height: 24),
-            Text(
-              widget.worker['serviceType'] ?? 'Service Provider',
-              style: TextStyle(
-                color: _primaryColor,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            Text(
-              widget.worker['name'] ?? 'Name',
-              style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 16),
-            Row(
+    );
+  }
+
+  Widget _buildProfileOverview() {
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(28),
+        border: Border.all(color: Colors.grey.shade100, width: 1.5),
+      ),
+      child: Row(
+        children: [
+          CircleAvatar(
+            radius: 40,
+            backgroundColor: _primaryColor.withOpacity(0.1),
+            child: Icon(Icons.person, size: 40, color: _primaryColor),
+          ),
+          const SizedBox(width: 20),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Icon(Icons.star, color: Colors.amber, size: 20),
-                const SizedBox(width: 4),
-                Text(
-                  '${widget.worker['rating'] ?? 0.0} (${widget.worker['totalReviews'] ?? 0} reviews)',
-                  style: const TextStyle(fontWeight: FontWeight.bold),
+                Row(
+                  children: [
+                    const Icon(Icons.star_rounded, color: Colors.orange, size: 20),
+                    const SizedBox(width: 4),
+                    Text(
+                      '${widget.worker['rating'] ?? '5.0'}',
+                      style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      '(${widget.worker['reviewsCount'] ?? '0'} reviews)',
+                      style: TextStyle(color: Colors.grey.shade500, fontSize: 12),
+                    ),
+                  ],
                 ),
-                const SizedBox(width: 16),
-                const Icon(Icons.work, color: Colors.grey, size: 20),
-                const SizedBox(width: 4),
-                Text('${widget.worker['experience'] ?? 0} years exp.'),
+                const SizedBox(height: 8),
+                Text(
+                  '${widget.worker['experience'] ?? '5+'} Years Exp.',
+                  style: TextStyle(color: Colors.grey.shade600, fontWeight: FontWeight.w600),
+                ),
               ],
             ),
-            const Divider(height: 48),
-            const Text(
-              'About Service',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAlreadyBookedBanner() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: const Color(0xFFEFF6FF),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: const Color(0xFFDBEAFE)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.check_circle_rounded, color: Color(0xFF2563EB), size: 24),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Active Booking Found',
+                  style: TextStyle(color: Color(0xFF1E40AF), fontWeight: FontWeight.w800),
+                ),
+                Text(
+                  'Status: ${_myBookingStatus?.toUpperCase()}. New booking will be a token.',
+                  style: const TextStyle(color: Color(0xFF3B82F6), fontSize: 12, fontWeight: FontWeight.w600),
+                ),
+              ],
             ),
-            const SizedBox(height: 8),
-            Text(
-              widget.worker['bio'] ?? 'No description provided.',
-              style: TextStyle(color: Colors.grey.shade600, height: 1.5),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBusyBanner() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFF7ED),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: const Color(0xFFFFEDD5)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.access_time_filled_rounded, color: Colors.orange, size: 24),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Worker is Busy',
+                  style: TextStyle(color: Color(0xFF9A3412), fontWeight: FontWeight.w800),
+                ),
+                Text(
+                  '$_tokenCount people in queue. Book a token now.',
+                  style: const TextStyle(color: Color(0xFFC2410C), fontSize: 12, fontWeight: FontWeight.w600),
+                ),
+              ],
             ),
-            if (!_isLoadingStatus && _alreadyBookedByMe)
-              Container(
-                margin: const EdgeInsets.only(bottom: 24),
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.blue.shade50,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.blue.shade200),
-                ),
-                child: Row(
-                  children: [
-                    Icon(Icons.check_circle_outline, color: Colors.blue.shade800),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'You have an active booking',
-                            style: TextStyle(
-                              color: Colors.blue.shade900,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          Text(
-                            'Status: ${_myBookingStatus?.toUpperCase() ?? 'PENDING'}. Next booking will be added as a token.',
-                            style: TextStyle(
-                              color: Colors.blue.shade800,
-                              fontSize: 12,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              )
-            else if (!_isLoadingStatus && _isBusy)
-              Container(
-                margin: const EdgeInsets.only(bottom: 24),
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.orange.shade50,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.orange.shade200),
-                ),
-                child: Row(
-                  children: [
-                    Icon(Icons.info_outline, color: Colors.orange.shade800),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Worker is currently in work',
-                            style: TextStyle(
-                              color: Colors.orange.shade900,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          Text(
-                            'You can book a token for later. Currently $_tokenCount people in queue.',
-                            style: TextStyle(
-                              color: Colors.orange.shade800,
-                              fontSize: 12,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            SizedBox(
-              width: double.infinity,
-              height: 56,
-              child: ElevatedButton(
-                onPressed: _isLoadingStatus ? null : _onBookNow,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: (_isBusy || _alreadyBookedByMe)
-                      ? Colors.orange
-                      : _primaryColor,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                ),
-                child: Text(
-                  (_isBusy || _alreadyBookedByMe) ? 'Book Token' : 'Book Now',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-            ),
-          ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildActionButtons() {
+    return SizedBox(
+      width: double.infinity,
+      child: ElevatedButton(
+        onPressed: _isLoadingStatus ? null : _onBookNow,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: (_isBusy || _alreadyBookedByMe) ? Colors.orange : const Color(0xFF1E293B),
+          padding: const EdgeInsets.symmetric(vertical: 20),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        ),
+        child: Text(
+          (_isBusy || _alreadyBookedByMe) ? 'Book Token' : 'Book Now',
+          style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w800),
         ),
       ),
     );
@@ -322,15 +334,8 @@ class _WorkerPublicProfileScreenState extends State<WorkerPublicProfileScreen> {
     BuildContext context,
   ) async {
     int selectedHours = 1;
-    DateTime selectedTime = DateTime.now().add(const Duration(hours: 1));
-    // Round to next hour
-    selectedTime = DateTime(
-      selectedTime.year,
-      selectedTime.month,
-      selectedTime.day,
-      selectedTime.hour,
-      0,
-    );
+    DateTime selectedDate = DateTime.now();
+    TimeOfDay selectedTime = TimeOfDay.fromDateTime(DateTime.now().add(const Duration(hours: 1)));
 
     return showModalBottomSheet<Map<String, dynamic>>(
       context: context,
@@ -424,61 +429,109 @@ class _WorkerPublicProfileScreenState extends State<WorkerPublicProfileScreen> {
                   ),
                 ],
               ),
-              const SizedBox(height: 32),
-              if (_isBusy || _alreadyBookedByMe) ...[
-                const Text(
-                  'Select Time Period',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              const Text(
+                'Schedule Arrival',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              ),
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF8FAFC),
+                  borderRadius: BorderRadius.circular(24),
+                  border: Border.all(color: Colors.grey.shade200),
                 ),
-                const SizedBox(height: 16),
-                InkWell(
-                  onTap: () async {
-                    final TimeOfDay? time = await showTimePicker(
-                      context: context,
-                      initialTime: TimeOfDay.fromDateTime(selectedTime),
-                    );
-                    if (time != null) {
-                      setState(() {
-                        selectedTime = DateTime(
-                          selectedTime.year,
-                          selectedTime.month,
-                          selectedTime.day,
-                          time.hour,
-                          time.minute,
+                child: Column(
+                  children: [
+                    // Date Select
+                    InkWell(
+                      onTap: () async {
+                        final DateTime? picked = await showDatePicker(
+                          context: context,
+                          initialDate: selectedDate,
+                          firstDate: DateTime.now(),
+                          lastDate: DateTime.now().add(const Duration(days: 30)),
                         );
-                      });
-                    }
-                  },
-                  child: Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      border: Border.all(color: Colors.grey.shade300),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Row(
-                          children: [
-                            const Icon(Icons.access_time, color: Colors.blue),
-                            const SizedBox(width: 12),
-                            Text(
-                              'Starts at: ${TimeOfDay.fromDateTime(selectedTime).format(context)}',
-                              style: const TextStyle(fontSize: 16),
+                        if (picked != null) {
+                          setState(() => selectedDate = picked);
+                        }
+                      },
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF2463eb).withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(12),
                             ),
-                          ],
-                        ),
-                        const Icon(Icons.arrow_forward_ios, size: 16),
-                      ],
+                            child: const Icon(Icons.calendar_today_rounded, color: Color(0xFF2463eb), size: 20),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text('Date', style: TextStyle(color: Colors.grey.shade500, fontSize: 12, fontWeight: FontWeight.w600)),
+                                Text(DateFormat('EEEE, MMM dd').format(selectedDate), style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+                              ],
+                            ),
+                          ),
+                          const Icon(Icons.arrow_forward_ios, size: 14, color: Colors.grey),
+                        ],
+                      ),
                     ),
-                  ),
+                    const SizedBox(height: 16),
+                    const Divider(),
+                    const SizedBox(height: 16),
+                    // Time Select
+                    InkWell(
+                      onTap: () async {
+                        final TimeOfDay? time = await showTimePicker(
+                          context: context,
+                          initialTime: selectedTime,
+                        );
+                        if (time != null) {
+                          setState(() => selectedTime = time);
+                        }
+                      },
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF2463eb).withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: const Icon(Icons.access_time_rounded, color: Color(0xFF2463eb), size: 20),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text('Arrival Time', style: TextStyle(color: Colors.grey.shade500, fontSize: 12, fontWeight: FontWeight.w600)),
+                                Text(selectedTime.format(context), style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+                              ],
+                            ),
+                          ),
+                          const Icon(Icons.arrow_forward_ios, size: 14, color: Colors.grey),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 24),
-              ],
+              ),
+              const SizedBox(height: 32),
               ElevatedButton(
                 onPressed: () => Navigator.pop(context, {
                   'duration': selectedHours,
-                  'startTime': (_isBusy || _alreadyBookedByMe) ? selectedTime : null,
+                  'startTime': DateTime(
+                    selectedDate.year,
+                    selectedDate.month,
+                    selectedDate.day,
+                    selectedTime.hour,
+                    selectedTime.minute,
+                  ),
                 }),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: (_isBusy || _alreadyBookedByMe) ? Colors.orange : const Color(0xFF2463eb),

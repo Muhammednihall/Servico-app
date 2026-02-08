@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import '../services/booking_service.dart';
 import '../services/auth_service.dart';
+import '../widgets/modern_header.dart';
 import 'booking_confirmed_screen.dart';
 import 'booking_request_screen.dart';
 
@@ -13,166 +14,294 @@ class CustomerBookingsScreen extends StatefulWidget {
   State<CustomerBookingsScreen> createState() => _CustomerBookingsScreenState();
 }
 
-class _CustomerBookingsScreenState extends State<CustomerBookingsScreen> {
+class _CustomerBookingsScreenState extends State<CustomerBookingsScreen> with TickerProviderStateMixin {
   final BookingService _bookingService = BookingService();
   final AuthService _authService = AuthService();
-  final Color _primaryColor = const Color(0xFF2463eb);
-  final Color _backgroundLight = const Color(0xFFf6f6f8);
+  late TabController _tabController;
+  late PageController _pageController;
+
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 3, vsync: this);
+    _pageController = PageController();
+    _tabController.addListener(() {
+      if (_tabController.indexIsChanging) {
+        _pageController.animateToPage(
+          _tabController.index,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeInOut,
+        );
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    _pageController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     final user = _authService.getCurrentUser();
 
     if (user == null) {
-      return const Scaffold(
-        body: Center(child: Text('Please login to view bookings')),
+      return Scaffold(
+        backgroundColor: const Color(0xFFF8FAFC),
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.lock_outline, size: 60, color: Colors.grey.shade300),
+              const SizedBox(height: 16),
+              Text(
+                'Please login to view bookings',
+                style: TextStyle(color: Colors.grey.shade600, fontSize: 16),
+              ),
+            ],
+          ),
+        ),
       );
     }
 
     return Scaffold(
-      backgroundColor: _backgroundLight,
-      appBar: AppBar(
-        title: const Text(
-          'My Bookings',
-          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black),
-        ),
-        backgroundColor: Colors.white,
-        elevation: 0,
-        centerTitle: true,
-      ),
-      body: StreamBuilder<List<Map<String, dynamic>>>(
-        stream: _bookingService.streamCustomerBookings(user.uid),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-
-          final bookings = snapshot.data ?? [];
-
-          if (bookings.isEmpty) {
-            return _buildEmptyState();
-          }
-
-          return ListView.builder(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            itemCount: bookings.length,
-            itemBuilder: (context, index) {
-              final booking = bookings[index];
-              return _buildBookingCard(booking);
-            },
-          );
-        },
-      ),
-    );
-  }
-
-  Widget _buildEmptyState() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
+      backgroundColor: const Color(0xFFF8FAFC),
+      body: Column(
         children: [
-          Icon(
-            Icons.event_note_outlined,
-            size: 80,
-            color: Colors.grey.shade300,
+          const ModernHeader(
+            title: 'My Bookings',
+            subtitle: 'Track your service requests',
+            showBackButton: false,
+            showNotifications: false,
           ),
-          const SizedBox(height: 16),
-          Text(
-            'No bookings yet',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: Colors.grey.shade600,
+          _buildTabs(),
+          Expanded(
+            child: StreamBuilder<List<Map<String, dynamic>>>(
+              stream: _bookingService.streamCustomerBookings(user.uid),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+
+                final allBookings = snapshot.data ?? [];
+
+                // Categorize bookings
+                final pending = allBookings.where((b) => b['status'] == 'pending').toList();
+                final active = allBookings.where((b) => b['status'] == 'accepted').toList();
+                final history = allBookings.where((b) => 
+                  ['completed', 'cancelled', 'rejected', 'expired'].contains(b['status'])
+                ).toList();
+
+                return PageView(
+                  controller: _pageController,
+                  onPageChanged: (index) {
+                    _tabController.animateTo(index);
+                  },
+                  children: [
+                    _buildBookingList(pending, 'pending'),
+                    _buildBookingList(active, 'active'),
+                    _buildBookingList(history, 'history'),
+                  ],
+                );
+              },
             ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Keep calm and book a service!',
-            style: TextStyle(color: Colors.grey.shade500),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildBookingCard(Map<String, dynamic> booking) {
-    final status = booking['status'] ?? 'pending';
-    final createdAt =
-        (booking['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now();
-    final dateStr = DateFormat('EEE, MMM d • hh:mm a').format(createdAt);
+  Widget _buildTabs() {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.03),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: TabBar(
+        controller: _tabController,
+        indicator: BoxDecoration(
+          color: const Color(0xFF2463EB),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        labelColor: Colors.white,
+        unselectedLabelColor: Colors.grey.shade600,
+        labelStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+        unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+        dividerHeight: 0,
+        tabs: const [
+          Tab(text: 'Pending'),
+          Tab(text: 'Active'),
+          Tab(text: 'History'),
+        ],
+      ),
+    );
+  }
 
-    Color statusColor;
-    switch (status) {
-      case 'accepted':
-        statusColor = Colors.blue;
+  Widget _buildBookingList(List<Map<String, dynamic>> bookings, String type) {
+    if (bookings.isEmpty) {
+      return _buildEmptyState(type);
+    }
+
+    return ListView.builder(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      itemCount: bookings.length,
+      itemBuilder: (context, index) => _buildBookingCard(bookings[index], type),
+    );
+  }
+
+  Widget _buildEmptyState(String type) {
+    IconData icon;
+    String title;
+    String message;
+
+    switch (type) {
+      case 'pending':
+        icon = Icons.hourglass_empty_rounded;
+        title = 'No pending requests';
+        message = 'Your booking requests will appear here';
         break;
-      case 'completed':
-        statusColor = Colors.green;
-        break;
-      case 'cancelled':
-        statusColor = Colors.red;
-        break;
-      case 'rejected':
-        statusColor = Colors.red;
-        break;
-      case 'expired':
-        statusColor = Colors.orange;
+      case 'active':
+        icon = Icons.work_outline_rounded;
+        title = 'No active bookings';
+        message = 'Currently no services in progress';
         break;
       default:
-        statusColor = Colors.amber.shade700;
+        icon = Icons.history_rounded;
+        title = 'No booking history';
+        message = 'Your completed services will show here';
+    }
+
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: Colors.grey.shade100,
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, size: 48, color: Colors.grey.shade400),
+          ),
+          const SizedBox(height: 24),
+          Text(
+            title,
+            style: const TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w800,
+              color: Color(0xFF1E293B),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            message,
+            style: TextStyle(color: Colors.grey.shade500, fontSize: 14),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBookingCard(Map<String, dynamic> booking, String sectionType) {
+    final status = booking['status'] ?? 'pending';
+    final createdAt = (booking['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now();
+    final dateStr = DateFormat('MMM d, yyyy • h:mm a').format(createdAt);
+    final price = (booking['price'] as num?)?.toDouble() ?? 0;
+    final duration = booking['duration'] ?? 1;
+
+    Color statusColor;
+    IconData statusIcon;
+    String statusLabel;
+
+    switch (status) {
+      case 'pending':
+        statusColor = const Color(0xFFF59E0B);
+        statusIcon = Icons.schedule_rounded;
+        statusLabel = 'Waiting';
+        break;
+      case 'accepted':
+        statusColor = const Color(0xFF2463EB);
+        statusIcon = Icons.check_circle_outline_rounded;
+        statusLabel = 'In Progress';
+        break;
+      case 'completed':
+        statusColor = const Color(0xFF10B981);
+        statusIcon = Icons.verified_rounded;
+        statusLabel = 'Completed';
+        break;
+      case 'cancelled':
+      case 'rejected':
+        statusColor = const Color(0xFFEF4444);
+        statusIcon = Icons.cancel_outlined;
+        statusLabel = status == 'cancelled' ? 'Cancelled' : 'Declined';
+        break;
+      case 'expired':
+        statusColor = const Color(0xFF6B7280);
+        statusIcon = Icons.timer_off_outlined;
+        statusLabel = 'Expired';
+        break;
+      default:
+        statusColor = Colors.grey;
+        statusIcon = Icons.help_outline;
+        statusLabel = status;
     }
 
     return GestureDetector(
-      onTap: () {
-        if (status == 'pending') {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) =>
-                  BookingRequestScreen(requestId: booking['id']),
-            ),
-          );
-        } else if (status == 'accepted' || status == 'completed') {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) =>
-                  BookingConfirmedScreen(bookingData: booking),
-            ),
-          );
-        }
-      },
+      onTap: () => _navigateToBooking(booking, status),
       child: Container(
         margin: const EdgeInsets.only(bottom: 16),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(24),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withOpacity(0.04),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
+              blurRadius: 16,
+              offset: const Offset(0, 6),
             ),
           ],
         ),
         child: Column(
           children: [
+            // Main Info Section
             Padding(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(20),
               child: Row(
                 children: [
+                  // Service Icon
                   Container(
-                    padding: const EdgeInsets.all(12),
+                    width: 56,
+                    height: 56,
                     decoration: BoxDecoration(
-                      color: _primaryColor.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(12),
+                      gradient: LinearGradient(
+                        colors: [
+                          statusColor.withOpacity(0.15),
+                          statusColor.withOpacity(0.05),
+                        ],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      borderRadius: BorderRadius.circular(16),
                     ),
                     child: Icon(
                       _getIconForService(booking['serviceName'] ?? ''),
-                      color: _primaryColor,
+                      color: statusColor,
+                      size: 28,
                     ),
                   ),
                   const SizedBox(width: 16),
+                  // Details
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -181,160 +310,244 @@ class _CustomerBookingsScreenState extends State<CustomerBookingsScreen> {
                           booking['serviceName'] ?? 'Service',
                           style: const TextStyle(
                             fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFF0f172a),
+                            fontWeight: FontWeight.w800,
+                            color: Color(0xFF1E293B),
                           ),
                         ),
                         const SizedBox(height: 4),
+                        Row(
+                          children: [
+                            Icon(Icons.person_outline, size: 14, color: Colors.grey.shade500),
+                            const SizedBox(width: 4),
+                            Text(
+                              booking['workerName'] ?? 'Finding...',
+                              style: TextStyle(
+                                color: Colors.grey.shade600,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  // Status Badge
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: statusColor.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(statusIcon, size: 14, color: statusColor),
+                        const SizedBox(width: 4),
                         Text(
-                          'Pro: ${booking['workerName'] ?? "Searching..."}',
+                          statusLabel,
                           style: TextStyle(
-                            color: Colors.grey.shade600,
-                            fontSize: 13,
+                            color: statusColor,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w800,
                           ),
                         ),
                       ],
                     ),
                   ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 6,
-                    ),
-                    decoration: BoxDecoration(
-                      color: statusColor.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      status.toUpperCase(),
-                      style: TextStyle(
-                        color: statusColor,
-                        fontSize: 10,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                  ),
                 ],
               ),
             ),
-            const Divider(height: 0),
-            Padding(
-              padding: const EdgeInsets.all(16),
+            // Bottom Info Bar
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF8FAFC),
+                borderRadius: const BorderRadius.vertical(bottom: Radius.circular(24)),
+              ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
+                  // Date & Duration
                   Row(
                     children: [
-                      Icon(
-                        Icons.calendar_today,
-                        size: 14,
-                        color: Colors.grey.shade400,
-                      ),
-                      const SizedBox(width: 6),
-                      Text(
-                        dateStr,
-                        style: TextStyle(
-                          color: Colors.grey.shade500,
-                          fontSize: 13,
-                        ),
-                      ),
+                      _buildInfoChip(Icons.calendar_today, dateStr),
+                      const SizedBox(width: 12),
+                      _buildInfoChip(Icons.timer_outlined, '${duration}h'),
                     ],
                   ),
-                  if (status == 'pending' || status == 'accepted')
-                    TextButton(
-                      onPressed: () => _showCancelDialog(booking['id']),
-                      style: TextButton.styleFrom(
-                        foregroundColor: Colors.red,
-                        padding: EdgeInsets.zero,
-                        minimumSize: Size.zero,
-                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      ),
-                      child: const Text(
-                        'Cancel',
-                        style: TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                    )
-                  else if (status == 'completed' && booking['rating'] == null)
-                    ElevatedButton(
-                      onPressed: () => _showRatingDialog(booking),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: _primaryColor,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 8,
-                        ),
-                        minimumSize: Size.zero,
-                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                      ),
-                      child: const Text(
-                        'Rate Now',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    )
-                  else if (status == 'completed' && booking['rating'] != null)
-                    Row(
-                      children: [
-                        const Icon(Icons.star, color: Colors.amber, size: 16),
-                        const SizedBox(width: 4),
-                        Text(
-                          '${booking['rating']}',
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 14,
-                          ),
-                        ),
-                      ],
-                    )
-                  else
-                    const Icon(Icons.chevron_right, color: Colors.grey),
+                  // Price
+                  Text(
+                    '₹${price.toInt()}',
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w900,
+                      color: Color(0xFF1E293B),
+                    ),
+                  ),
                 ],
               ),
             ),
+            // Action Button for pending
+            if (status == 'pending') _buildPendingActions(booking),
+            // Rating for completed
+            if (status == 'completed') _buildCompletedActions(booking),
           ],
         ),
       ),
     );
   }
 
+  Widget _buildInfoChip(IconData icon, String text) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 12, color: Colors.grey.shade500),
+        const SizedBox(width: 4),
+        Text(
+          text,
+          style: TextStyle(
+            color: Colors.grey.shade600,
+            fontSize: 11,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPendingActions(Map<String, dynamic> booking) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+      child: Row(
+        children: [
+          Expanded(
+            child: OutlinedButton(
+              onPressed: () => _showCancelDialog(booking['id']),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: Colors.red,
+                side: const BorderSide(color: Colors.red),
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              child: const Text('Cancel', style: TextStyle(fontWeight: FontWeight.w700)),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            flex: 2,
+            child: ElevatedButton(
+              onPressed: () => _navigateToBooking(booking, 'pending'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF2463EB),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                elevation: 0,
+              ),
+              child: const Text('View Status', style: TextStyle(fontWeight: FontWeight.w700)),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCompletedActions(Map<String, dynamic> booking) {
+    final hasRating = booking['rating'] != null;
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+      child: hasRating
+          ? Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.star_rounded, color: Colors.amber, size: 20),
+                const SizedBox(width: 4),
+                Text(
+                  'You rated ${booking['rating']} stars',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF64748B),
+                  ),
+                ),
+              ],
+            )
+          : SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: () => _showRatingDialog(booking),
+                icon: const Icon(Icons.star_outline_rounded, size: 18),
+                label: const Text('Rate This Service', style: TextStyle(fontWeight: FontWeight.w700)),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFF59E0B),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  elevation: 0,
+                ),
+              ),
+            ),
+    );
+  }
+
+  void _navigateToBooking(Map<String, dynamic> booking, String status) {
+    if (status == 'pending') {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => BookingRequestScreen(requestId: booking['id']),
+        ),
+      );
+    } else if (status == 'accepted' || status == 'completed') {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => BookingConfirmedScreen(bookingData: booking),
+        ),
+      );
+    }
+  }
+
   IconData _getIconForService(String service) {
     service = service.toLowerCase();
-    if (service.contains('clean')) return Icons.cleaning_services_outlined;
-    if (service.contains('plumb')) return Icons.plumbing_outlined;
-    if (service.contains('elect')) return Icons.electrical_services_outlined;
-    if (service.contains('paint')) return Icons.format_paint_outlined;
-    if (service.contains('pest')) return Icons.bug_report_outlined;
-    if (service.contains('ac') || service.contains('repair'))
-      return Icons.home_repair_service_outlined;
-    return Icons.handyman_outlined;
+    if (service.contains('clean')) return Icons.cleaning_services_rounded;
+    if (service.contains('plumb')) return Icons.plumbing_rounded;
+    if (service.contains('elect')) return Icons.electrical_services_rounded;
+    if (service.contains('paint')) return Icons.format_paint_rounded;
+    if (service.contains('pest')) return Icons.bug_report_rounded;
+    if (service.contains('ac') || service.contains('repair')) return Icons.home_repair_service_rounded;
+    return Icons.handyman_rounded;
   }
 
   void _showCancelDialog(String requestId) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Cancel Booking?'),
-        content: const Text(
-          'Are you sure you want to cancel this service request?',
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        title: const Text('Cancel Booking?', style: TextStyle(fontWeight: FontWeight.w800)),
+        content: const Text('Are you sure you want to cancel this service request?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('No, Keep It'),
+            child: const Text('Keep It', style: TextStyle(fontWeight: FontWeight.w600)),
           ),
           ElevatedButton(
             onPressed: () {
               _bookingService.cancelBooking(requestId);
               Navigator.pop(context);
             },
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            child: const Text('Yes, Cancel It'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            child: const Text('Yes, Cancel', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
           ),
         ],
       ),
@@ -356,12 +569,7 @@ class _CustomerBookingsScreenState extends State<CustomerBookingsScreen> {
             color: Colors.white,
             borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
           ),
-          padding: EdgeInsets.fromLTRB(
-            24,
-            12,
-            24,
-            MediaQuery.of(context).viewInsets.bottom + 32,
-          ),
+          padding: EdgeInsets.fromLTRB(24, 12, 24, MediaQuery.of(context).viewInsets.bottom + 32),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -376,7 +584,7 @@ class _CustomerBookingsScreenState extends State<CustomerBookingsScreen> {
               const SizedBox(height: 24),
               const Text(
                 'Rate Your Experience',
-                style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800),
+                style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900),
               ),
               const SizedBox(height: 8),
               Text(
@@ -391,15 +599,9 @@ class _CustomerBookingsScreenState extends State<CustomerBookingsScreen> {
                   return IconButton(
                     onPressed: isSubmitting
                         ? null
-                        : () {
-                            setModalState(() {
-                              selectedRating = index + 1.0;
-                            });
-                          },
+                        : () => setModalState(() => selectedRating = index + 1.0),
                     icon: Icon(
-                      index < selectedRating
-                          ? Icons.star_rounded
-                          : Icons.star_outline_rounded,
+                      index < selectedRating ? Icons.star_rounded : Icons.star_outline_rounded,
                       color: Colors.amber,
                       size: 40,
                     ),
@@ -412,9 +614,9 @@ class _CustomerBookingsScreenState extends State<CustomerBookingsScreen> {
                 enabled: !isSubmitting,
                 maxLines: 3,
                 decoration: InputDecoration(
-                  hintText: 'Tell us more about the service...',
+                  hintText: 'Share your experience (optional)',
                   filled: true,
-                  fillColor: Colors.grey.shade50,
+                  fillColor: const Color(0xFFF8FAFC),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(16),
                     borderSide: BorderSide.none,
@@ -430,10 +632,7 @@ class _CustomerBookingsScreenState extends State<CustomerBookingsScreen> {
                   onPressed: isSubmitting
                       ? null
                       : () async {
-                          setModalState(() {
-                            isSubmitting = true;
-                          });
-
+                          setModalState(() => isSubmitting = true);
                           try {
                             final user = _authService.getCurrentUser();
                             if (user != null) {
@@ -445,7 +644,6 @@ class _CustomerBookingsScreenState extends State<CustomerBookingsScreen> {
                                 rating: selectedRating,
                                 review: reviewController.text.trim(),
                               );
-
                               if (mounted) {
                                 Navigator.pop(context);
                                 ScaffoldMessenger.of(context).showSnackBar(
@@ -458,33 +656,23 @@ class _CustomerBookingsScreenState extends State<CustomerBookingsScreen> {
                             }
                           } catch (e) {
                             if (mounted) {
-                              setModalState(() {
-                                isSubmitting = false;
-                              });
+                              setModalState(() => isSubmitting = false);
                               ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text('Failed: $e'),
-                                  backgroundColor: Colors.red,
-                                ),
+                                SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
                               );
                             }
                           }
                         },
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: _primaryColor,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
+                    backgroundColor: const Color(0xFF2463EB),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                    elevation: 0,
                   ),
                   child: isSubmitting
                       ? const CircularProgressIndicator(color: Colors.white)
                       : const Text(
                           'Submit Review',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
+                          style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700),
                         ),
                 ),
               ),
