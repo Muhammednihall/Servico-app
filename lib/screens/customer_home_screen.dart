@@ -2,11 +2,16 @@ import 'package:flutter/material.dart';
 import 'sub_category_selection_screen.dart';
 import 'user_profile_screen.dart';
 import 'customer_bookings_screen.dart';
+import 'track_order_screen.dart';
 import '../services/category_service.dart';
 import '../services/carousel_service.dart';
+import '../services/auth_service.dart';
+import '../services/notification_service.dart';
 import '../widgets/weather_widget.dart';
 import '../widgets/modern_header.dart';
 import '../widgets/modern_nav_bar.dart';
+import '../widgets/customer_notification_popup.dart';
+import '../services/location_service.dart';
 
 class CustomerHomeScreen extends StatefulWidget {
   const CustomerHomeScreen({super.key});
@@ -16,14 +21,32 @@ class CustomerHomeScreen extends StatefulWidget {
 }
 
 class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
+  final AuthService _authService = AuthService();
   int _selectedIndex = 0;
   final PageController _pageController = PageController();
 
-  final List<Widget> _widgetOptions = [
-    const CustomerHomeContent(),
+  List<Widget> _widgetOptions(Function(int) onNavigate) => [
+    CustomerHomeContent(onNavigate: onNavigate),
     const CustomerBookingsScreen(),
     const UserProfileScreen(),
   ];
+  
+  @override
+  void initState() {
+    super.initState();
+    _registerFcmToken();
+  }
+  
+  /// Register FCM token for push notifications
+  Future<void> _registerFcmToken() async {
+    final user = _authService.getCurrentUser();
+    if (user != null) {
+      await NotificationService().getAndSaveToken(
+        userId: user.uid,
+        userType: 'customer',
+      );
+    }
+  }
 
   void _onItemTapped(int index) {
     setState(() {
@@ -44,7 +67,11 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    final user = _authService.getCurrentUser();
+    final customerId = user?.uid ?? '';
+    
+    // Wrap with notification popup only if user is logged in
+    Widget scaffold = Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
       extendBody: true,
       body: PageView(
@@ -54,7 +81,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
             _selectedIndex = index;
           });
         },
-        children: _widgetOptions,
+        children: _widgetOptions(_onItemTapped),
       ),
       bottomNavigationBar: ModernNavBar(
         selectedIndex: _selectedIndex,
@@ -66,12 +93,23 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
         ],
       ),
     );
+    
+    // Only wrap with notification popup if user is logged in
+    if (customerId.isNotEmpty) {
+      return CustomerNotificationPopup(
+        customerId: customerId,
+        child: scaffold,
+      );
+    }
+    
+    return scaffold;
   }
 
 }
 
 class CustomerHomeContent extends StatefulWidget {
-  const CustomerHomeContent({super.key});
+  final Function(int)? onNavigate;
+  const CustomerHomeContent({super.key, this.onNavigate});
 
   @override
   State<CustomerHomeContent> createState() => _CustomerHomeContentState();
@@ -80,6 +118,41 @@ class CustomerHomeContent extends StatefulWidget {
 class _CustomerHomeContentState extends State<CustomerHomeContent> {
   final PageController _promoController = PageController();
   int _currentPromo = 0;
+  String? _currentAddress;
+  bool _isLoadingLocation = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchLocation();
+  }
+
+  Future<void> _fetchLocation({bool force = false}) async {
+    if (force) {
+      LocationService().clearCache();
+    }
+    
+    setState(() {
+      _isLoadingLocation = true;
+    });
+
+    try {
+      final address = await LocationService().getCurrentAddress();
+      if (mounted) {
+        setState(() {
+          _currentAddress = address ?? 'Location not available';
+          _isLoadingLocation = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _currentAddress = 'Error getting location';
+          _isLoadingLocation = false;
+        });
+      }
+    }
+  }
 
   @override
   void dispose() {
@@ -94,16 +167,7 @@ class _CustomerHomeContentState extends State<CustomerHomeContent> {
         ModernHeader(
           title: 'Find Top Services',
           subtitle: 'Welcome back, User 👋',
-          actions: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: const Color(0xFFF1F5F9),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: const Icon(Icons.search, size: 22, color: Color(0xFF1E293B)),
-            ),
-          ],
+          actions: [],
         ),
         Expanded(
           child: StreamBuilder<List<CategoryModel>>(
@@ -173,17 +237,37 @@ class _CustomerHomeContentState extends State<CustomerHomeContent> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Column(
+              Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
+                  const Text(
                     'Instant Service',
                     style: TextStyle(color: Colors.white70, fontSize: 14, fontWeight: FontWeight.w500),
                   ),
-                  SizedBox(height: 4),
-                  Text(
-                    'Book in 60s',
+                  const SizedBox(height: 4),
+                  const Text(
+                    'Track Order',
                     style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w800),
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Icon(Icons.location_on_rounded, color: Colors.blue.shade300, size: 14),
+                      const SizedBox(width: 4),
+                      SizedBox(
+                        width: MediaQuery.of(context).size.width * 0.5,
+                        child: Text(
+                          _isLoadingLocation ? 'Fetching location...' : (_currentAddress ?? 'Fetching location...'),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: Colors.white.withOpacity(0.6),
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -202,32 +286,57 @@ class _CustomerHomeContentState extends State<CustomerHomeContent> {
           Row(
             children: [
               Expanded(
-                child: Container(
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: const Center(
-                    child: Text(
-                      'Track Order',
-                      style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
+                child: GestureDetector(
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const TrackOrderScreen()),
+                    );
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: const Center(
+                      child: Text(
+                        'Track Order',
+                        style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
+                      ),
                     ),
                   ),
                 ),
               ),
               const SizedBox(width: 12),
               Expanded(
-                child: Container(
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: const Center(
-                    child: Text(
-                      'History',
-                      style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
+                child: GestureDetector(
+                  onTap: () => _fetchLocation(force: true),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Center(
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          if (_isLoadingLocation)
+                            const SizedBox(
+                              width: 14,
+                              height: 14,
+                              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                            )
+                          else
+                            const Icon(Icons.my_location_rounded, color: Colors.white, size: 14),
+                          const SizedBox(width: 8),
+                          const Text(
+                            'Change Location',
+                            style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),

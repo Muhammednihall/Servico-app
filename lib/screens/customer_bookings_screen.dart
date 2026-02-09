@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../services/booking_service.dart';
 import '../services/auth_service.dart';
 import '../widgets/modern_header.dart';
@@ -390,6 +391,8 @@ class _CustomerBookingsScreenState extends State<CustomerBookingsScreen> with Ti
             ),
             // Action Button for pending
             if (status == 'pending') _buildPendingActions(booking),
+            // Active booking actions (delay reporting)
+            if (status == 'accepted') _buildActiveActions(booking),
             // Rating for completed
             if (status == 'completed') _buildCompletedActions(booking),
           ],
@@ -450,6 +453,379 @@ class _CustomerBookingsScreenState extends State<CustomerBookingsScreen> with Ti
                 elevation: 0,
               ),
               child: const Text('View Status', style: TextStyle(fontWeight: FontWeight.w700)),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Build active booking actions with delay reporting
+  Widget _buildActiveActions(Map<String, dynamic> booking) {
+    final startTime = (booking['startTime'] as Timestamp?)?.toDate();
+    final delayStatus = booking['delayStatus'] as String?;
+    final showDelayButton = _bookingService.shouldShowDelayButton(booking);
+    final showNotReachedButton = _bookingService.shouldShowNotReachedButton(booking);
+    final workerPhone = booking['workerPhone'] as String? ?? '';
+    
+    // If we haven't reached start time yet, show a simple view button
+    if (!showDelayButton) {
+      return Container(
+        padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+        child: SizedBox(
+          width: double.infinity,
+          child: ElevatedButton.icon(
+            onPressed: () => _navigateToBooking(booking, 'accepted'),
+            icon: const Icon(Icons.visibility_outlined, size: 18),
+            label: const Text('View Details', style: TextStyle(fontWeight: FontWeight.w700)),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF2463EB),
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              elevation: 0,
+            ),
+          ),
+        ),
+      );
+    }
+
+    // After scheduled time - show delay reporting options
+    return Container(
+      padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+      child: Column(
+        children: [
+          // Phase 1 & 2: Delay reported - show call section
+          if (delayStatus == 'reported' || delayStatus == 'called') ...[
+            // Call Worker Section
+            Container(
+              padding: const EdgeInsets.all(16),
+              margin: const EdgeInsets.only(bottom: 12),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFFF7ED),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: const Color(0xFFF59E0B).withOpacity(0.3)),
+              ),
+              child: Column(
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF59E0B).withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Icon(
+                          Icons.phone_rounded,
+                          color: Color(0xFFF59E0B),
+                          size: 20,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Contact Worker',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w800,
+                                fontSize: 14,
+                                color: Color(0xFF1E293B),
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              workerPhone.isNotEmpty ? workerPhone : 'Phone not available',
+                              style: TextStyle(
+                                color: Colors.grey.shade600,
+                                fontSize: 13,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      ElevatedButton.icon(
+                        onPressed: () => _callWorker(booking),
+                        icon: const Icon(Icons.call_rounded, size: 16),
+                        label: const Text('Call'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF10B981),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          elevation: 0,
+                        ),
+                      ),
+                    ],
+                  ),
+                  
+                  // Show timer or Not Reached button
+                  if (delayStatus == 'called') ...[
+                    const SizedBox(height: 12),
+                    if (!showNotReachedButton)
+                      _buildWaitingTimer(booking)
+                    else
+                      _buildNotReachedButton(booking),
+                  ],
+                ],
+              ),
+            ),
+          ],
+          
+          // Phase 1: Worker Delayed button (not yet reported)
+          if (delayStatus == null)
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: () => _showDelayReportDialog(booking),
+                icon: const Icon(Icons.schedule_rounded, size: 18),
+                label: const Text('Worker Delayed?', style: TextStyle(fontWeight: FontWeight.w700)),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFF59E0B),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  elevation: 0,
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  /// Build waiting timer widget
+  Widget _buildWaitingTimer(Map<String, dynamic> booking) {
+    final remaining = _bookingService.getTimeUntilNotReachedButtonShows(booking);
+    final minutes = remaining.inMinutes;
+    final seconds = remaining.inSeconds % 60;
+    
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      decoration: BoxDecoration(
+        color: Colors.grey.shade100,
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.timer_outlined, size: 16, color: Colors.grey.shade600),
+          const SizedBox(width: 6),
+          Text(
+            'Wait ${minutes}:${seconds.toString().padLeft(2, '0')} for worker to reach',
+            style: TextStyle(
+              color: Colors.grey.shade600,
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Build "Worker Not Reached" button
+  Widget _buildNotReachedButton(Map<String, dynamic> booking) {
+    return SizedBox(
+      width: double.infinity,
+      child: ElevatedButton.icon(
+        onPressed: () => _showNotReachedConfirmation(booking),
+        icon: const Icon(Icons.warning_rounded, size: 18),
+        label: const Text('Worker Not Reached', style: TextStyle(fontWeight: FontWeight.w700)),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: const Color(0xFFEF4444),
+          foregroundColor: Colors.white,
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+          elevation: 0,
+        ),
+      ),
+    );
+  }
+
+  /// Show delay report dialog
+  void _showDelayReportDialog(Map<String, dynamic> booking) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF59E0B).withOpacity(0.1),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Icon(Icons.schedule_rounded, color: Color(0xFFF59E0B)),
+            ),
+            const SizedBox(width: 12),
+            const Text('Worker Delayed?', style: TextStyle(fontSize: 18)),
+          ],
+        ),
+        content: const Text(
+          'Has the scheduled time passed and the worker hasn\'t arrived yet?\n\nYou can contact the worker to check their status.',
+          style: TextStyle(height: 1.5),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton.icon(
+            onPressed: () {
+              Navigator.pop(context);
+              _bookingService.reportWorkerDelay(booking['id']);
+              setState(() {}); // Refresh UI
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Worker has been notified. You can now call them.'),
+                  backgroundColor: Color(0xFFF59E0B),
+                ),
+              );
+            },
+            icon: const Icon(Icons.phone_rounded, size: 18),
+            label: const Text('Yes, Contact Worker'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFF59E0B),
+              foregroundColor: Colors.white,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Call the worker
+  Future<void> _callWorker(Map<String, dynamic> booking) async {
+    final workerPhone = booking['workerPhone'] as String? ?? '';
+    
+    if (workerPhone.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Worker phone number not available'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    // Record that call was initiated
+    await _bookingService.recordCallToWorker(booking['id']);
+    
+    // Open phone dialer
+    final phoneUri = Uri(scheme: 'tel', path: workerPhone);
+    if (await canLaunchUrl(phoneUri)) {
+      await launchUrl(phoneUri);
+    } else {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Could not open phone dialer'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+    
+    setState(() {}); // Refresh UI
+  }
+
+  /// Show "Worker Not Reached" confirmation dialog
+  void _showNotReachedConfirmation(Map<String, dynamic> booking) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: const Color(0xFFEF4444).withOpacity(0.1),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Icon(Icons.warning_rounded, color: Color(0xFFEF4444)),
+            ),
+            const SizedBox(width: 12),
+            const Expanded(
+              child: Text('Worker Not Reached?', style: TextStyle(fontSize: 18)),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: const [
+            Text(
+              'Are you sure you want to mark this worker as unreachable?',
+              style: TextStyle(fontWeight: FontWeight.w600, height: 1.4),
+            ),
+            SizedBox(height: 12),
+            Text(
+              '• This will affect the worker\'s rating\n'
+              '• We will find you a new worker (Rescue Job)\n'
+              '• You will receive a discount for the delay',
+              style: TextStyle(color: Color(0xFF64748B), height: 1.6),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Wait More'),
+          ),
+          TextButton.icon(
+            onPressed: () {
+              Navigator.pop(context);
+              _callWorker(booking);
+            },
+            icon: const Icon(Icons.phone_rounded, size: 16),
+            label: const Text('Call Again'),
+          ),
+          ElevatedButton.icon(
+            onPressed: () async {
+              Navigator.pop(context);
+              
+              // Show loading
+              showDialog(
+                context: context,
+                barrierDismissible: false,
+                builder: (context) => const Center(
+                  child: CircularProgressIndicator(),
+                ),
+              );
+              
+              // Report worker not reached
+              final success = await _bookingService.reportWorkerNotReached(booking['id']);
+              
+              Navigator.pop(context); // Close loading
+              
+              if (success && mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Finding you a new worker...'),
+                    backgroundColor: Color(0xFF2463EB),
+                  ),
+                );
+                setState(() {}); // Refresh UI
+              }
+            },
+            icon: const Icon(Icons.close_rounded, size: 18),
+            label: const Text('Mark as Delayed'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFEF4444),
+              foregroundColor: Colors.white,
             ),
           ),
         ],

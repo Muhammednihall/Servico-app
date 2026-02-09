@@ -370,7 +370,7 @@ class NewJobRequestScreen extends StatelessWidget {
                       side: BorderSide(color: Colors.grey.shade200, width: 2),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
                     ),
-                    child: Text('Decline', style: TextStyle(color: Colors.grey.shade600, fontWeight: FontWeight.w700, fontSize: 16)),
+                    child: Text('Reject', style: TextStyle(color: Colors.grey.shade600, fontWeight: FontWeight.w700, fontSize: 16)),
                   ),
                 ),
                 const SizedBox(width: 16),

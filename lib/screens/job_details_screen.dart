@@ -4,9 +4,11 @@ import 'package:intl/intl.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'worker_main_screen.dart';
 import '../services/booking_service.dart';
 import '../services/location_service.dart';
 import '../widgets/modern_header.dart';
+import '../widgets/worker_status_update_card.dart';
 
 class JobDetailsScreen extends StatefulWidget {
   final Map<String, dynamic> jobData;
@@ -37,35 +39,66 @@ class _JobDetailsScreenState extends State<JobDetailsScreen> {
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
-      body: Column(
-        children: [
-          ModernHeader(
-            title: 'Job Details',
-            subtitle: 'ID: ${widget.jobData['id']?.toString().substring(0, 8).toUpperCase() ?? "N/A"}',
-            showBackButton: true,
-          ),
-          Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildStatusBadge(status),
-                  const SizedBox(height: 20),
-                  _buildCustomerSection(),
-                  const SizedBox(height: 20),
-                  _buildServiceDetailsSection(createdAt),
-                  const SizedBox(height: 20),
-                  _buildLocationSection(hasLocation, customerLat, customerLng),
-                  const SizedBox(height: 32),
-                  if (status == 'accepted') _buildActionButtons(),
-                  if (status == 'completed') _buildCompletedSection(),
-                  const SizedBox(height: 40),
-                ],
+      body: StreamBuilder<DocumentSnapshot>(
+        stream: _bookingService.streamBookingRequest(widget.jobData['id']),
+        builder: (context, snapshot) {
+          final data = snapshot.hasData && snapshot.data!.exists 
+              ? snapshot.data!.data() as Map<String, dynamic> 
+              : widget.jobData;
+          
+          final currentStatus = data['status'] ?? 'accepted';
+          final workerStatus = data['workerStatus'] ?? 'pending';
+          final createdAt = (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now();
+          
+          // Extract coordinates
+          final Map<String, dynamic>? coords = data['customerCoordinates'];
+          final double? customerLat = coords?['lat']?.toDouble();
+          final double? customerLng = coords?['lng']?.toDouble();
+          final bool hasLocation = customerLat != null && customerLng != null;
+
+          return Column(
+            children: [
+              ModernHeader(
+                title: 'Job Details',
+                subtitle: 'ID: ${data['id']?.toString().substring(0, 8).toUpperCase() ?? "N/A"}',
+                showBackButton: true,
               ),
-            ),
-          ),
-        ],
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildStatusBadge(currentStatus),
+                      const SizedBox(height: 20),
+                      
+                      // Worker status update card - shown for all active jobs
+                      if (currentStatus == 'accepted' || currentStatus == 'assigned' || currentStatus == 'working') ...[
+                        WorkerStatusUpdateCard(
+                          booking: data,
+                          onStatusUpdated: () {
+                            // StreamBuilder will handle the update
+                          },
+                        ),
+                        const SizedBox(height: 20),
+                      ],
+                      
+                      _buildCustomerSection(data),
+                      const SizedBox(height: 20),
+                      _buildServiceDetailsSection(currentStatus, data, createdAt),
+                      const SizedBox(height: 20),
+                      _buildLocationSection(data, hasLocation, customerLat, customerLng),
+                      const SizedBox(height: 32),
+                      if (currentStatus == 'accepted' || currentStatus == 'working') _buildActionButtons(data, workerStatus),
+                      if (currentStatus == 'completed') _buildCompletedSection(),
+                      const SizedBox(height: 40),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          );
+        }
       ),
     );
   }
@@ -112,8 +145,8 @@ class _JobDetailsScreenState extends State<JobDetailsScreen> {
     );
   }
 
-  Widget _buildCustomerSection() {
-    final customerName = widget.jobData['customerName'] ?? 'Customer';
+  Widget _buildCustomerSection(Map<String, dynamic> data) {
+    final customerName = data['customerName'] ?? 'Customer';
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -178,21 +211,14 @@ class _JobDetailsScreenState extends State<JobDetailsScreen> {
               ],
             ),
           ),
-          IconButton(
-            onPressed: () {}, // Future: Chat
-            icon: Icon(Icons.chat_bubble_rounded, color: _primaryBlue, size: 24),
-            style: IconButton.styleFrom(
-              backgroundColor: _primaryBlue.withOpacity(0.1),
-              padding: const EdgeInsets.all(12),
-            ),
-          ),
         ],
       ),
     );
   }
 
-  Widget _buildServiceDetailsSection(DateTime date) {
-    final price = (widget.jobData['price'] as num?)?.toDouble() ?? 0.0;
+  Widget _buildServiceDetailsSection(String status, Map<String, dynamic> data, DateTime date) {
+    final price = (data['price'] as num?)?.toDouble() ?? 0.0;
+    final int duration = (data['duration'] as num?)?.toInt() ?? 1;
 
     return Container(
       padding: const EdgeInsets.all(24),
@@ -222,7 +248,7 @@ class _JobDetailsScreenState extends State<JobDetailsScreen> {
           _buildDetailTile(
             Icons.work_rounded,
             'Service Category',
-            widget.jobData['serviceName'] ?? 'General Task',
+            data['serviceName'] ?? 'General Task',
           ),
           _buildDetailTile(
             Icons.calendar_today_rounded,
@@ -237,7 +263,8 @@ class _JobDetailsScreenState extends State<JobDetailsScreen> {
           _buildDetailTile(
             Icons.timer_rounded,
             'Estimated Duration',
-            '${widget.jobData['duration'] ?? 1} Hour(s)',
+            '$duration Hour(s)',
+            valueColor: data['extraTimeRequest']?['status'] == 'approved' ? _primaryBlue : null,
           ),
           _buildDetailTile(
             Icons.payments_rounded,
@@ -245,7 +272,7 @@ class _JobDetailsScreenState extends State<JobDetailsScreen> {
             '₹ ${price.toStringAsFixed(0)}',
             valueColor: _accentGreen,
           ),
-          if (widget.jobData['notes'] != null && widget.jobData['notes'].toString().isNotEmpty) ...[
+          if (data['notes'] != null && data['notes'].toString().isNotEmpty) ...[
             const Divider(height: 32),
             const Text(
               'Instruction Notes',
@@ -253,7 +280,7 @@ class _JobDetailsScreenState extends State<JobDetailsScreen> {
             ),
             const SizedBox(height: 8),
             Text(
-              widget.jobData['notes'],
+              data['notes'],
               style: TextStyle(color: Colors.grey.shade700, height: 1.5, fontSize: 14),
             ),
           ],
@@ -294,7 +321,7 @@ class _JobDetailsScreenState extends State<JobDetailsScreen> {
     );
   }
 
-  Widget _buildLocationSection(bool hasLocation, double? lat, double? lng) {
+  Widget _buildLocationSection(Map<String, dynamic> data, bool hasLocation, double? lat, double? lng) {
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
@@ -321,7 +348,7 @@ class _JobDetailsScreenState extends State<JobDetailsScreen> {
           ),
           const SizedBox(height: 12),
           Text(
-            widget.jobData['customerAddress'] ?? 'No address provided',
+            data['customerAddress'] ?? 'No address provided',
             style: TextStyle(color: Colors.grey.shade600, fontSize: 14, height: 1.5),
           ),
           const SizedBox(height: 20),
@@ -448,16 +475,16 @@ class _JobDetailsScreenState extends State<JobDetailsScreen> {
     );
   }
 
-  Widget _buildActionButtons() {
+  Widget _buildActionButtons(Map<String, dynamic> data, String workerStatus) {
     return Column(
       children: [
         SizedBox(
           width: double.infinity,
           height: 60,
           child: ElevatedButton(
-            onPressed: _isProcessing ? null : _handleCompleteJob,
+            onPressed: (_isProcessing || workerStatus != 'working') ? null : () => _handleCompleteJob(data),
             style: ElevatedButton.styleFrom(
-              backgroundColor: _accentGreen,
+              backgroundColor: workerStatus == 'working' ? _accentGreen : Colors.grey.shade300,
               foregroundColor: Colors.white,
               elevation: 0,
               shape: RoundedRectangleBorder(
@@ -477,7 +504,7 @@ class _JobDetailsScreenState extends State<JobDetailsScreen> {
           width: double.infinity,
           height: 60,
           child: TextButton(
-            onPressed: () {}, // Future: Cancellation request
+            onPressed: _isProcessing ? null : () => _handleCancelJob(data),
             style: TextButton.styleFrom(
               foregroundColor: const Color(0xFFEF4444),
               shape: RoundedRectangleBorder(
@@ -523,10 +550,110 @@ class _JobDetailsScreenState extends State<JobDetailsScreen> {
     );
   }
 
-  Future<void> _handleCompleteJob() async {
+  Future<void> _handleCancelJob(Map<String, dynamic> data) async {
+    final acceptedAt = (data['acceptedAt'] as Timestamp?)?.toDate();
+    if (acceptedAt == null) return;
+
+    final now = DateTime.now();
+    final difference = now.difference(acceptedAt);
+    final isWithinGracePeriod = difference.inMinutes < 3;
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text(
+          isWithinGracePeriod ? 'Cancel Job?' : 'Late Cancellation',
+          style: const TextStyle(fontWeight: FontWeight.w800),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              isWithinGracePeriod
+                  ? 'Are you sure you want to cancel? You have ${3 - difference.inMinutes} minutes left to cancel without penalty.'
+                  : 'The 3-minute grace period for free cancellation has expired. Cancelling now WILL affect your pro rating.',
+              style: TextStyle(color: Colors.grey.shade700),
+            ),
+            if (!isWithinGracePeriod) ...[
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.red.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  children: const [
+                    Icon(Icons.warning_amber_rounded, color: Colors.red, size: 20),
+                    SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Your rating will be slightly reduced.',
+                        style: TextStyle(color: Colors.red, fontSize: 12, fontWeight: FontWeight.w600),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('Keep Job', style: TextStyle(color: Colors.grey.shade600, fontWeight: FontWeight.w700)),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              await _performCancellation(data['id'], !isWithinGracePeriod);
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFEF4444),
+              foregroundColor: Colors.white,
+              elevation: 0,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            child: const Text('Confirm Cancellation', style: TextStyle(fontWeight: FontWeight.w700)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _performCancellation(String requestId, bool penalized) async {
     setState(() => _isProcessing = true);
     try {
-      await _bookingService.completeJob(widget.jobData['id']);
+      await _bookingService.cancelBookingByWorker(requestId, penalized: penalized);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(penalized 
+              ? 'Job cancelled. Your rating has been updated.' 
+              : 'Job cancelled successfully.'),
+            backgroundColor: penalized ? Colors.orange : Colors.blue,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        Navigator.pop(context);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isProcessing = false);
+    }
+  }
+
+  Future<void> _handleCompleteJob(Map<String, dynamic> data) async {
+    setState(() => _isProcessing = true);
+    try {
+      await _bookingService.completeJob(data['id']);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -535,7 +662,11 @@ class _JobDetailsScreenState extends State<JobDetailsScreen> {
             behavior: SnackBarBehavior.floating,
           ),
         );
-        Navigator.pop(context);
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (context) => const WorkerMainScreen()),
+          (route) => false,
+        );
       }
     } catch (e) {
       if (mounted) {
