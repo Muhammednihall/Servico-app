@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../services/booking_service.dart';
 
 /// Widget that shows popup notifications for customers
-/// Displays alerts for worker status updates, rescue job assignments, etc.
+/// Displays alerts for worker status updates, etc.
 class CustomerNotificationPopup extends StatefulWidget {
   final String customerId;
   final Widget child;
@@ -15,7 +15,8 @@ class CustomerNotificationPopup extends StatefulWidget {
   });
 
   @override
-  State<CustomerNotificationPopup> createState() => _CustomerNotificationPopupState();
+  State<CustomerNotificationPopup> createState() =>
+      _CustomerNotificationPopupState();
 }
 
 class _CustomerNotificationPopupState extends State<CustomerNotificationPopup> {
@@ -35,19 +36,19 @@ class _CustomerNotificationPopupState extends State<CustomerNotificationPopup> {
     _notificationSubscription = _bookingService
         .streamCustomerNotifications(widget.customerId)
         .listen((notifications) {
-      if (notifications.isNotEmpty && !_isShowingPopup) {
-        _pendingNotifications = notifications;
-        _showNextNotification();
-      }
-    });
+          if (notifications.isNotEmpty && !_isShowingPopup) {
+            _pendingNotifications = notifications;
+            _showNextNotification();
+          }
+        });
   }
 
   void _showNextNotification() {
     if (_pendingNotifications.isEmpty || _isShowingPopup) return;
-    
+
     final notification = _pendingNotifications.first;
     _isShowingPopup = true;
-    
+
     _showNotificationDialog(notification).then((_) {
       _isShowingPopup = false;
       _pendingNotifications.removeAt(0);
@@ -60,7 +61,9 @@ class _CustomerNotificationPopupState extends State<CustomerNotificationPopup> {
     });
   }
 
-  Future<void> _showNotificationDialog(Map<String, dynamic> notification) async {
+  Future<void> _showNotificationDialog(
+    Map<String, dynamic> notification,
+  ) async {
     final type = notification['type'] as String? ?? '';
     final title = notification['title'] as String? ?? 'Notification';
     final message = notification['message'] as String? ?? '';
@@ -70,7 +73,7 @@ class _CustomerNotificationPopupState extends State<CustomerNotificationPopup> {
     // Determine colors and icons based on type
     Color primaryColor;
     IconData icon;
-    
+
     switch (type) {
       case 'worker_on_the_way':
         primaryColor = const Color(0xFF2463EB); // Blue
@@ -80,10 +83,7 @@ class _CustomerNotificationPopupState extends State<CustomerNotificationPopup> {
         primaryColor = const Color(0xFF10B981); // Green
         icon = Icons.location_on_rounded;
         break;
-      case 'rescue_worker_assigned':
-        primaryColor = const Color(0xFFFF6B35); // Rescue orange
-        icon = Icons.local_fire_department_rounded;
-        break;
+
       case 'booking_confirmed':
         primaryColor = const Color(0xFF10B981); // Green
         icon = Icons.check_circle_rounded;
@@ -142,7 +142,9 @@ class _CustomerNotificationPopupState extends State<CustomerNotificationPopup> {
                             begin: Alignment.topLeft,
                             end: Alignment.bottomRight,
                           ),
-                          borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
+                          borderRadius: const BorderRadius.vertical(
+                            top: Radius.circular(32),
+                          ),
                         ),
                       ),
                       Positioned(
@@ -172,9 +174,9 @@ class _CustomerNotificationPopupState extends State<CustomerNotificationPopup> {
                       ),
                     ],
                   ),
-                  
+
                   const SizedBox(height: 60),
-                  
+
                   // Text Content
                   Padding(
                     padding: const EdgeInsets.fromLTRB(28, 0, 28, 28),
@@ -183,22 +185,24 @@ class _CustomerNotificationPopupState extends State<CustomerNotificationPopup> {
                         Text(
                           title,
                           textAlign: TextAlign.center,
-                          style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                            fontSize: 22,
-                            fontWeight: FontWeight.w900,
-                          ),
+                          style: Theme.of(context).textTheme.headlineMedium
+                              ?.copyWith(
+                                fontSize: 22,
+                                fontWeight: FontWeight.w900,
+                              ),
                         ),
                         const SizedBox(height: 12),
                         Text(
                           message,
                           textAlign: TextAlign.center,
-                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            fontSize: 15,
-                            height: 1.6,
-                            fontWeight: FontWeight.w500,
-                          ),
+                          style: Theme.of(context).textTheme.bodyMedium
+                              ?.copyWith(
+                                fontSize: 15,
+                                height: 1.6,
+                                fontWeight: FontWeight.w500,
+                              ),
                         ),
-                        
+
                         if (imageUrl != null && imageUrl.isNotEmpty) ...[
                           const SizedBox(height: 20),
                           ClipRRect(
@@ -208,39 +212,14 @@ class _CustomerNotificationPopupState extends State<CustomerNotificationPopup> {
                               height: 180,
                               width: double.infinity,
                               fit: BoxFit.cover,
-                              errorBuilder: (context, error, stackTrace) => const SizedBox.shrink(),
+                              errorBuilder: (context, error, stackTrace) =>
+                                  const SizedBox.shrink(),
                             ),
                           ),
                         ],
-                        
-                        if (type == 'rescue_worker_assigned') ...[
-                          const SizedBox(height: 20),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF10B981).withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(16),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: const [
-                                Icon(Icons.stars_rounded, size: 18, color: Color(0xFF10B981)),
-                                SizedBox(width: 8),
-                                Text(
-                                  'Premium Discount Unlocked!',
-                                  style: TextStyle(
-                                    color: Color(0xFF10B981),
-                                    fontWeight: FontWeight.w800,
-                                    fontSize: 13,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                        
+
                         const SizedBox(height: 32),
-                        
+
                         // Primary Action
                         SizedBox(
                           width: double.infinity,
@@ -248,7 +227,9 @@ class _CustomerNotificationPopupState extends State<CustomerNotificationPopup> {
                           child: ElevatedButton(
                             onPressed: () {
                               Navigator.pop(context);
-                              _bookingService.markCustomerNotificationAsRead(notificationId);
+                              _bookingService.markCustomerNotificationAsRead(
+                                notificationId,
+                              );
                             },
                             style: ElevatedButton.styleFrom(
                               backgroundColor: primaryColor,
@@ -280,7 +261,9 @@ class _CustomerNotificationPopupState extends State<CustomerNotificationPopup> {
                 child: GestureDetector(
                   onTap: () {
                     Navigator.pop(context);
-                    _bookingService.markCustomerNotificationAsRead(notificationId);
+                    _bookingService.markCustomerNotificationAsRead(
+                      notificationId,
+                    );
                   },
                   child: Container(
                     padding: const EdgeInsets.all(8),
@@ -288,7 +271,11 @@ class _CustomerNotificationPopupState extends State<CustomerNotificationPopup> {
                       color: Colors.white.withOpacity(0.2),
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: const Icon(Icons.close_rounded, color: Colors.white, size: 20),
+                    child: const Icon(
+                      Icons.close_rounded,
+                      color: Colors.white,
+                      size: 20,
+                    ),
                   ),
                 ),
               ),

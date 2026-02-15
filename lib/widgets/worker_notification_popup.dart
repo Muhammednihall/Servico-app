@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../services/booking_service.dart';
 
 /// Widget that shows popup notifications for workers
-/// Displays alerts for delay reports, penalties, and rescue job opportunities
+/// Displays alerts for delay reports and penalties
 class WorkerNotificationPopup extends StatefulWidget {
   final String workerId;
   final Widget child;
@@ -15,7 +15,8 @@ class WorkerNotificationPopup extends StatefulWidget {
   });
 
   @override
-  State<WorkerNotificationPopup> createState() => _WorkerNotificationPopupState();
+  State<WorkerNotificationPopup> createState() =>
+      _WorkerNotificationPopupState();
 }
 
 class _WorkerNotificationPopupState extends State<WorkerNotificationPopup> {
@@ -35,19 +36,19 @@ class _WorkerNotificationPopupState extends State<WorkerNotificationPopup> {
     _notificationSubscription = _bookingService
         .streamWorkerNotifications(widget.workerId)
         .listen((notifications) {
-      if (notifications.isNotEmpty && !_isShowingPopup) {
-        _pendingNotifications = notifications;
-        _showNextNotification();
-      }
-    });
+          if (notifications.isNotEmpty && !_isShowingPopup) {
+            _pendingNotifications = notifications;
+            _showNextNotification();
+          }
+        });
   }
 
   void _showNextNotification() {
     if (_pendingNotifications.isEmpty || _isShowingPopup) return;
-    
+
     final notification = _pendingNotifications.first;
     _isShowingPopup = true;
-    
+
     _showNotificationDialog(notification).then((_) {
       _isShowingPopup = false;
       _pendingNotifications.removeAt(0);
@@ -60,7 +61,9 @@ class _WorkerNotificationPopupState extends State<WorkerNotificationPopup> {
     });
   }
 
-  Future<void> _showNotificationDialog(Map<String, dynamic> notification) async {
+  Future<void> _showNotificationDialog(
+    Map<String, dynamic> notification,
+  ) async {
     final type = notification['type'] as String? ?? '';
     final title = notification['title'] as String? ?? 'Notification';
     final message = notification['message'] as String? ?? '';
@@ -70,7 +73,7 @@ class _WorkerNotificationPopupState extends State<WorkerNotificationPopup> {
     // Determine colors and icons based on type
     Color primaryColor;
     IconData icon;
-    
+
     switch (type) {
       case 'delay_reported':
         primaryColor = const Color(0xFFF59E0B); // Orange for warnings
@@ -80,10 +83,7 @@ class _WorkerNotificationPopupState extends State<WorkerNotificationPopup> {
         primaryColor = const Color(0xFFEF4444); // Red for penalties
         icon = Icons.error_rounded;
         break;
-      case 'rescue_job':
-        primaryColor = const Color(0xFFFF6B35); // Rescue job orange
-        icon = Icons.local_fire_department_rounded;
-        break;
+
       case 'extra_time_response':
         primaryColor = const Color(0xFF10B981); // Green
         icon = Icons.more_time_rounded;
@@ -134,7 +134,9 @@ class _WorkerNotificationPopupState extends State<WorkerNotificationPopup> {
                             begin: Alignment.topLeft,
                             end: Alignment.bottomRight,
                           ),
-                          borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
+                          borderRadius: const BorderRadius.vertical(
+                            top: Radius.circular(32),
+                          ),
                         ),
                       ),
                       Positioned(
@@ -164,9 +166,9 @@ class _WorkerNotificationPopupState extends State<WorkerNotificationPopup> {
                       ),
                     ],
                   ),
-                  
+
                   const SizedBox(height: 60),
-                  
+
                   // Text Content
                   Padding(
                     padding: const EdgeInsets.fromLTRB(28, 0, 28, 28),
@@ -175,22 +177,24 @@ class _WorkerNotificationPopupState extends State<WorkerNotificationPopup> {
                         Text(
                           title,
                           textAlign: TextAlign.center,
-                          style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                            fontSize: 22,
-                            fontWeight: FontWeight.w900,
-                          ),
+                          style: Theme.of(context).textTheme.headlineMedium
+                              ?.copyWith(
+                                fontSize: 22,
+                                fontWeight: FontWeight.w900,
+                              ),
                         ),
                         const SizedBox(height: 12),
                         Text(
                           message,
                           textAlign: TextAlign.center,
-                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            fontSize: 15,
-                            height: 1.6,
-                            fontWeight: FontWeight.w500,
-                          ),
+                          style: Theme.of(context).textTheme.bodyMedium
+                              ?.copyWith(
+                                fontSize: 15,
+                                height: 1.6,
+                                fontWeight: FontWeight.w500,
+                              ),
                         ),
-                        
+
                         if (imageUrl != null && imageUrl.isNotEmpty) ...[
                           const SizedBox(height: 20),
                           ClipRRect(
@@ -200,13 +204,14 @@ class _WorkerNotificationPopupState extends State<WorkerNotificationPopup> {
                               height: 180,
                               width: double.infinity,
                               fit: BoxFit.cover,
-                              errorBuilder: (context, error, stackTrace) => const SizedBox.shrink(),
+                              errorBuilder: (context, error, stackTrace) =>
+                                  const SizedBox.shrink(),
                             ),
                           ),
                         ],
-                        
+
                         const SizedBox(height: 32),
-                        
+
                         // Action Buttons
                         Row(
                           children: [
@@ -218,16 +223,28 @@ class _WorkerNotificationPopupState extends State<WorkerNotificationPopup> {
                                     height: 58,
                                     child: OutlinedButton(
                                       onPressed: () {
-                                        Navigator.pop(context);
-                                        _bookingService.markNotificationAsRead(notificationId);
+                                        if (Navigator.of(context).canPop()) {
+                                          Navigator.pop(context);
+                                        }
+                                        _bookingService.markNotificationAsRead(
+                                          notificationId,
+                                        );
                                       },
                                       style: OutlinedButton.styleFrom(
-                                        side: BorderSide(color: primaryColor.withOpacity(0.5), width: 2),
+                                        side: BorderSide(
+                                          color: primaryColor.withOpacity(0.5),
+                                          width: 2,
+                                        ),
                                         shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(18),
+                                          borderRadius: BorderRadius.circular(
+                                            18,
+                                          ),
                                         ),
                                       ),
-                                      child: Icon(Icons.phone_rounded, color: primaryColor),
+                                      child: Icon(
+                                        Icons.phone_rounded,
+                                        color: primaryColor,
+                                      ),
                                     ),
                                   ),
                                 ),
@@ -238,8 +255,12 @@ class _WorkerNotificationPopupState extends State<WorkerNotificationPopup> {
                                 height: 58,
                                 child: ElevatedButton(
                                   onPressed: () {
-                                    Navigator.pop(context);
-                                    _bookingService.markNotificationAsRead(notificationId);
+                                    if (Navigator.of(context).canPop()) {
+                                      Navigator.pop(context);
+                                    }
+                                    _bookingService.markNotificationAsRead(
+                                      notificationId,
+                                    );
                                   },
                                   style: ElevatedButton.styleFrom(
                                     backgroundColor: primaryColor,
@@ -273,7 +294,9 @@ class _WorkerNotificationPopupState extends State<WorkerNotificationPopup> {
                 right: 15,
                 child: GestureDetector(
                   onTap: () {
-                    Navigator.pop(context);
+                    if (Navigator.of(context).canPop()) {
+                      Navigator.pop(context);
+                    }
                     _bookingService.markNotificationAsRead(notificationId);
                   },
                   child: Container(
@@ -282,7 +305,11 @@ class _WorkerNotificationPopupState extends State<WorkerNotificationPopup> {
                       color: Colors.white.withOpacity(0.2),
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: const Icon(Icons.close_rounded, color: Colors.white, size: 20),
+                    child: const Icon(
+                      Icons.close_rounded,
+                      color: Colors.white,
+                      size: 20,
+                    ),
                   ),
                 ),
               ),
@@ -351,10 +378,7 @@ class NotificationBadge extends StatelessWidget {
                   color: Color(0xFFEF4444),
                   shape: BoxShape.circle,
                 ),
-                constraints: const BoxConstraints(
-                  minWidth: 18,
-                  minHeight: 18,
-                ),
+                constraints: const BoxConstraints(minWidth: 18, minHeight: 18),
                 child: Text(
                   count > 9 ? '9+' : count.toString(),
                   style: const TextStyle(

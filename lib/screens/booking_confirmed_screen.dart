@@ -30,7 +30,11 @@ class _BookingConfirmedScreenState extends State<BookingConfirmedScreen> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.error_outline_rounded, size: 64, color: Colors.red.shade300),
+              Icon(
+                Icons.error_outline_rounded,
+                size: 64,
+                color: Colors.red.shade300,
+              ),
               const SizedBox(height: 16),
               const Text(
                 'No booking details found',
@@ -46,7 +50,10 @@ class _BookingConfirmedScreenState extends State<BookingConfirmedScreen> {
       stream: _bookingService.streamBookingRequest(widget.bookingData!['id']),
       builder: (context, snapshot) {
         if (!snapshot.hasData || !snapshot.data!.exists) {
-          return Scaffold(backgroundColor: _bgLight, body: const Center(child: CircularProgressIndicator()));
+          return Scaffold(
+            backgroundColor: _bgLight,
+            body: const Center(child: CircularProgressIndicator()),
+          );
         }
 
         final data = snapshot.data!.data() as Map<String, dynamic>;
@@ -60,7 +67,10 @@ class _BookingConfirmedScreenState extends State<BookingConfirmedScreen> {
               Expanded(
                 child: SingleChildScrollView(
                   physics: const BouncingScrollPhysics(),
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 10,
+                  ),
                   child: Column(
                     children: [
                       _buildMainStatusCard(status, data),
@@ -115,11 +125,20 @@ class _BookingConfirmedScreenState extends State<BookingConfirmedScreen> {
             children: [
               const Text(
                 'Booking Status',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: Color(0xFF1E293B)),
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w900,
+                  color: Color(0xFF1E293B),
+                ),
               ),
               Text(
                 'ID: #${data['id'].toString().substring(0, 8).toUpperCase()}',
-                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF64748B), letterSpacing: 0.5),
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF64748B),
+                  letterSpacing: 0.5,
+                ),
               ),
             ],
           ),
@@ -179,7 +198,10 @@ class _BookingConfirmedScreenState extends State<BookingConfirmedScreen> {
         children: [
           Container(
             padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(color: color.withOpacity(0.2), shape: BoxShape.circle),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.2),
+              shape: BoxShape.circle,
+            ),
             child: Icon(icon, color: color, size: 32),
           ),
           const SizedBox(width: 20),
@@ -189,11 +211,19 @@ class _BookingConfirmedScreenState extends State<BookingConfirmedScreen> {
               children: [
                 Text(
                   title,
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: color),
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w900,
+                    color: color,
+                  ),
                 ),
                 Text(
                   desc,
-                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: color.withOpacity(0.8)),
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                    color: color.withOpacity(0.8),
+                  ),
                 ),
               ],
             ),
@@ -216,7 +246,11 @@ class _BookingConfirmedScreenState extends State<BookingConfirmedScreen> {
         color: Colors.white,
         borderRadius: BorderRadius.circular(28),
         boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 15, offset: const Offset(0, 5)),
+          BoxShadow(
+            color: Colors.black.withOpacity(0.03),
+            blurRadius: 15,
+            offset: const Offset(0, 5),
+          ),
         ],
       ),
       child: Column(
@@ -224,7 +258,11 @@ class _BookingConfirmedScreenState extends State<BookingConfirmedScreen> {
         children: [
           const Text(
             'Live Tracking',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: Color(0xFF1E293B)),
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w800,
+              color: Color(0xFF1E293B),
+            ),
           ),
           const SizedBox(height: 16),
           ClipRRect(
@@ -233,30 +271,34 @@ class _BookingConfirmedScreenState extends State<BookingConfirmedScreen> {
               height: 200,
               width: double.infinity,
               color: const Color(0xFFF1F5F9),
-              child: hasLocation 
-                ? FlutterMap(
-                    options: MapOptions(
-                      initialCenter: LatLng(lat!, lng!),
-                      initialZoom: 15.0,
-                    ),
-                    children: [
-                      TileLayer(
-                        urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                        userAgentPackageName: 'com.servico.app',
+              child: hasLocation
+                  ? FlutterMap(
+                      options: MapOptions(
+                        initialCenter: LatLng(lat!, lng!),
+                        initialZoom: 15.0,
                       ),
-                      MarkerLayer(
-                        markers: [
-                          Marker(
-                            point: LatLng(lat, lng),
-                            width: 60,
-                            height: 60,
-                            child: _buildMapPin(Icons.person_pin_circle_rounded, _primaryBlue),
-                          ),
-                        ],
-                      ),
-                    ],
-                  )
-                : const Center(child: Text('Map not available')),
+                      children: [
+                        TileLayer(
+                          urlTemplate:
+                              'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                          userAgentPackageName: 'com.servico.app',
+                        ),
+                        MarkerLayer(
+                          markers: [
+                            Marker(
+                              point: LatLng(lat, lng),
+                              width: 60,
+                              height: 60,
+                              child: _buildMapPin(
+                                Icons.person_pin_circle_rounded,
+                                _primaryBlue,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    )
+                  : const Center(child: Text('Map not available')),
             ),
           ),
           const SizedBox(height: 16),
@@ -265,7 +307,11 @@ class _BookingConfirmedScreenState extends State<BookingConfirmedScreen> {
               CircleAvatar(
                 radius: 18,
                 backgroundColor: _primaryBlue.withOpacity(0.1),
-                child: Icon(Icons.person_rounded, color: _primaryBlue, size: 20),
+                child: Icon(
+                  Icons.person_rounded,
+                  color: _primaryBlue,
+                  size: 20,
+                ),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -274,16 +320,24 @@ class _BookingConfirmedScreenState extends State<BookingConfirmedScreen> {
                   children: [
                     Text(
                       data['workerName'] ?? 'Matching Provider...',
-                      style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14),
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w800,
+                        fontSize: 14,
+                      ),
                     ),
-                    const Text('Professional Provider', style: TextStyle(fontSize: 12, color: Color(0xFF64748B))),
+                    const Text(
+                      'Professional Provider',
+                      style: TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+                    ),
                   ],
                 ),
               ),
               IconButton(
                 onPressed: () {}, // Future: Call
                 icon: const Icon(Icons.call_rounded, color: Color(0xFF10B981)),
-                style: IconButton.styleFrom(backgroundColor: const Color(0xFFECFDF5)),
+                style: IconButton.styleFrom(
+                  backgroundColor: const Color(0xFFECFDF5),
+                ),
               ),
             ],
           ),
@@ -299,14 +353,17 @@ class _BookingConfirmedScreenState extends State<BookingConfirmedScreen> {
         color: color,
         shape: BoxShape.circle,
         border: Border.all(color: Colors.white, width: 2),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 10)],
+        boxShadow: [
+          BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 10),
+        ],
       ),
       child: Icon(icon, color: Colors.white, size: 20),
     );
   }
 
   Widget _buildExtraTimeNotice(Map<String, dynamic> data) {
-    if (data['extraTimeRequest'] == null || data['extraTimeRequest']['status'] != 'pending') {
+    if (data['extraTimeRequest'] == null ||
+        data['extraTimeRequest']['status'] != 'pending') {
       return const SizedBox.shrink();
     }
 
@@ -329,7 +386,11 @@ class _BookingConfirmedScreenState extends State<BookingConfirmedScreen> {
               const Expanded(
                 child: Text(
                   'Extra Time Requested',
-                  style: TextStyle(fontWeight: FontWeight.w900, color: Color(0xFF9A3412), fontSize: 16),
+                  style: TextStyle(
+                    fontWeight: FontWeight.w900,
+                    color: Color(0xFF9A3412),
+                    fontSize: 16,
+                  ),
                 ),
               ),
             ],
@@ -337,35 +398,51 @@ class _BookingConfirmedScreenState extends State<BookingConfirmedScreen> {
           const SizedBox(height: 12),
           Text(
             'The pro needs $hours more hour to complete the job perfectly.',
-            style: const TextStyle(color: Color(0xFF9A3412), height: 1.4, fontWeight: FontWeight.w600),
+            style: const TextStyle(
+              color: Color(0xFF9A3412),
+              height: 1.4,
+              fontWeight: FontWeight.w600,
+            ),
           ),
           const SizedBox(height: 20),
           Row(
             children: [
               Expanded(
                 child: OutlinedButton(
-                  onPressed: () => _bookingService.respondToExtraTime(data['id'], false),
+                  onPressed: () =>
+                      _bookingService.respondToExtraTime(data['id'], false),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: const Color(0xFFEF4444),
                     side: const BorderSide(color: Color(0xFFEF4444)),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
                     padding: const EdgeInsets.symmetric(vertical: 14),
                   ),
-                  child: const Text('Decline', style: TextStyle(fontWeight: FontWeight.w800)),
+                  child: const Text(
+                    'Decline',
+                    style: TextStyle(fontWeight: FontWeight.w800),
+                  ),
                 ),
               ),
               const SizedBox(width: 12),
               Expanded(
                 child: ElevatedButton(
-                  onPressed: () => _bookingService.respondToExtraTime(data['id'], true),
+                  onPressed: () =>
+                      _bookingService.respondToExtraTime(data['id'], true),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFFEA580C),
                     foregroundColor: Colors.white,
                     elevation: 0,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
                     padding: const EdgeInsets.symmetric(vertical: 14),
                   ),
-                  child: const Text('Approve', style: TextStyle(fontWeight: FontWeight.w800)),
+                  child: const Text(
+                    'Approve',
+                    style: TextStyle(fontWeight: FontWeight.w800),
+                  ),
                 ),
               ),
             ],
@@ -376,30 +453,71 @@ class _BookingConfirmedScreenState extends State<BookingConfirmedScreen> {
   }
 
   Widget _buildServiceSummaryCard(Map<String, dynamic> data) {
-    final date = (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now();
+    final date =
+        (data['startTime'] ??
+                data['scheduledTime'] ??
+                data['estimatedStartTime'] ??
+                data['createdAt'] as Timestamp?)
+            ?.toDate() ??
+        DateTime.now();
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(28),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 15, offset: const Offset(0, 5))],
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.03),
+            blurRadius: 15,
+            offset: const Offset(0, 5),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Service Summary', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: Color(0xFF1E293B))),
+          const Text(
+            'Service Summary',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w800,
+              color: Color(0xFF1E293B),
+            ),
+          ),
           const SizedBox(height: 20),
-          _buildInfoTile(Icons.category_rounded, 'Service', data['serviceName'] ?? 'N/A'),
-          _buildInfoTile(Icons.calendar_today_rounded, 'Scheduled', DateFormat('MMM dd, hh:mm a').format(date)),
-          _buildInfoTile(Icons.timer_rounded, 'Duration', '${data['duration'] ?? 1} Hour(s)'),
-          _buildInfoTile(Icons.location_on_rounded, 'Address', data['customerAddress'] ?? 'N/A', isLast: true),
+          _buildInfoTile(
+            Icons.category_rounded,
+            'Service',
+            data['serviceName'] ?? 'N/A',
+          ),
+          _buildInfoTile(
+            Icons.calendar_today_rounded,
+            'Scheduled',
+            DateFormat('MMM dd, hh:mm a').format(date),
+          ),
+          _buildInfoTile(
+            Icons.timer_rounded,
+            'Duration',
+            '${data['duration'] ?? 1} Hour(s)',
+          ),
+          _buildInfoTile(
+            Icons.location_on_rounded,
+            'Address',
+            data['customerAddress'] ?? 'N/A',
+            isLast: true,
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildInfoTile(IconData icon, String label, String value, {bool isLast = false}) {
+  Widget _buildInfoTile(
+    IconData icon,
+    String label,
+    String value, {
+    bool isLast = false,
+  }) {
     return Padding(
       padding: EdgeInsets.only(bottom: isLast ? 0 : 16),
       child: Row(
@@ -407,7 +525,10 @@ class _BookingConfirmedScreenState extends State<BookingConfirmedScreen> {
         children: [
           Container(
             padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(color: const Color(0xFFF1F5F9), borderRadius: BorderRadius.circular(10)),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF1F5F9),
+              borderRadius: BorderRadius.circular(10),
+            ),
             child: Icon(icon, color: const Color(0xFF64748B), size: 16),
           ),
           const SizedBox(width: 12),
@@ -415,8 +536,22 @@ class _BookingConfirmedScreenState extends State<BookingConfirmedScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(label, style: const TextStyle(fontSize: 11, color: Color(0xFF64748B), fontWeight: FontWeight.w600)),
-                Text(value, style: const TextStyle(fontSize: 14, color: Color(0xFF1E293B), fontWeight: FontWeight.w800)),
+                Text(
+                  label,
+                  style: const TextStyle(
+                    fontSize: 11,
+                    color: Color(0xFF64748B),
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                Text(
+                  value,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    color: Color(0xFF1E293B),
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
               ],
             ),
           ),
@@ -433,26 +568,62 @@ class _BookingConfirmedScreenState extends State<BookingConfirmedScreen> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(28),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 15, offset: const Offset(0, 5))],
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.03),
+            blurRadius: 15,
+            offset: const Offset(0, 5),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Payment Breakdown', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: Color(0xFF1E293B))),
+          const Text(
+            'Payment Breakdown',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w800,
+              color: Color(0xFF1E293B),
+            ),
+          ),
           const SizedBox(height: 20),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text('Service Fee', style: TextStyle(color: Color(0xFF64748B), fontWeight: FontWeight.w500)),
-              Text('₹ ${price.toStringAsFixed(0)}', style: const TextStyle(fontWeight: FontWeight.w800)),
+              const Text(
+                'Service Fee',
+                style: TextStyle(
+                  color: Color(0xFF64748B),
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              Text(
+                '₹ ${price.toStringAsFixed(0)}',
+                style: const TextStyle(fontWeight: FontWeight.w800),
+              ),
             ],
           ),
           const Divider(height: 32),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text('Total Amount', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: Color(0xFF1E293B))),
-              Text('₹ ${price.toStringAsFixed(0)}', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: _primaryBlue)),
+              const Text(
+                'Total Amount',
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w800,
+                  color: Color(0xFF1E293B),
+                ),
+              ),
+              Text(
+                '₹ ${price.toStringAsFixed(0)}',
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w900,
+                  color: _primaryBlue,
+                ),
+              ),
             ],
           ),
         ],
@@ -469,24 +640,38 @@ class _BookingConfirmedScreenState extends State<BookingConfirmedScreen> {
           height: 60,
           child: ElevatedButton(
             onPressed: () => Navigator.of(context).pushAndRemoveUntil(
-              MaterialPageRoute(builder: (context) => const CustomerHomeScreen()),
+              MaterialPageRoute(
+                builder: (context) => const CustomerHomeScreen(),
+              ),
               (route) => false,
             ),
             style: ElevatedButton.styleFrom(
               backgroundColor: _primaryBlue,
               foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(18),
+              ),
               elevation: 4,
               shadowColor: _primaryBlue.withOpacity(0.3),
             ),
-            child: const Text('Back to Home', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
+            child: const Text(
+              'Back to Home',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
+            ),
           ),
         ),
         if (status == 'accepted') ...[
           const SizedBox(height: 16),
           TextButton(
             onPressed: () => _confirmCancellation(context, data['id']),
-            child: const Text('Cancel Booking', style: TextStyle(color: Color(0xFFEF4444), fontWeight: FontWeight.w700, decoration: TextDecoration.underline)),
+            child: const Text(
+              'Cancel Booking',
+              style: TextStyle(
+                color: Color(0xFFEF4444),
+                fontWeight: FontWeight.w700,
+                decoration: TextDecoration.underline,
+              ),
+            ),
           ),
         ],
       ],
@@ -499,17 +684,34 @@ class _BookingConfirmedScreenState extends State<BookingConfirmedScreen> {
       backgroundColor: Colors.transparent,
       builder: (context) => Container(
         padding: const EdgeInsets.all(32),
-        decoration: const BoxDecoration(color: Colors.white, borderRadius: BorderRadius.vertical(top: Radius.circular(32))),
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
+        ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Container(
               padding: const EdgeInsets.all(16),
-              decoration: const BoxDecoration(color: Color(0xFFFEF2F2), shape: BoxShape.circle),
-              child: const Icon(Icons.warning_amber_rounded, color: Color(0xFFEF4444), size: 40),
+              decoration: const BoxDecoration(
+                color: Color(0xFFFEF2F2),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.warning_amber_rounded,
+                color: Color(0xFFEF4444),
+                size: 40,
+              ),
             ),
             const SizedBox(height: 24),
-            const Text('Cancel Booking?', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: Color(0xFF1E293B))),
+            const Text(
+              'Cancel Booking?',
+              style: TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.w900,
+                color: Color(0xFF1E293B),
+              ),
+            ),
             const SizedBox(height: 12),
             const Text(
               'Are you sure? A cancellation might result in a small fee if the provider is already on their way.',
@@ -522,7 +724,13 @@ class _BookingConfirmedScreenState extends State<BookingConfirmedScreen> {
                 Expanded(
                   child: TextButton(
                     onPressed: () => Navigator.pop(context),
-                    child: const Text('Keep Booking', style: TextStyle(color: Color(0xFF64748B), fontWeight: FontWeight.w800)),
+                    child: const Text(
+                      'Keep Booking',
+                      style: TextStyle(
+                        color: Color(0xFF64748B),
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
                   ),
                 ),
                 const SizedBox(width: 16),
@@ -535,10 +743,15 @@ class _BookingConfirmedScreenState extends State<BookingConfirmedScreen> {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFFEF4444),
                       foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
                       padding: const EdgeInsets.symmetric(vertical: 14),
                     ),
-                    child: const Text('Confirm', style: TextStyle(fontWeight: FontWeight.w800)),
+                    child: const Text(
+                      'Confirm',
+                      style: TextStyle(fontWeight: FontWeight.w800),
+                    ),
                   ),
                 ),
               ],

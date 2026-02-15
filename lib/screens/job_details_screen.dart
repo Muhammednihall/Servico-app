@@ -29,8 +29,7 @@ class _JobDetailsScreenState extends State<JobDetailsScreen> {
   @override
   Widget build(BuildContext context) {
     final status = widget.jobData['status'] ?? 'accepted';
-    final createdAt = (widget.jobData['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now();
-    
+
     // Extract coordinates
     final Map<String, dynamic>? coords = widget.jobData['customerCoordinates'];
     final double? customerLat = coords?['lat']?.toDouble();
@@ -42,14 +41,20 @@ class _JobDetailsScreenState extends State<JobDetailsScreen> {
       body: StreamBuilder<DocumentSnapshot>(
         stream: _bookingService.streamBookingRequest(widget.jobData['id']),
         builder: (context, snapshot) {
-          final data = snapshot.hasData && snapshot.data!.exists 
-              ? snapshot.data!.data() as Map<String, dynamic> 
+          final data = snapshot.hasData && snapshot.data!.exists
+              ? snapshot.data!.data() as Map<String, dynamic>
               : widget.jobData;
-          
+
           final currentStatus = data['status'] ?? 'accepted';
           final workerStatus = data['workerStatus'] ?? 'pending';
-          final createdAt = (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now();
-          
+          final scheduledTime =
+              (data['startTime'] ??
+                      data['scheduledTime'] ??
+                      data['estimatedStartTime'] ??
+                      data['createdAt'] as Timestamp?)
+                  ?.toDate() ??
+              DateTime.now();
+
           // Extract coordinates
           final Map<String, dynamic>? coords = data['customerCoordinates'];
           final double? customerLat = coords?['lat']?.toDouble();
@@ -60,20 +65,26 @@ class _JobDetailsScreenState extends State<JobDetailsScreen> {
             children: [
               ModernHeader(
                 title: 'Job Details',
-                subtitle: 'ID: ${data['id']?.toString().substring(0, 8).toUpperCase() ?? "N/A"}',
+                subtitle:
+                    'ID: ${data['id']?.toString().substring(0, 8).toUpperCase() ?? "N/A"}',
                 showBackButton: true,
               ),
               Expanded(
                 child: SingleChildScrollView(
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 10,
+                  ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       _buildStatusBadge(currentStatus),
                       const SizedBox(height: 20),
-                      
+
                       // Worker status update card - shown for all active jobs
-                      if (currentStatus == 'accepted' || currentStatus == 'assigned' || currentStatus == 'working') ...[
+                      if (currentStatus == 'accepted' ||
+                          currentStatus == 'assigned' ||
+                          currentStatus == 'working') ...[
                         WorkerStatusUpdateCard(
                           booking: data,
                           onStatusUpdated: () {
@@ -82,15 +93,27 @@ class _JobDetailsScreenState extends State<JobDetailsScreen> {
                         ),
                         const SizedBox(height: 20),
                       ],
-                      
+
                       _buildCustomerSection(data),
                       const SizedBox(height: 20),
-                      _buildServiceDetailsSection(currentStatus, data, createdAt),
+                      _buildServiceDetailsSection(
+                        currentStatus,
+                        data,
+                        scheduledTime,
+                      ),
                       const SizedBox(height: 20),
-                      _buildLocationSection(data, hasLocation, customerLat, customerLng),
+                      _buildLocationSection(
+                        data,
+                        hasLocation,
+                        customerLat,
+                        customerLng,
+                      ),
                       const SizedBox(height: 32),
-                      if (currentStatus == 'accepted' || currentStatus == 'working') _buildActionButtons(data, workerStatus),
-                      if (currentStatus == 'completed') _buildCompletedSection(),
+                      if (currentStatus == 'accepted' ||
+                          currentStatus == 'working')
+                        _buildActionButtons(data, workerStatus),
+                      if (currentStatus == 'completed')
+                        _buildCompletedSection(),
                       const SizedBox(height: 40),
                     ],
                   ),
@@ -98,7 +121,7 @@ class _JobDetailsScreenState extends State<JobDetailsScreen> {
               ),
             ],
           );
-        }
+        },
       ),
     );
   }
@@ -196,7 +219,11 @@ class _JobDetailsScreenState extends State<JobDetailsScreen> {
                 const SizedBox(height: 4),
                 Row(
                   children: [
-                    const Icon(Icons.star_rounded, color: Color(0xFFF59E0B), size: 16),
+                    const Icon(
+                      Icons.star_rounded,
+                      color: Color(0xFFF59E0B),
+                      size: 16,
+                    ),
                     const SizedBox(width: 4),
                     Text(
                       '5.0 Customer Rating',
@@ -216,7 +243,11 @@ class _JobDetailsScreenState extends State<JobDetailsScreen> {
     );
   }
 
-  Widget _buildServiceDetailsSection(String status, Map<String, dynamic> data, DateTime date) {
+  Widget _buildServiceDetailsSection(
+    String status,
+    Map<String, dynamic> data,
+    DateTime date,
+  ) {
     final price = (data['price'] as num?)?.toDouble() ?? 0.0;
     final int duration = (data['duration'] as num?)?.toInt() ?? 1;
 
@@ -264,7 +295,9 @@ class _JobDetailsScreenState extends State<JobDetailsScreen> {
             Icons.timer_rounded,
             'Estimated Duration',
             '$duration Hour(s)',
-            valueColor: data['extraTimeRequest']?['status'] == 'approved' ? _primaryBlue : null,
+            valueColor: data['extraTimeRequest']?['status'] == 'approved'
+                ? _primaryBlue
+                : null,
           ),
           _buildDetailTile(
             Icons.payments_rounded,
@@ -276,12 +309,20 @@ class _JobDetailsScreenState extends State<JobDetailsScreen> {
             const Divider(height: 32),
             const Text(
               'Instruction Notes',
-              style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: Color(0xFF64748B)),
+              style: TextStyle(
+                fontWeight: FontWeight.w700,
+                fontSize: 13,
+                color: Color(0xFF64748B),
+              ),
             ),
             const SizedBox(height: 8),
             Text(
               data['notes'],
-              style: TextStyle(color: Colors.grey.shade700, height: 1.5, fontSize: 14),
+              style: TextStyle(
+                color: Colors.grey.shade700,
+                height: 1.5,
+                fontSize: 14,
+              ),
             ),
           ],
         ],
@@ -289,7 +330,12 @@ class _JobDetailsScreenState extends State<JobDetailsScreen> {
     );
   }
 
-  Widget _buildDetailTile(IconData icon, String label, String value, {Color? valueColor}) {
+  Widget _buildDetailTile(
+    IconData icon,
+    String label,
+    String value, {
+    Color? valueColor,
+  }) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
       child: Row(
@@ -305,7 +351,11 @@ class _JobDetailsScreenState extends State<JobDetailsScreen> {
           const SizedBox(width: 12),
           Text(
             label,
-            style: const TextStyle(color: Color(0xFF64748B), fontSize: 14, fontWeight: FontWeight.w500),
+            style: const TextStyle(
+              color: Color(0xFF64748B),
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+            ),
           ),
           const Spacer(),
           Text(
@@ -321,7 +371,12 @@ class _JobDetailsScreenState extends State<JobDetailsScreen> {
     );
   }
 
-  Widget _buildLocationSection(Map<String, dynamic> data, bool hasLocation, double? lat, double? lng) {
+  Widget _buildLocationSection(
+    Map<String, dynamic> data,
+    bool hasLocation,
+    double? lat,
+    double? lng,
+  ) {
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
@@ -349,7 +404,11 @@ class _JobDetailsScreenState extends State<JobDetailsScreen> {
           const SizedBox(height: 12),
           Text(
             data['customerAddress'] ?? 'No address provided',
-            style: TextStyle(color: Colors.grey.shade600, fontSize: 14, height: 1.5),
+            style: TextStyle(
+              color: Colors.grey.shade600,
+              fontSize: 14,
+              height: 1.5,
+            ),
           ),
           const SizedBox(height: 20),
           Container(
@@ -374,7 +433,8 @@ class _JobDetailsScreenState extends State<JobDetailsScreen> {
                       ),
                       children: [
                         TileLayer(
-                          urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                          urlTemplate:
+                              'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                           userAgentPackageName: 'com.servico.app',
                         ),
                         MarkerLayer(
@@ -396,7 +456,7 @@ class _JobDetailsScreenState extends State<JobDetailsScreen> {
                         child: Text('Map location not available'),
                       ),
                     ),
-                  
+
                   // Navigate Overlay Button
                   if (hasLocation)
                     Positioned(
@@ -406,14 +466,22 @@ class _JobDetailsScreenState extends State<JobDetailsScreen> {
                         color: Colors.transparent,
                         child: InkWell(
                           onTap: () async {
-                            final url = Uri.parse('https://www.google.com/maps/dir/?api=1&destination=$lat,$lng');
+                            final url = Uri.parse(
+                              'https://www.google.com/maps/dir/?api=1&destination=$lat,$lng',
+                            );
                             if (await canLaunchUrl(url)) {
-                              await launchUrl(url, mode: LaunchMode.externalApplication);
+                              await launchUrl(
+                                url,
+                                mode: LaunchMode.externalApplication,
+                              );
                             }
                           },
                           borderRadius: BorderRadius.circular(12),
                           child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 14,
+                              vertical: 8,
+                            ),
                             decoration: BoxDecoration(
                               color: _accentGreen,
                               borderRadius: BorderRadius.circular(12),
@@ -428,7 +496,11 @@ class _JobDetailsScreenState extends State<JobDetailsScreen> {
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: const [
-                                Icon(Icons.directions_rounded, color: Colors.white, size: 16),
+                                Icon(
+                                  Icons.directions_rounded,
+                                  color: Colors.white,
+                                  size: 16,
+                                ),
                                 SizedBox(width: 6),
                                 Text(
                                   'Navigate',
@@ -463,13 +535,14 @@ class _JobDetailsScreenState extends State<JobDetailsScreen> {
             shape: BoxShape.circle,
             border: Border.all(color: Colors.white, width: 2),
             boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.1),
-                blurRadius: 10,
-              ),
+              BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 10),
             ],
           ),
-          child: const Icon(Icons.person_pin_circle_rounded, color: Colors.white, size: 20),
+          child: const Icon(
+            Icons.person_pin_circle_rounded,
+            color: Colors.white,
+            size: 20,
+          ),
         ),
       ],
     );
@@ -482,9 +555,13 @@ class _JobDetailsScreenState extends State<JobDetailsScreen> {
           width: double.infinity,
           height: 60,
           child: ElevatedButton(
-            onPressed: (_isProcessing || workerStatus != 'working') ? null : () => _handleCompleteJob(data),
+            onPressed: (_isProcessing || workerStatus != 'working')
+                ? null
+                : () => _handleCompleteJob(data),
             style: ElevatedButton.styleFrom(
-              backgroundColor: workerStatus == 'working' ? _accentGreen : Colors.grey.shade300,
+              backgroundColor: workerStatus == 'working'
+                  ? _accentGreen
+                  : Colors.grey.shade300,
               foregroundColor: Colors.white,
               elevation: 0,
               shape: RoundedRectangleBorder(
@@ -492,7 +569,14 @@ class _JobDetailsScreenState extends State<JobDetailsScreen> {
               ),
             ),
             child: _isProcessing
-                ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                ? const SizedBox(
+                    width: 24,
+                    height: 24,
+                    child: CircularProgressIndicator(
+                      color: Colors.white,
+                      strokeWidth: 2,
+                    ),
+                  )
                 : const Text(
                     'Mark as Completed',
                     style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
@@ -512,7 +596,10 @@ class _JobDetailsScreenState extends State<JobDetailsScreen> {
               ),
               backgroundColor: const Color(0xFFFFEBEB),
             ),
-            child: const Text('Cancel Job', style: TextStyle(fontWeight: FontWeight.w700)),
+            child: const Text(
+              'Cancel Job',
+              style: TextStyle(fontWeight: FontWeight.w700),
+            ),
           ),
         ),
       ],
@@ -543,7 +630,11 @@ class _JobDetailsScreenState extends State<JobDetailsScreen> {
           const SizedBox(height: 4),
           const Text(
             'The payment has been credited to your wallet.',
-            style: TextStyle(color: Color(0xFF065F46), fontSize: 13, fontWeight: FontWeight.w500),
+            style: TextStyle(
+              color: Color(0xFF065F46),
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
+            ),
           ),
         ],
       ),
@@ -586,12 +677,20 @@ class _JobDetailsScreenState extends State<JobDetailsScreen> {
                 ),
                 child: Row(
                   children: const [
-                    Icon(Icons.warning_amber_rounded, color: Colors.red, size: 20),
+                    Icon(
+                      Icons.warning_amber_rounded,
+                      color: Colors.red,
+                      size: 20,
+                    ),
                     SizedBox(width: 8),
                     Expanded(
                       child: Text(
                         'Your rating will be slightly reduced.',
-                        style: TextStyle(color: Colors.red, fontSize: 12, fontWeight: FontWeight.w600),
+                        style: TextStyle(
+                          color: Colors.red,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                     ),
                   ],
@@ -603,7 +702,13 @@ class _JobDetailsScreenState extends State<JobDetailsScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text('Keep Job', style: TextStyle(color: Colors.grey.shade600, fontWeight: FontWeight.w700)),
+            child: Text(
+              'Keep Job',
+              style: TextStyle(
+                color: Colors.grey.shade600,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
           ),
           ElevatedButton(
             onPressed: () async {
@@ -614,9 +719,14 @@ class _JobDetailsScreenState extends State<JobDetailsScreen> {
               backgroundColor: const Color(0xFFEF4444),
               foregroundColor: Colors.white,
               elevation: 0,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
             ),
-            child: const Text('Confirm Cancellation', style: TextStyle(fontWeight: FontWeight.w700)),
+            child: const Text(
+              'Confirm Cancellation',
+              style: TextStyle(fontWeight: FontWeight.w700),
+            ),
           ),
         ],
       ),
@@ -626,18 +736,25 @@ class _JobDetailsScreenState extends State<JobDetailsScreen> {
   Future<void> _performCancellation(String requestId, bool penalized) async {
     setState(() => _isProcessing = true);
     try {
-      await _bookingService.cancelBookingByWorker(requestId, penalized: penalized);
+      await _bookingService.cancelBookingByWorker(
+        requestId,
+        penalized: penalized,
+      );
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(penalized 
-              ? 'Job cancelled. Your rating has been updated.' 
-              : 'Job cancelled successfully.'),
+            content: Text(
+              penalized
+                  ? 'Job cancelled. Your rating has been updated.'
+                  : 'Job cancelled successfully.',
+            ),
             backgroundColor: penalized ? Colors.orange : Colors.blue,
             behavior: SnackBarBehavior.floating,
           ),
         );
-        Navigator.pop(context);
+        if (mounted && Navigator.of(context).canPop()) {
+          Navigator.pop(context);
+        }
       }
     } catch (e) {
       if (mounted) {

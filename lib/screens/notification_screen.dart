@@ -17,11 +17,35 @@ class NotificationScreen extends StatefulWidget {
 class _NotificationScreenState extends State<NotificationScreen> {
   final AuthService _authService = AuthService();
   final BookingService _bookingService = BookingService();
+  String? _role;
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserRole();
+  }
+
+  Future<void> _loadUserRole() async {
+    final user = _authService.getCurrentUser();
+    if (user != null) {
+      final role = await _authService.getUserRole(user.uid);
+      if (mounted) {
+        setState(() {
+          _role = role;
+          _isLoading = false;
+        });
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final user = _authService.getCurrentUser();
-    if (user == null) return const Scaffold(body: Center(child: Text('Please Login')));
+    if (user == null)
+      return const Scaffold(body: Center(child: Text('Please Login')));
+    if (_isLoading)
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
@@ -31,57 +55,101 @@ class _NotificationScreenState extends State<NotificationScreen> {
             title: 'Notifications',
             subtitle: 'Stay updated with',
             showBackButton: true,
+            showNotifications: false,
           ),
           Expanded(
-            child: StreamBuilder<List<Map<String, dynamic>>>(
-              stream: _bookingService.streamUpcomingSchedule(user.uid),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-
-                final incoming = snapshot.data ?? [];
-                
-                // Fetch missed jobs (expired/rejected)
-                return StreamBuilder<List<Map<String, dynamic>>>(
-                  stream: _bookingService.streamCancelledJobs(user.uid),
-                  builder: (context, cancelledSnapshot) {
-                    final missed = cancelledSnapshot.data ?? [];
-                    
-                    final allNotifications = _processNotifications(incoming, missed);
-
-                    if (allNotifications.isEmpty) {
-                      return Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.notifications_off_rounded, size: 64, color: Colors.grey.shade300),
-                            const SizedBox(height: 16),
-                            Text('No notifications yet', style: TextStyle(color: Colors.grey.shade500, fontSize: 16)),
-                          ],
-                        ),
-                      );
-                    }
-
-                    return ListView.builder(
-                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                      itemCount: allNotifications.length,
-                      itemBuilder: (context, index) {
-                        final notification = allNotifications[index];
-                        return _buildNotificationCard(notification);
-                      },
-                    );
-                  },
-                );
-              },
-            ),
+            child: _role == 'worker'
+                ? _buildWorkerNotifications(user.uid)
+                : _buildCustomerNotifications(user.uid),
           ),
         ],
       ),
     );
   }
 
-  List<Map<String, dynamic>> _processNotifications(
+  Widget _buildWorkerNotifications(String uid) {
+    return StreamBuilder<List<Map<String, dynamic>>>(
+      stream: _bookingService.streamUpcomingSchedule(uid),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        final incoming = snapshot.data ?? [];
+
+        return StreamBuilder<List<Map<String, dynamic>>>(
+          stream: _bookingService.streamCancelledJobs(uid),
+          builder: (context, cancelledSnapshot) {
+            final missed = cancelledSnapshot.data ?? [];
+            final allNotifications = _processWorkerNotifications(
+              incoming,
+              missed,
+            );
+
+            if (allNotifications.isEmpty) return _buildEmptyState();
+
+            return ListView.builder(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+              itemCount: allNotifications.length,
+              itemBuilder: (context, index) =>
+                  _buildNotificationCard(allNotifications[index]),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildCustomerNotifications(String uid) {
+    return StreamBuilder<List<Map<String, dynamic>>>(
+      stream: _bookingService.streamCustomerNotifications(uid),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        final notifications = snapshot.data ?? [];
+        if (notifications.isEmpty) return _buildEmptyState();
+
+        return ListView.builder(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+          itemCount: notifications.length,
+          itemBuilder: (context, index) {
+            final notification = notifications[index];
+            return _buildNotificationCard({
+              'type': notification['type'] ?? 'general',
+              'title': notification['title'] ?? 'Update',
+              'body': notification['message'] ?? '',
+              'time': notification['createdAt'],
+              'data': notification,
+            });
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildEmptyState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.notifications_off_rounded,
+            size: 64,
+            color: Colors.grey.shade300,
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'No notifications yet',
+            style: TextStyle(color: Colors.grey.shade500, fontSize: 16),
+          ),
+        ],
+      ),
+    );
+  }
+
+  List<Map<String, dynamic>> _processWorkerNotifications(
     List<Map<String, dynamic>> incoming,
     List<Map<String, dynamic>> missed,
   ) {
@@ -94,13 +162,14 @@ class _NotificationScreenState extends State<NotificationScreen> {
         result.add({
           'type': 'request',
           'title': 'New Job Request',
-          'body': 'You have a new request from ${job['customerName']} for ${job['serviceName']}.',
+          'body':
+              'You have a new request from ${job['customerName']} for ${job['serviceName']}.',
           'time': job['createdAt'],
           'data': job,
           'priority': 1,
         });
       }
-      
+
       // 2. Job Reminders (Accepted and starting soon - next 12 hours for visibility in demo)
       if (job['status'] == 'accepted' || job['status'] == 'assigned') {
         final startTime = (job['startTime'] as Timestamp?)?.toDate();
@@ -110,7 +179,8 @@ class _NotificationScreenState extends State<NotificationScreen> {
             result.add({
               'type': 'reminder',
               'title': 'Upcoming Job Reminder',
-              'body': 'Reminder: Your job for ${job['customerName']} starts at ${DateFormat('hh:mm a').format(startTime)}.',
+              'body':
+                  'Reminder: Your job for ${job['customerName']} starts at ${DateFormat('hh:mm a').format(startTime)}.',
               'time': job['startTime'],
               'data': job,
               'priority': 2,
@@ -122,14 +192,14 @@ class _NotificationScreenState extends State<NotificationScreen> {
 
     // 3. Missed Jobs (Rejected/Expired)
     for (var job in missed) {
-       result.add({
-          'type': 'missed',
-          'title': 'Job Alert',
-          'body': 'Job request from ${job['customerName']} was ${job['status']}.',
-          'time': job['updatedAt'] ?? job['createdAt'],
-          'data': job,
-          'priority': 3,
-        });
+      result.add({
+        'type': 'missed',
+        'title': 'Job Alert',
+        'body': 'Job request from ${job['customerName']} was ${job['status']}.',
+        'time': job['updatedAt'] ?? job['createdAt'],
+        'data': job,
+        'priority': 3,
+      });
     }
 
     // Sort by time (newest first)
@@ -163,20 +233,51 @@ class _NotificationScreenState extends State<NotificationScreen> {
         icon = Icons.notification_important_rounded;
         iconColor = Colors.red;
         break;
+      case 'booking_status_update':
+        iconBg = const Color(0xFFe0f2fe); // Light blue
+        icon = Icons.update_rounded;
+        iconColor = Colors.lightBlue;
+        break;
+      case 'new_job_available':
+        iconBg = const Color(0xFFfefce8); // Light yellow
+        icon = Icons.work_history_rounded;
+        iconColor = Colors.amber;
+        break;
+      case 'general':
       default:
         iconBg = Colors.grey.shade100;
         icon = Icons.notifications_rounded;
         iconColor = Colors.grey;
     }
 
-    final time = (notification['time'] as Timestamp?)?.toDate() ?? DateTime.now();
+    final time =
+        (notification['time'] as Timestamp?)?.toDate() ?? DateTime.now();
 
     return GestureDetector(
       onTap: () {
-        if (notification['type'] == 'request') {
-           Navigator.push(context, MaterialPageRoute(builder: (_) => NewJobRequestScreen(request: notification['data'])));
+        if (_role == 'worker') {
+          if (notification['type'] == 'request') {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) =>
+                    NewJobRequestScreen(request: notification['data']),
+              ),
+            );
+          } else {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => JobDetailsScreen(jobData: notification['data']),
+              ),
+            );
+          }
         } else {
-           Navigator.push(context, MaterialPageRoute(builder: (_) => JobDetailsScreen(jobData: notification['data'])));
+          // Customer logic - navigate to booking details
+          if (notification['data']['bookingId'] != null) {
+            // We can fetch the booking and navigate to BookingConfirmedScreen
+            // For now, let's just mark as read or similar
+          }
         }
       },
       child: Container(
@@ -209,18 +310,30 @@ class _NotificationScreenState extends State<NotificationScreen> {
                     children: [
                       Text(
                         notification['title'],
-                        style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15, color: Color(0xFF1E293B)),
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w800,
+                          fontSize: 15,
+                          color: Color(0xFF1E293B),
+                        ),
                       ),
                       Text(
                         DateFormat('hh:mm a').format(time),
-                        style: TextStyle(color: Colors.grey.shade400, fontSize: 11, fontWeight: FontWeight.w600),
+                        style: TextStyle(
+                          color: Colors.grey.shade400,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                     ],
                   ),
                   const SizedBox(height: 4),
                   Text(
                     notification['body'],
-                    style: TextStyle(color: Colors.grey.shade600, fontSize: 13, height: 1.4),
+                    style: TextStyle(
+                      color: Colors.grey.shade600,
+                      fontSize: 13,
+                      height: 1.4,
+                    ),
                   ),
                 ],
               ),

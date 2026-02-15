@@ -12,16 +12,35 @@ class UserService {
     // Try customers collection first
     var doc = await _firestore.collection('customers').doc(user.uid).get();
     if (doc.exists) {
-      return {'uid': user.uid, 'role': 'customer', ...doc.data() as Map<String, dynamic>};
+      return {
+        'uid': user.uid,
+        'role': 'customer',
+        ...doc.data() as Map<String, dynamic>,
+      };
     }
 
     // Try workers collection
     doc = await _firestore.collection('workers').doc(user.uid).get();
     if (doc.exists) {
-      return {'uid': user.uid, 'role': 'worker', ...doc.data() as Map<String, dynamic>};
+      return {
+        'uid': user.uid,
+        'role': 'worker',
+        ...doc.data() as Map<String, dynamic>,
+      };
     }
 
     return null;
+  }
+
+  Stream<Map<String, dynamic>?> streamUserProfile(String uid) {
+    // We'll check customers first, then workers. For simplicity in streaming,
+    // we can use a merge or just stream the common user info if we had a users collection,
+    // but here we check the role first or just stream the customer one specifically for this task.
+    // Given the context, we mostly need it for the name in the header.
+    return _firestore.collection('customers').doc(uid).snapshots().map((doc) {
+      if (doc.exists) return doc.data();
+      return null;
+    });
   }
 
   Future<void> updateUserProfile({

@@ -4,7 +4,6 @@ import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../services/booking_service.dart';
 import '../services/auth_service.dart';
-import '../widgets/modern_header.dart';
 import 'booking_confirmed_screen.dart';
 import 'booking_request_screen.dart';
 
@@ -15,7 +14,8 @@ class CustomerBookingsScreen extends StatefulWidget {
   State<CustomerBookingsScreen> createState() => _CustomerBookingsScreenState();
 }
 
-class _CustomerBookingsScreenState extends State<CustomerBookingsScreen> with TickerProviderStateMixin {
+class _CustomerBookingsScreenState extends State<CustomerBookingsScreen>
+    with TickerProviderStateMixin {
   final BookingService _bookingService = BookingService();
   final AuthService _authService = AuthService();
   late TabController _tabController;
@@ -49,68 +49,67 @@ class _CustomerBookingsScreenState extends State<CustomerBookingsScreen> with Ti
     final user = _authService.getCurrentUser();
 
     if (user == null) {
-      return Scaffold(
-        backgroundColor: const Color(0xFFF8FAFC),
-        body: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.lock_outline, size: 60, color: Colors.grey.shade300),
-              const SizedBox(height: 16),
-              Text(
-                'Please login to view bookings',
-                style: TextStyle(color: Colors.grey.shade600, fontSize: 16),
-              ),
-            ],
-          ),
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.lock_outline, size: 60, color: Colors.grey.shade300),
+            const SizedBox(height: 16),
+            Text(
+              'Please login to view bookings',
+              style: TextStyle(color: Colors.grey.shade600, fontSize: 16),
+            ),
+          ],
         ),
       );
     }
 
-    return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
-      body: Column(
-        children: [
-          const ModernHeader(
-            title: 'My Bookings',
-            subtitle: 'Track your service requests',
-            showBackButton: false,
-            showNotifications: false,
+    return Column(
+      children: [
+        _buildTabs(),
+        Expanded(
+          child: StreamBuilder<List<Map<String, dynamic>>>(
+            stream: _bookingService.streamCustomerBookings(user.uid),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator());
+              }
+
+              final allBookings = snapshot.data ?? [];
+
+              // Categorize bookings
+              final pending = allBookings
+                  .where((b) => b['status'] == 'pending')
+                  .toList();
+              final active = allBookings
+                  .where((b) => b['status'] == 'accepted')
+                  .toList();
+              final history = allBookings
+                  .where(
+                    (b) => [
+                      'completed',
+                      'cancelled',
+                      'rejected',
+                      'expired',
+                    ].contains(b['status']),
+                  )
+                  .toList();
+
+              return PageView(
+                controller: _pageController,
+                onPageChanged: (index) {
+                  _tabController.animateTo(index);
+                },
+                children: [
+                  _buildBookingList(pending, 'pending'),
+                  _buildBookingList(active, 'active'),
+                  _buildBookingList(history, 'history'),
+                ],
+              );
+            },
           ),
-          _buildTabs(),
-          Expanded(
-            child: StreamBuilder<List<Map<String, dynamic>>>(
-              stream: _bookingService.streamCustomerBookings(user.uid),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-
-                final allBookings = snapshot.data ?? [];
-
-                // Categorize bookings
-                final pending = allBookings.where((b) => b['status'] == 'pending').toList();
-                final active = allBookings.where((b) => b['status'] == 'accepted').toList();
-                final history = allBookings.where((b) => 
-                  ['completed', 'cancelled', 'rejected', 'expired'].contains(b['status'])
-                ).toList();
-
-                return PageView(
-                  controller: _pageController,
-                  onPageChanged: (index) {
-                    _tabController.animateTo(index);
-                  },
-                  children: [
-                    _buildBookingList(pending, 'pending'),
-                    _buildBookingList(active, 'active'),
-                    _buildBookingList(history, 'history'),
-                  ],
-                );
-              },
-            ),
-          ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
@@ -138,7 +137,10 @@ class _CustomerBookingsScreenState extends State<CustomerBookingsScreen> with Ti
         labelColor: Colors.white,
         unselectedLabelColor: Colors.grey.shade600,
         labelStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
-        unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+        unselectedLabelStyle: const TextStyle(
+          fontWeight: FontWeight.w600,
+          fontSize: 13,
+        ),
         dividerHeight: 0,
         tabs: const [
           Tab(text: 'Pending'),
@@ -216,8 +218,14 @@ class _CustomerBookingsScreenState extends State<CustomerBookingsScreen> with Ti
 
   Widget _buildBookingCard(Map<String, dynamic> booking, String sectionType) {
     final status = booking['status'] ?? 'pending';
-    final createdAt = (booking['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now();
-    final dateStr = DateFormat('MMM d, yyyy • h:mm a').format(createdAt);
+    final scheduledTime =
+        (booking['startTime'] ??
+                booking['scheduledTime'] ??
+                booking['estimatedStartTime'] ??
+                booking['createdAt'] as Timestamp?)
+            ?.toDate() ??
+        DateTime.now();
+    final dateStr = DateFormat('MMM d, yyyy • h:mm a').format(scheduledTime);
     final price = (booking['price'] as num?)?.toDouble() ?? 0;
     final duration = booking['duration'] ?? 1;
 
@@ -318,7 +326,11 @@ class _CustomerBookingsScreenState extends State<CustomerBookingsScreen> with Ti
                         const SizedBox(height: 4),
                         Row(
                           children: [
-                            Icon(Icons.person_outline, size: 14, color: Colors.grey.shade500),
+                            Icon(
+                              Icons.person_outline,
+                              size: 14,
+                              color: Colors.grey.shade500,
+                            ),
                             const SizedBox(width: 4),
                             Text(
                               booking['workerName'] ?? 'Finding...',
@@ -335,7 +347,10 @@ class _CustomerBookingsScreenState extends State<CustomerBookingsScreen> with Ti
                   ),
                   // Status Badge
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
                     decoration: BoxDecoration(
                       color: statusColor.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(12),
@@ -364,7 +379,9 @@ class _CustomerBookingsScreenState extends State<CustomerBookingsScreen> with Ti
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
               decoration: BoxDecoration(
                 color: const Color(0xFFF8FAFC),
-                borderRadius: const BorderRadius.vertical(bottom: Radius.circular(24)),
+                borderRadius: const BorderRadius.vertical(
+                  bottom: Radius.circular(24),
+                ),
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -435,7 +452,10 @@ class _CustomerBookingsScreenState extends State<CustomerBookingsScreen> with Ti
                   borderRadius: BorderRadius.circular(12),
                 ),
               ),
-              child: const Text('Cancel', style: TextStyle(fontWeight: FontWeight.w700)),
+              child: const Text(
+                'Cancel',
+                style: TextStyle(fontWeight: FontWeight.w700),
+              ),
             ),
           ),
           const SizedBox(width: 12),
@@ -452,7 +472,10 @@ class _CustomerBookingsScreenState extends State<CustomerBookingsScreen> with Ti
                 ),
                 elevation: 0,
               ),
-              child: const Text('View Status', style: TextStyle(fontWeight: FontWeight.w700)),
+              child: const Text(
+                'View Status',
+                style: TextStyle(fontWeight: FontWeight.w700),
+              ),
             ),
           ),
         ],
@@ -465,9 +488,11 @@ class _CustomerBookingsScreenState extends State<CustomerBookingsScreen> with Ti
     final startTime = (booking['startTime'] as Timestamp?)?.toDate();
     final delayStatus = booking['delayStatus'] as String?;
     final showDelayButton = _bookingService.shouldShowDelayButton(booking);
-    final showNotReachedButton = _bookingService.shouldShowNotReachedButton(booking);
+    final showNotReachedButton = _bookingService.shouldShowNotReachedButton(
+      booking,
+    );
     final workerPhone = booking['workerPhone'] as String? ?? '';
-    
+
     // If we haven't reached start time yet, show a simple view button
     if (!showDelayButton) {
       return Container(
@@ -477,7 +502,10 @@ class _CustomerBookingsScreenState extends State<CustomerBookingsScreen> with Ti
           child: ElevatedButton.icon(
             onPressed: () => _navigateToBooking(booking, 'accepted'),
             icon: const Icon(Icons.visibility_outlined, size: 18),
-            label: const Text('View Details', style: TextStyle(fontWeight: FontWeight.w700)),
+            label: const Text(
+              'View Details',
+              style: TextStyle(fontWeight: FontWeight.w700),
+            ),
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFF2463EB),
               foregroundColor: Colors.white,
@@ -506,7 +534,9 @@ class _CustomerBookingsScreenState extends State<CustomerBookingsScreen> with Ti
               decoration: BoxDecoration(
                 color: const Color(0xFFFFF7ED),
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: const Color(0xFFF59E0B).withOpacity(0.3)),
+                border: Border.all(
+                  color: const Color(0xFFF59E0B).withOpacity(0.3),
+                ),
               ),
               child: Column(
                 children: [
@@ -539,7 +569,9 @@ class _CustomerBookingsScreenState extends State<CustomerBookingsScreen> with Ti
                             ),
                             const SizedBox(height: 2),
                             Text(
-                              workerPhone.isNotEmpty ? workerPhone : 'Phone not available',
+                              workerPhone.isNotEmpty
+                                  ? workerPhone
+                                  : 'Phone not available',
                               style: TextStyle(
                                 color: Colors.grey.shade600,
                                 fontSize: 13,
@@ -555,7 +587,10 @@ class _CustomerBookingsScreenState extends State<CustomerBookingsScreen> with Ti
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFF10B981),
                           foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 10,
+                          ),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(10),
                           ),
@@ -564,7 +599,7 @@ class _CustomerBookingsScreenState extends State<CustomerBookingsScreen> with Ti
                       ),
                     ],
                   ),
-                  
+
                   // Show timer or Not Reached button
                   if (delayStatus == 'called') ...[
                     const SizedBox(height: 12),
@@ -577,7 +612,7 @@ class _CustomerBookingsScreenState extends State<CustomerBookingsScreen> with Ti
               ),
             ),
           ],
-          
+
           // Phase 1: Worker Delayed button (not yet reported)
           if (delayStatus == null)
             SizedBox(
@@ -585,7 +620,10 @@ class _CustomerBookingsScreenState extends State<CustomerBookingsScreen> with Ti
               child: ElevatedButton.icon(
                 onPressed: () => _showDelayReportDialog(booking),
                 icon: const Icon(Icons.schedule_rounded, size: 18),
-                label: const Text('Worker Delayed?', style: TextStyle(fontWeight: FontWeight.w700)),
+                label: const Text(
+                  'Worker Delayed?',
+                  style: TextStyle(fontWeight: FontWeight.w700),
+                ),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFFF59E0B),
                   foregroundColor: Colors.white,
@@ -604,10 +642,12 @@ class _CustomerBookingsScreenState extends State<CustomerBookingsScreen> with Ti
 
   /// Build waiting timer widget
   Widget _buildWaitingTimer(Map<String, dynamic> booking) {
-    final remaining = _bookingService.getTimeUntilNotReachedButtonShows(booking);
+    final remaining = _bookingService.getTimeUntilNotReachedButtonShows(
+      booking,
+    );
     final minutes = remaining.inMinutes;
     final seconds = remaining.inSeconds % 60;
-    
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       decoration: BoxDecoration(
@@ -639,7 +679,10 @@ class _CustomerBookingsScreenState extends State<CustomerBookingsScreen> with Ti
       child: ElevatedButton.icon(
         onPressed: () => _showNotReachedConfirmation(booking),
         icon: const Icon(Icons.warning_rounded, size: 18),
-        label: const Text('Worker Not Reached', style: TextStyle(fontWeight: FontWeight.w700)),
+        label: const Text(
+          'Worker Not Reached',
+          style: TextStyle(fontWeight: FontWeight.w700),
+        ),
         style: ElevatedButton.styleFrom(
           backgroundColor: const Color(0xFFEF4444),
           foregroundColor: Colors.white,
@@ -667,7 +710,10 @@ class _CustomerBookingsScreenState extends State<CustomerBookingsScreen> with Ti
                 color: const Color(0xFFF59E0B).withOpacity(0.1),
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: const Icon(Icons.schedule_rounded, color: Color(0xFFF59E0B)),
+              child: const Icon(
+                Icons.schedule_rounded,
+                color: Color(0xFFF59E0B),
+              ),
             ),
             const SizedBox(width: 12),
             const Text('Worker Delayed?', style: TextStyle(fontSize: 18)),
@@ -689,7 +735,9 @@ class _CustomerBookingsScreenState extends State<CustomerBookingsScreen> with Ti
               setState(() {}); // Refresh UI
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
-                  content: Text('Worker has been notified. You can now call them.'),
+                  content: Text(
+                    'Worker has been notified. You can now call them.',
+                  ),
                   backgroundColor: Color(0xFFF59E0B),
                 ),
               );
@@ -709,7 +757,7 @@ class _CustomerBookingsScreenState extends State<CustomerBookingsScreen> with Ti
   /// Call the worker
   Future<void> _callWorker(Map<String, dynamic> booking) async {
     final workerPhone = booking['workerPhone'] as String? ?? '';
-    
+
     if (workerPhone.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -722,7 +770,7 @@ class _CustomerBookingsScreenState extends State<CustomerBookingsScreen> with Ti
 
     // Record that call was initiated
     await _bookingService.recordCallToWorker(booking['id']);
-    
+
     // Open phone dialer
     final phoneUri = Uri(scheme: 'tel', path: workerPhone);
     if (await canLaunchUrl(phoneUri)) {
@@ -737,7 +785,7 @@ class _CustomerBookingsScreenState extends State<CustomerBookingsScreen> with Ti
         );
       }
     }
-    
+
     setState(() {}); // Refresh UI
   }
 
@@ -755,11 +803,17 @@ class _CustomerBookingsScreenState extends State<CustomerBookingsScreen> with Ti
                 color: const Color(0xFFEF4444).withOpacity(0.1),
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: const Icon(Icons.warning_rounded, color: Color(0xFFEF4444)),
+              child: const Icon(
+                Icons.warning_rounded,
+                color: Color(0xFFEF4444),
+              ),
             ),
             const SizedBox(width: 12),
             const Expanded(
-              child: Text('Worker Not Reached?', style: TextStyle(fontSize: 18)),
+              child: Text(
+                'Worker Not Reached?',
+                style: TextStyle(fontSize: 18),
+              ),
             ),
           ],
         ),
@@ -774,8 +828,8 @@ class _CustomerBookingsScreenState extends State<CustomerBookingsScreen> with Ti
             SizedBox(height: 12),
             Text(
               '• This will affect the worker\'s rating\n'
-              '• We will find you a new worker (Rescue Job)\n'
-              '• You will receive a discount for the delay',
+              '• The job will be cancelled\n'
+              '• You can book another provider',
               style: TextStyle(color: Color(0xFF64748B), height: 1.6),
             ),
           ],
@@ -796,21 +850,22 @@ class _CustomerBookingsScreenState extends State<CustomerBookingsScreen> with Ti
           ElevatedButton.icon(
             onPressed: () async {
               Navigator.pop(context);
-              
+
               // Show loading
               showDialog(
                 context: context,
                 barrierDismissible: false,
-                builder: (context) => const Center(
-                  child: CircularProgressIndicator(),
-                ),
+                builder: (context) =>
+                    const Center(child: CircularProgressIndicator()),
               );
-              
+
               // Report worker not reached
-              final success = await _bookingService.reportWorkerNotReached(booking['id']);
-              
+              final success = await _bookingService.reportWorkerNotReached(
+                booking['id'],
+              );
+
               Navigator.pop(context); // Close loading
-              
+
               if (success && mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
@@ -858,7 +913,10 @@ class _CustomerBookingsScreenState extends State<CustomerBookingsScreen> with Ti
               child: ElevatedButton.icon(
                 onPressed: () => _showRatingDialog(booking),
                 icon: const Icon(Icons.star_outline_rounded, size: 18),
-                label: const Text('Rate This Service', style: TextStyle(fontWeight: FontWeight.w700)),
+                label: const Text(
+                  'Rate This Service',
+                  style: TextStyle(fontWeight: FontWeight.w700),
+                ),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFFF59E0B),
                   foregroundColor: Colors.white,
@@ -898,7 +956,8 @@ class _CustomerBookingsScreenState extends State<CustomerBookingsScreen> with Ti
     if (service.contains('elect')) return Icons.electrical_services_rounded;
     if (service.contains('paint')) return Icons.format_paint_rounded;
     if (service.contains('pest')) return Icons.bug_report_rounded;
-    if (service.contains('ac') || service.contains('repair')) return Icons.home_repair_service_rounded;
+    if (service.contains('ac') || service.contains('repair'))
+      return Icons.home_repair_service_rounded;
     return Icons.handyman_rounded;
   }
 
@@ -907,12 +966,20 @@ class _CustomerBookingsScreenState extends State<CustomerBookingsScreen> with Ti
       context: context,
       builder: (context) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-        title: const Text('Cancel Booking?', style: TextStyle(fontWeight: FontWeight.w800)),
-        content: const Text('Are you sure you want to cancel this service request?'),
+        title: const Text(
+          'Cancel Booking?',
+          style: TextStyle(fontWeight: FontWeight.w800),
+        ),
+        content: const Text(
+          'Are you sure you want to cancel this service request?',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Keep It', style: TextStyle(fontWeight: FontWeight.w600)),
+            child: const Text(
+              'Keep It',
+              style: TextStyle(fontWeight: FontWeight.w600),
+            ),
           ),
           ElevatedButton(
             onPressed: () {
@@ -921,9 +988,17 @@ class _CustomerBookingsScreenState extends State<CustomerBookingsScreen> with Ti
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.red,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
             ),
-            child: const Text('Yes, Cancel', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
+            child: const Text(
+              'Yes, Cancel',
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
           ),
         ],
       ),
@@ -945,7 +1020,12 @@ class _CustomerBookingsScreenState extends State<CustomerBookingsScreen> with Ti
             color: Colors.white,
             borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
           ),
-          padding: EdgeInsets.fromLTRB(24, 12, 24, MediaQuery.of(context).viewInsets.bottom + 32),
+          padding: EdgeInsets.fromLTRB(
+            24,
+            12,
+            24,
+            MediaQuery.of(context).viewInsets.bottom + 32,
+          ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -975,9 +1055,12 @@ class _CustomerBookingsScreenState extends State<CustomerBookingsScreen> with Ti
                   return IconButton(
                     onPressed: isSubmitting
                         ? null
-                        : () => setModalState(() => selectedRating = index + 1.0),
+                        : () =>
+                              setModalState(() => selectedRating = index + 1.0),
                     icon: Icon(
-                      index < selectedRating ? Icons.star_rounded : Icons.star_outline_rounded,
+                      index < selectedRating
+                          ? Icons.star_rounded
+                          : Icons.star_outline_rounded,
                       color: Colors.amber,
                       size: 40,
                     ),
@@ -1034,21 +1117,30 @@ class _CustomerBookingsScreenState extends State<CustomerBookingsScreen> with Ti
                             if (mounted) {
                               setModalState(() => isSubmitting = false);
                               ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+                                SnackBar(
+                                  content: Text('Error: $e'),
+                                  backgroundColor: Colors.red,
+                                ),
                               );
                             }
                           }
                         },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF2463EB),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
                     elevation: 0,
                   ),
                   child: isSubmitting
                       ? const CircularProgressIndicator(color: Colors.white)
                       : const Text(
                           'Submit Review',
-                          style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700),
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                          ),
                         ),
                 ),
               ),

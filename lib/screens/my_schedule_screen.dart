@@ -46,10 +46,7 @@ class _MyScheduleScreenState extends State<MyScheduleScreen> {
       backgroundColor: const Color(0xFFF8FAFC),
       body: Column(
         children: [
-          ModernHeader(
-            title: 'Schedule',
-            subtitle: 'Manage your',
-          ),
+          ModernHeader(title: 'Schedule', subtitle: 'Manage your'),
           Expanded(
             child: StreamBuilder<List<Map<String, dynamic>>>(
               stream: _selectedTab == 0
@@ -81,7 +78,12 @@ class _MyScheduleScreenState extends State<MyScheduleScreen> {
   void _groupJobsByDay(List<Map<String, dynamic>> jobs) {
     _jobsByDay = {};
     for (var job in jobs) {
-      final timestamp = (job['startTime'] ?? job['createdAt']) as Timestamp?;
+      final timestamp =
+          (job['startTime'] ??
+                  job['scheduledTime'] ??
+                  job['estimatedStartTime'] ??
+                  job['createdAt'])
+              as Timestamp?;
       if (timestamp != null) {
         final date = timestamp.toDate();
         final day = DateTime(date.year, date.month, date.day);
@@ -99,7 +101,7 @@ class _MyScheduleScreenState extends State<MyScheduleScreen> {
     ).day;
     final firstDayOfMonth =
         DateTime(_focusedDay.year, _focusedDay.month, 1).weekday % 7;
-    
+
     // Calculate actual rows needed
     final totalCells = firstDayOfMonth + daysInMonth;
     final rowsNeeded = (totalCells / 7).ceil();
@@ -127,7 +129,11 @@ class _MyScheduleScreenState extends State<MyScheduleScreen> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 IconButton(
-                  icon: const Icon(Icons.chevron_left, color: Colors.white, size: 20),
+                  icon: const Icon(
+                    Icons.chevron_left,
+                    color: Colors.white,
+                    size: 20,
+                  ),
                   padding: EdgeInsets.zero,
                   constraints: const BoxConstraints(),
                   onPressed: () => setState(
@@ -147,7 +153,11 @@ class _MyScheduleScreenState extends State<MyScheduleScreen> {
                   ),
                 ),
                 IconButton(
-                  icon: const Icon(Icons.chevron_right, color: Colors.white, size: 20),
+                  icon: const Icon(
+                    Icons.chevron_right,
+                    color: Colors.white,
+                    size: 20,
+                  ),
                   padding: EdgeInsets.zero,
                   constraints: const BoxConstraints(),
                   onPressed: () => setState(
@@ -198,7 +208,8 @@ class _MyScheduleScreenState extends State<MyScheduleScreen> {
                 );
                 final isSelected = _selectedDay == date;
                 final hasJobs = _jobsByDay.containsKey(date);
-                final isToday = DateTime.now().day == dayNum &&
+                final isToday =
+                    DateTime.now().day == dayNum &&
                     DateTime.now().month == _focusedDay.month &&
                     DateTime.now().year == _focusedDay.year;
 
@@ -210,8 +221,8 @@ class _MyScheduleScreenState extends State<MyScheduleScreen> {
                       color: isSelected
                           ? Colors.white
                           : isToday
-                              ? Colors.white.withOpacity(0.1)
-                              : Colors.transparent,
+                          ? Colors.white.withOpacity(0.1)
+                          : Colors.transparent,
                       shape: BoxShape.circle,
                     ),
                     child: Stack(
@@ -281,8 +292,18 @@ class _MyScheduleScreenState extends State<MyScheduleScreen> {
 
     // Sort jobs at this date by time
     jobsAtDate.sort((a, b) {
-      final t1 = (a['startTime'] ?? a['createdAt']) as Timestamp?;
-      final t2 = (b['startTime'] ?? b['createdAt']) as Timestamp?;
+      final t1 =
+          (a['startTime'] ??
+                  a['scheduledTime'] ??
+                  a['estimatedStartTime'] ??
+                  a['createdAt'])
+              as Timestamp?;
+      final t2 =
+          (b['startTime'] ??
+                  b['scheduledTime'] ??
+                  b['estimatedStartTime'] ??
+                  b['createdAt'])
+              as Timestamp?;
       if (t1 == null || t2 == null) return 0;
       return t1.compareTo(t2);
     });
@@ -381,7 +402,12 @@ class _JobCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final timestamp = (job['startTime'] ?? job['createdAt']) as Timestamp?;
+    final timestamp =
+        (job['startTime'] ??
+                job['scheduledTime'] ??
+                job['estimatedStartTime'] ??
+                job['createdAt'])
+            as Timestamp?;
     final date = timestamp?.toDate() ?? DateTime.now();
     final timeStr = DateFormat('hh:mm a').format(date);
 
@@ -435,15 +461,24 @@ class _JobCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 4),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 2,
+                      ),
                       decoration: BoxDecoration(
-                        color: (job['status'] == 'pending' ? Colors.orange : Colors.blue).withOpacity(0.1),
+                        color:
+                            (job['status'] == 'pending'
+                                    ? Colors.orange
+                                    : Colors.blue)
+                                .withOpacity(0.1),
                         borderRadius: BorderRadius.circular(6),
                       ),
                       child: Text(
                         (job['status'] ?? 'accepted').toString().toUpperCase(),
                         style: TextStyle(
-                          color: (job['status'] == 'pending' ? Colors.orange : Colors.blue),
+                          color: (job['status'] == 'pending'
+                              ? Colors.orange
+                              : Colors.blue),
                           fontSize: 10,
                           fontWeight: FontWeight.bold,
                         ),
