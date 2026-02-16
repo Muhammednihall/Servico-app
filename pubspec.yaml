@@ -47,6 +47,7 @@ dependencies:
   flutter_map: ^7.0.2
   latlong2: ^0.9.1
   shared_preferences: ^2.2.2
+  carousel_slider: ^5.1.2
 
 dev_dependencies:
   flutter_test:
@@ -70,6 +71,7 @@ flutter:
     - assets/logo.png
     - assets/customer.png
     - assets/worker.png
+    - assets/icon_laundry.png
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

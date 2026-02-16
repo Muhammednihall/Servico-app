@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:carousel_slider/carousel_slider.dart';
 import 'sub_category_selection_screen.dart';
 import 'user_profile_screen.dart';
 import 'track_order_screen.dart';
@@ -27,16 +28,26 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
   int _selectedIndex = 0;
   final PageController _pageController = PageController();
 
-  List<Widget> _widgetOptions(Function(int) onNavigate) => [
-    CustomerHomeContent(onNavigate: onNavigate),
-    const CustomerBookingsScreen(),
-    const UserProfileScreen(),
-  ];
+  // Cache these so they aren't recreated on every build
+  late final List<Widget> _pages;
+  Stream<Map<String, dynamic>?>? _userProfileStream;
 
   @override
   void initState() {
     super.initState();
     _registerFcmToken();
+    _pages = [
+      CustomerHomeContent(onNavigate: _onItemTapped),
+      const CustomerBookingsScreen(),
+      const UserProfileScreen(),
+    ];
+
+    // Cache the user profile stream
+    final user = _authService.getCurrentUser();
+    final customerId = user?.uid ?? '';
+    if (customerId.isNotEmpty) {
+      _userProfileStream = UserService().streamUserProfile(customerId);
+    }
   }
 
   /// Register FCM token for push notifications
@@ -77,9 +88,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
       backgroundColor: const Color(0xFFF8FAFC),
       extendBody: true,
       body: StreamBuilder<Map<String, dynamic>?>(
-        stream: customerId.isNotEmpty
-            ? UserService().streamUserProfile(customerId)
-            : null,
+        stream: _userProfileStream,
         builder: (context, userSnapshot) {
           final customerName = userSnapshot.data?['name'] ?? 'User';
 
@@ -103,7 +112,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                       _selectedIndex = index;
                     });
                   },
-                  children: _widgetOptions(_onItemTapped),
+                  children: _pages,
                 ),
               ),
             ],
@@ -139,33 +148,55 @@ class CustomerHomeContent extends StatefulWidget {
 }
 
 class _CustomerHomeContentState extends State<CustomerHomeContent> {
-  final PageController _promoController = PageController(viewportFraction: 0.9);
   int _currentPromo = 0;
-  bool _isUserInteracting = false;
   String? _currentAddress;
   bool _isLoadingLocation = false;
-  Timer? _carouselTimer;
   List<CarouselModel> _carousels = [];
+  StreamSubscription? _carouselSubscription;
+  final CarouselSliderController _carouselController = CarouselSliderController();
+
+  // Cache streams so they aren't recreated on every build/setState
+  late final Stream<List<CategoryModel>> _categoryStream;
 
   @override
   void initState() {
     super.initState();
+    _categoryStream = CategoryService().streamCategories();
     _fetchLocation();
-    _setupCarouselTimer();
+    _loadCarousels();
   }
 
-  void _setupCarouselTimer() {
-    _carouselTimer?.cancel();
-    _carouselTimer = Timer.periodic(const Duration(seconds: 4), (timer) {
-      if (_promoController.hasClients && _carousels.isNotEmpty) {
-        if (!_isUserInteracting) {
-          int nextPage = (_currentPromo + 1) % _carousels.length;
-          _promoController.animateToPage(
-            nextPage,
-            duration: const Duration(milliseconds: 1000),
-            curve: Curves.easeInOutQuart,
-          );
-        }
+  /// Load carousels from Firestore via a subscription (outside of build)
+  void _loadCarousels() {
+    final fallbackCarousels = [
+      CarouselModel(
+        id: '1',
+        imageUrl:
+            'https://images.unsplash.com/photo-1621905235292-0ba5476d6209?auto=format&fit=crop&q=80&w=800',
+        order: 1,
+      ),
+      CarouselModel(
+        id: '2',
+        imageUrl:
+            'https://images.unsplash.com/photo-1581578731548-c64695cc6954?auto=format&fit=crop&q=80&w=800',
+        order: 2,
+      ),
+      CarouselModel(
+        id: '3',
+        imageUrl:
+            'https://images.unsplash.com/photo-1556911220-e150213b1a3e?auto=format&fit=crop&q=80&w=800',
+        order: 3,
+      ),
+    ];
+
+    _carousels = fallbackCarousels;
+
+    _carouselSubscription = CarouselService().streamCarousel().listen((data) {
+      if (mounted) {
+        final newCarousels = data.isNotEmpty ? data : fallbackCarousels;
+        setState(() {
+          _carousels = newCarousels;
+        });
       }
     });
   }
@@ -199,8 +230,7 @@ class _CustomerHomeContentState extends State<CustomerHomeContent> {
 
   @override
   void dispose() {
-    _carouselTimer?.cancel();
-    _promoController.dispose();
+    _carouselSubscription?.cancel();
     super.dispose();
   }
 
@@ -210,7 +240,7 @@ class _CustomerHomeContentState extends State<CustomerHomeContent> {
       children: [
         Expanded(
           child: StreamBuilder<List<CategoryModel>>(
-            stream: CategoryService().streamCategories(),
+            stream: _categoryStream,
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {
                 return const Center(child: CircularProgressIndicator());
@@ -251,23 +281,24 @@ class _CustomerHomeContentState extends State<CustomerHomeContent> {
                 onRefresh: () async =>
                     await Future.delayed(const Duration(seconds: 1)),
                 child: ListView(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 20,
-                    vertical: 20,
+                  padding: const EdgeInsets.only(
+                    left: 20,
+                    right: 20,
+                    top: 8,
+                    bottom: 100,
                   ),
                   children: [
                     _buildPromotions(context),
-                    const SizedBox(height: 32),
+                    const SizedBox(height: 24),
                     _buildQuickActionCard(context),
-                    const SizedBox(height: 32),
+                    const SizedBox(height: 28),
                     _buildTopCategories(context, topCategories),
-                    const SizedBox(height: 32),
+                    const SizedBox(height: 28),
                     _buildServiceCategories(context, bottomCategories),
-                    const SizedBox(height: 32),
+                    const SizedBox(height: 28),
                     const WeatherWidget(),
-                    const SizedBox(height: 32),
+                    const SizedBox(height: 28),
                     _buildAboutServico(),
-                    const SizedBox(height: 120),
                   ],
                 ),
               );
@@ -443,180 +474,141 @@ class _CustomerHomeContentState extends State<CustomerHomeContent> {
   }
 
   Widget _buildPromotions(BuildContext context) {
-    return StreamBuilder<List<CarouselModel>>(
-      stream: CarouselService().streamCarousel(),
-      builder: (context, snapshot) {
-        // Fallback images if Firestore is empty
-        final List<CarouselModel> fallbackCarousels = [
-          CarouselModel(
-            id: '1',
-            imageUrl:
-                'https://images.unsplash.com/photo-1621905235292-0ba5476d6209?auto=format&fit=crop&q=80&w=800',
-            order: 1,
-          ),
-          CarouselModel(
-            id: '2',
-            imageUrl:
-                'https://images.unsplash.com/photo-1581578731548-c64695cc6954?auto=format&fit=crop&q=80&w=800',
-            order: 2,
-          ),
-          CarouselModel(
-            id: '3',
-            imageUrl:
-                'https://images.unsplash.com/photo-1556911220-e150213b1a3e?auto=format&fit=crop&q=80&w=800',
-            order: 3,
-          ),
-        ];
+    final carousels = _carousels;
 
-        final carousels = (snapshot.hasData && snapshot.data!.isNotEmpty)
-            ? snapshot.data!
-            : (_carousels.isNotEmpty ? _carousels : fallbackCarousels);
+    if (carousels.isEmpty) {
+      return const SizedBox(height: 240);
+    }
 
-        _carousels = carousels;
-
-        return Column(
-          children: [
-            SizedBox(
-              height: 200,
-              child: Listener(
-                onPointerDown: (_) => _isUserInteracting = true,
-                onPointerUp: (_) => _isUserInteracting = false,
-                onPointerCancel: (_) => _isUserInteracting = false,
-                child: PageView.builder(
-                  physics: const PageScrollPhysics(), // Solid paging physics
-                  controller: _promoController,
-                  itemCount: carousels.length,
-                  onPageChanged: (index) {
-                    setState(() {
-                      _currentPromo = index;
-                    });
-                  },
-                  itemBuilder: (context, index) {
-                    final carousel = carousels[index];
-                    return AnimatedBuilder(
-                      animation: _promoController,
-                      builder: (context, child) {
-                        double value = 1.0;
-                        if (_promoController.position.haveDimensions) {
-                          double? page = _promoController.page;
-                          if (page != null) {
-                            value = (page - index).abs();
-                            value = (1 - (value * 0.12)).clamp(0.88, 1.0);
-                          }
-                        }
-                        return Center(
-                          child: Transform.scale(scale: value, child: child),
-                        );
-                      },
-                      child: Container(
-                        margin: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 8,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(32),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.12),
-                              blurRadius: 20,
-                              offset: const Offset(0, 10),
+    return Column(
+      children: [
+        CarouselSlider.builder(
+          carouselController: _carouselController,
+          itemCount: carousels.length,
+          options: CarouselOptions(
+            height: 240,
+            viewportFraction: 0.9,
+            enlargeCenterPage: true,
+            enlargeFactor: 0.15,
+            enableInfiniteScroll: true,
+            autoPlay: true,
+            autoPlayInterval: const Duration(seconds: 4),
+            autoPlayAnimationDuration: const Duration(milliseconds: 500),
+            autoPlayCurve: Curves.easeInOut,
+            pauseAutoPlayOnTouch: true,
+            onPageChanged: (index, reason) {
+              setState(() {
+                _currentPromo = index;
+              });
+            },
+          ),
+          itemBuilder: (context, index, realIndex) {
+            final carousel = carousels[index];
+            return Container(
+              margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(24),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.1),
+                    blurRadius: 16,
+                    offset: const Offset(0, 6),
+                  ),
+                ],
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(24),
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    SizedBox.expand(
+                      child: Image.network(
+                        carousel.imageUrl,
+                        fit: BoxFit.cover,
+                        width: double.infinity,
+                        height: double.infinity,
+                        alignment: Alignment.center,
+                        loadingBuilder: (context, child, loadingProgress) {
+                          if (loadingProgress == null) return child;
+                          return Container(
+                            color: const Color(0xFFF1F5F9),
+                            child: const Center(
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                              ),
                             ),
+                          );
+                        },
+                        errorBuilder: (context, error, stackTrace) =>
+                            _buildImagePlaceholder(),
+                      ),
+                    ),
+                    Container(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [
+                            Colors.transparent,
+                            Colors.black.withOpacity(0.25),
                           ],
                         ),
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(32),
-                          child: Stack(
-                            fit: StackFit.expand,
-                            children: [
-                              Image.network(
-                                carousel.imageUrl,
-                                fit: BoxFit.cover,
-                                loadingBuilder:
-                                    (context, child, loadingProgress) {
-                                      if (loadingProgress == null) return child;
-                                      return Center(
-                                        child: CircularProgressIndicator(
-                                          value:
-                                              loadingProgress
-                                                      .expectedTotalBytes !=
-                                                  null
-                                              ? loadingProgress
-                                                        .cumulativeBytesLoaded /
-                                                    loadingProgress
-                                                        .expectedTotalBytes!
-                                              : null,
-                                          strokeWidth: 2,
-                                        ),
-                                      );
-                                    },
-                                errorBuilder: (context, error, stackTrace) =>
-                                    Container(
-                                      color: const Color(0xFFF1F5F9),
-                                      child: Column(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.center,
-                                        children: [
-                                          Icon(
-                                            Icons.image_not_supported_outlined,
-                                            color: Colors.grey[400],
-                                            size: 32,
-                                          ),
-                                          const SizedBox(height: 8),
-                                          Text(
-                                            'Image missing',
-                                            style: TextStyle(
-                                              color: Colors.grey[400],
-                                              fontSize: 12,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                              ),
-                              Container(
-                                decoration: BoxDecoration(
-                                  gradient: LinearGradient(
-                                    begin: Alignment.topCenter,
-                                    end: Alignment.bottomCenter,
-                                    colors: [
-                                      Colors.transparent,
-                                      Colors.black.withOpacity(0.3),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
                       ),
-                    );
-                  },
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        ),
+        const SizedBox(height: 10),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: List.generate(
+            carousels.length,
+            (index) => GestureDetector(
+              onTap: () => _carouselController.animateToPage(index),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 300),
+                margin: const EdgeInsets.symmetric(horizontal: 4),
+                height: 6,
+                width: _currentPromo == index ? 28 : 6,
+                decoration: BoxDecoration(
+                  color: _currentPromo == index
+                      ? const Color(0xFF2463EB)
+                      : Colors.grey.shade300,
+                  borderRadius: BorderRadius.circular(3),
                 ),
               ),
             ),
-            const SizedBox(height: 12),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: List.generate(
-                carousels.length,
-                (index) => AnimatedContainer(
-                  duration: const Duration(milliseconds: 400),
-                  margin: const EdgeInsets.symmetric(horizontal: 4),
-                  height: 6,
-                  width: _currentPromo == index ? 28 : 6,
-                  decoration: BoxDecoration(
-                    color: _currentPromo == index
-                        ? const Color(0xFF2463EB)
-                        : Colors.grey.shade300,
-                    borderRadius: BorderRadius.circular(3),
-                  ),
-                ),
-              ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildImagePlaceholder() {
+    return Container(
+      color: const Color(0xFFF1F5F9),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.image_not_supported_outlined,
+            color: Colors.grey[400],
+            size: 32,
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Image missing',
+            style: TextStyle(
+              color: Colors.grey[400],
+              fontSize: 12,
             ),
-          ],
-        );
-      },
+          ),
+        ],
+      ),
     );
   }
 
@@ -641,7 +633,7 @@ class _CustomerHomeContentState extends State<CustomerHomeContent> {
             ),
           ],
         ),
-        const SizedBox(height: 20),
+        const SizedBox(height: 16),
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: categories.asMap().entries.map((entry) {
@@ -665,6 +657,9 @@ class _CustomerHomeContentState extends State<CustomerHomeContent> {
     required BuildContext context,
     required CategoryModel category,
   }) {
+    // Map category names to 3D icon assets
+    final String? customIconAsset = _getCategoryIconAsset(category.name);
+
     return GestureDetector(
       onTap: () {
         Navigator.push(
@@ -676,7 +671,7 @@ class _CustomerHomeContentState extends State<CustomerHomeContent> {
         );
       },
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
+        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(20),
@@ -686,17 +681,27 @@ class _CustomerHomeContentState extends State<CustomerHomeContent> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Container(
-              width: 44,
-              height: 44,
+              width: 48,
+              height: 48,
               decoration: BoxDecoration(
-                color: category.getColor().withOpacity(0.1),
-                borderRadius: BorderRadius.circular(22),
+                color: customIconAsset != null
+                    ? Colors.transparent
+                    : category.getColor().withOpacity(0.1),
+                borderRadius: BorderRadius.circular(12),
               ),
-              child: Icon(
-                category.getIconData(),
-                color: category.getColor(),
-                size: 22,
-              ),
+              child: customIconAsset != null
+                  ? ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: Image.asset(
+                        customIconAsset,
+                        fit: BoxFit.contain,
+                      ),
+                    )
+                  : Icon(
+                      category.getIconData(),
+                      color: category.getColor(),
+                      size: 22,
+                    ),
             ),
             const SizedBox(height: 10),
             Text(
@@ -714,6 +719,16 @@ class _CustomerHomeContentState extends State<CustomerHomeContent> {
         ),
       ),
     );
+  }
+
+  // ... (existing grid _buildServiceCategory code) ...
+
+  /// Returns the asset path for categories that have custom 3D icons
+  String? _getCategoryIconAsset(String categoryName) {
+    if (categoryName.toLowerCase().contains('laundry')) {
+      return 'assets/icon_laundry.png';
+    }
+    return null;
   }
 
   Widget _buildServiceCategories(
@@ -736,7 +751,7 @@ class _CustomerHomeContentState extends State<CustomerHomeContent> {
             ),
           ],
         ),
-        const SizedBox(height: 20),
+        const SizedBox(height: 16),
         GridView.builder(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
@@ -770,6 +785,9 @@ class _CustomerHomeContentState extends State<CustomerHomeContent> {
     required Color color,
     required CategoryModel category,
   }) {
+    // Map category names to 3D icon assets (lowercase for matching)
+    final String? customIconAsset = _getCategoryIconAsset(category.name);
+
     return GestureDetector(
       onTap: () {
         Navigator.push(
@@ -781,25 +799,35 @@ class _CustomerHomeContentState extends State<CustomerHomeContent> {
         );
       },
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(24),
+          borderRadius: BorderRadius.circular(20),
           border: Border.all(color: Colors.grey.shade100, width: 1.5),
         ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Container(
-              width: 44,
-              height: 44,
+              width: 48,
+              height: 48,
               decoration: BoxDecoration(
-                color: color.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(14),
+                color: customIconAsset != null
+                    ? Colors.transparent
+                    : color.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(12),
               ),
-              child: Icon(icon, color: color, size: 24),
+              child: customIconAsset != null
+                  ? ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: Image.asset(
+                        customIconAsset,
+                        fit: BoxFit.contain,
+                      ),
+                    )
+                  : Icon(icon, color: color, size: 22),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 10),
             Text(
               label,
               textAlign: TextAlign.center,
@@ -818,6 +846,8 @@ class _CustomerHomeContentState extends State<CustomerHomeContent> {
       ),
     );
   }
+
+
 
   Widget _buildAboutServico() {
     return Container(
