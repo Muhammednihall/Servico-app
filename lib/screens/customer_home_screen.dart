@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:carousel_slider/carousel_slider.dart';
 import 'sub_category_selection_screen.dart';
+import 'gas_directory_screen.dart';
 import 'user_profile_screen.dart';
 import 'track_order_screen.dart';
 import '../services/category_service.dart';
@@ -15,6 +16,7 @@ import '../widgets/customer_notification_popup.dart';
 import '../services/location_service.dart';
 import '../services/user_service.dart';
 import 'customer_bookings_screen.dart';
+import 'temp_seed_screen.dart';
 
 class CustomerHomeScreen extends StatefulWidget {
   const CustomerHomeScreen({super.key});
@@ -65,11 +67,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
     setState(() {
       _selectedIndex = index;
     });
-    _pageController.animateToPage(
-      index,
-      duration: const Duration(milliseconds: 400),
-      curve: Curves.easeInOut,
-    );
+    _pageController.jumpToPage(index);
   }
 
   @override
@@ -92,30 +90,35 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
         builder: (context, userSnapshot) {
           final customerName = userSnapshot.data?['name'] ?? 'User';
 
-          return Column(
-            children: [
-              if (_selectedIndex < 2)
+          return SafeArea(
+            bottom: true,
+            child: Column(
+              children: [
                 ModernHeader(
-                  title: _selectedIndex == 0 ? customerName : 'My Bookings',
+                  title: _selectedIndex == 0
+                      ? customerName
+                      : (_selectedIndex == 1 ? 'My Bookings' : 'My Profile'),
                   subtitle: _selectedIndex == 0
                       ? 'Welcome back,'
-                      : 'Track your service requests',
+                      : (_selectedIndex == 1
+                          ? 'Track your service requests'
+                          : 'Manage your account'),
                   showBackButton: false,
                   showNotifications: _selectedIndex == 0,
                 ),
-              Expanded(
-                child: PageView(
-                  physics: const NeverScrollableScrollPhysics(),
-                  controller: _pageController,
-                  onPageChanged: (index) {
-                    setState(() {
-                      _selectedIndex = index;
-                    });
-                  },
-                  children: _pages,
+                Expanded(
+                  child: PageView(
+                    controller: _pageController,
+                    onPageChanged: (index) {
+                      setState(() {
+                        _selectedIndex = index;
+                      });
+                    },
+                    children: _pages,
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           );
         },
       ),
@@ -168,34 +171,10 @@ class _CustomerHomeContentState extends State<CustomerHomeContent> {
 
   /// Load carousels from Firestore via a subscription (outside of build)
   void _loadCarousels() {
-    final fallbackCarousels = [
-      CarouselModel(
-        id: '1',
-        imageUrl:
-            'https://images.unsplash.com/photo-1621905235292-0ba5476d6209?auto=format&fit=crop&q=80&w=800',
-        order: 1,
-      ),
-      CarouselModel(
-        id: '2',
-        imageUrl:
-            'https://images.unsplash.com/photo-1581578731548-c64695cc6954?auto=format&fit=crop&q=80&w=800',
-        order: 2,
-      ),
-      CarouselModel(
-        id: '3',
-        imageUrl:
-            'https://images.unsplash.com/photo-1556911220-e150213b1a3e?auto=format&fit=crop&q=80&w=800',
-        order: 3,
-      ),
-    ];
-
-    _carousels = fallbackCarousels;
-
     _carouselSubscription = CarouselService().streamCarousel().listen((data) {
       if (mounted) {
-        final newCarousels = data.isNotEmpty ? data : fallbackCarousels;
         setState(() {
-          _carousels = newCarousels;
+          _carousels = data;
         });
       }
     });
@@ -246,36 +225,62 @@ class _CustomerHomeContentState extends State<CustomerHomeContent> {
                 return const Center(child: CircularProgressIndicator());
               }
 
-              final allCategories = snapshot.data ?? [];
+              List<CategoryModel> allCategories = (snapshot.data ?? []).toList();
+
+              if (allCategories.isEmpty) {
+                return const Center(child: Text('No categories available'));
+              }
+
+              // Filter out unwanted categories
+              final filteredCategories = allCategories.where((c) {
+                final name = c.name.toLowerCase();
+                return !name.contains('event') &&
+                    !name.contains('decor') &&
+                    name != 'health & wellness';
+              }).toList();
+
               final priorityNames = [
-                'Water',
-                'Gas',
-                'Electricity',
-                'Cleaning',
                 'Plumbing',
                 'Electrical',
+                'Cleaning',
               ];
-              final sortedForTop = [...allCategories];
-              sortedForTop.sort((a, b) {
+
+              // Separate into Top (matches) and Bottom (nonMatches)
+              List<CategoryModel> matches = filteredCategories.where((c) {
+                final name = c.name.toLowerCase();
+                return priorityNames.any((p) => name.contains(p.toLowerCase()));
+              }).toList();
+
+              List<CategoryModel> nonMatches = filteredCategories.where((c) {
+                final name = c.name.toLowerCase();
+                return !priorityNames.any((p) => name.contains(p.toLowerCase()));
+              }).toList();
+
+              // Sort the matches based on priorityNames
+              matches.sort((a, b) {
                 int aIdx = priorityNames.indexWhere(
                   (name) => a.name.toLowerCase().contains(name.toLowerCase()),
                 );
                 int bIdx = priorityNames.indexWhere(
                   (name) => b.name.toLowerCase().contains(name.toLowerCase()),
                 );
-                return (aIdx == -1 ? 1000 : aIdx).compareTo(
-                  bIdx == -1 ? 1000 : bIdx,
-                );
+                // Synthetic gas ('Gas') will get index 0
+                return (aIdx == -1 ? 1000 : aIdx).compareTo(bIdx == -1 ? 1000 : bIdx);
               });
 
-              final topCategories = sortedForTop.take(4).toList();
+              final topCategories = matches.take(4).toList();
               final topIds = topCategories.map((c) => c.id).toSet();
-              final bottomCategories = allCategories
-                  .where(
-                    (c) =>
-                        c.name != 'Health & Wellness' && !topIds.contains(c.id),
-                  )
-                  .toList();
+
+              // Bottom categories are everything else (discarded matches + non-matches)
+              final remainingMatches =
+                  matches.where((c) => !topIds.contains(c.id)).toList();
+              final bottomCategoriesFull = [...remainingMatches, ...nonMatches];
+              
+              // Deduplicate by name to prevent multiple records for same service (e.g. Painting)
+              final seenNames = <String>{};
+              final bottomCategories = bottomCategoriesFull.where((c) {
+                return seenNames.add(c.name.toLowerCase());
+              }).toList();
 
               return RefreshIndicator(
                 onRefresh: () async =>
@@ -311,7 +316,7 @@ class _CustomerHomeContentState extends State<CustomerHomeContent> {
 
   Widget _buildQuickActionCard(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: const Color(0xFF1E293B),
         borderRadius: BorderRadius.circular(28),
@@ -333,23 +338,14 @@ class _CustomerHomeContentState extends State<CustomerHomeContent> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Text(
-                    'Instant Service',
-                    style: TextStyle(
-                      color: Colors.white70,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  const Text(
                     'Track Order',
                     style: TextStyle(
                       color: Colors.white,
-                      fontSize: 24,
+                      fontSize: 18,
                       fontWeight: FontWeight.w800,
                     ),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 4),
                   Row(
                     children: [
                       Icon(
@@ -378,21 +374,21 @@ class _CustomerHomeContentState extends State<CustomerHomeContent> {
                 ],
               ),
               Container(
-                width: 56,
-                height: 56,
+                width: 44,
+                height: 44,
                 decoration: BoxDecoration(
                   color: const Color(0xFF2463EB),
-                  borderRadius: BorderRadius.circular(28),
+                  borderRadius: BorderRadius.circular(22),
                 ),
                 child: const Icon(
                   Icons.bolt_rounded,
                   color: Colors.white,
-                  size: 30,
+                  size: 24,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 16),
           Row(
             children: [
               Expanded(
@@ -406,7 +402,7 @@ class _CustomerHomeContentState extends State<CustomerHomeContent> {
                     );
                   },
                   child: Container(
-                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    padding: const EdgeInsets.symmetric(vertical: 10),
                     decoration: BoxDecoration(
                       color: Colors.white.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(16),
@@ -428,7 +424,7 @@ class _CustomerHomeContentState extends State<CustomerHomeContent> {
                 child: GestureDetector(
                   onTap: () => _fetchLocation(force: true),
                   child: Container(
-                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    padding: const EdgeInsets.symmetric(vertical: 10),
                     decoration: BoxDecoration(
                       color: Colors.white.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(16),
@@ -477,7 +473,7 @@ class _CustomerHomeContentState extends State<CustomerHomeContent> {
     final carousels = _carousels;
 
     if (carousels.isEmpty) {
-      return const SizedBox(height: 240);
+      return const SizedBox(height: 210);
     }
 
     return Column(
@@ -486,7 +482,7 @@ class _CustomerHomeContentState extends State<CustomerHomeContent> {
           carouselController: _carouselController,
           itemCount: carousels.length,
           options: CarouselOptions(
-            height: 240,
+            height: 210,
             viewportFraction: 0.9,
             enlargeCenterPage: true,
             enlargeFactor: 0.15,
@@ -619,19 +615,9 @@ class _CustomerHomeContentState extends State<CustomerHomeContent> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              'Emergency services',
-              style: Theme.of(context).textTheme.titleLarge,
-            ),
-            const Icon(
-              Icons.arrow_forward_ios_rounded,
-              size: 16,
-              color: Colors.grey,
-            ),
-          ],
+        Text(
+          'Emergency services',
+          style: Theme.of(context).textTheme.titleLarge,
         ),
         const SizedBox(height: 16),
         Row(
@@ -675,32 +661,48 @@ class _CustomerHomeContentState extends State<CustomerHomeContent> {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: Colors.grey.shade100, width: 1.5),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 15,
+              offset: const Offset(0, 6),
+            ),
+          ],
         ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Container(
-              width: 48,
-              height: 48,
+              width: 52,
+              height: 52,
+              padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: customIconAsset != null
-                    ? Colors.transparent
-                    : category.getColor().withOpacity(0.1),
-                borderRadius: BorderRadius.circular(12),
+                color: Colors.white,
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.04),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
               ),
               child: customIconAsset != null
-                  ? ClipRRect(
-                      borderRadius: BorderRadius.circular(12),
-                      child: Image.asset(
-                        customIconAsset,
-                        fit: BoxFit.contain,
-                      ),
+                  ? Image.asset(
+                      customIconAsset,
+                      fit: BoxFit.contain,
+                      errorBuilder: (context, error, stackTrace) {
+                        return Icon(
+                          category.getIconData(),
+                          color: category.getColor(),
+                          size: 20,
+                        );
+                      },
                     )
                   : Icon(
                       category.getIconData(),
                       color: category.getColor(),
-                      size: 22,
+                      size: 20,
                     ),
             ),
             const SizedBox(height: 10),
@@ -725,9 +727,26 @@ class _CustomerHomeContentState extends State<CustomerHomeContent> {
 
   /// Returns the asset path for categories that have custom 3D icons
   String? _getCategoryIconAsset(String categoryName) {
-    if (categoryName.toLowerCase().contains('laundry')) {
-      return 'assets/icon_laundry.png';
+    final name = categoryName.toLowerCase();
+    if (name.contains('laundry')) return 'assets/icon_laundry.png';
+    if (name.contains('electric')) return 'assets/icon_electrical.png';
+    if (name.contains('cleaning')) return 'assets/icon_cleaning.png';
+    if (name.contains('plumbing') || name.contains('water')) {
+      return 'assets/icon_plumbing.png';
     }
+    if (name.contains('gas') || name.contains('cylinder') || name.contains('lpg') || name.contains('cooking') || name.contains('fire')) {
+      return 'assets/icon_gas.png';
+    }
+    if (name.contains('paint')) return 'assets/icon_painting.png';
+    if (name.contains('ac') || name.contains('hvac')) return 'assets/icon_ac.png';
+    if (name.contains('security') || name.contains('lock')) return 'assets/icon_security.png';
+    if (name.contains('garden') || name.contains('grass')) return 'assets/icon_gardening.png';
+    if (name.contains('carpenter')) return 'assets/icon_carpentry.png';
+    if (name.contains('furniture')) return 'assets/icon_furniture.png';
+    if (name.contains('appliance')) return 'assets/icon_appliances.png';
+    if (name.contains('automotive') || name.contains('car')) return 'assets/icon_automotive.png';
+    if (name.contains('tire') || name.contains('tyre')) return 'assets/icon_tire_service.png';
+    if (name.contains('wifi') || name.contains('router')) return 'assets/icon_wifi.png';
     return null;
   }
 
@@ -740,17 +759,7 @@ class _CustomerHomeContentState extends State<CustomerHomeContent> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text('For you', style: Theme.of(context).textTheme.titleLarge),
-            const Icon(
-              Icons.arrow_forward_ios_rounded,
-              size: 16,
-              color: Colors.grey,
-            ),
-          ],
-        ),
+        Text('Other Services', style: Theme.of(context).textTheme.titleLarge),
         const SizedBox(height: 16),
         GridView.builder(
           shrinkWrap: true,
@@ -760,7 +769,7 @@ class _CustomerHomeContentState extends State<CustomerHomeContent> {
             crossAxisCount: 3,
             mainAxisSpacing: 12,
             crossAxisSpacing: 12,
-            childAspectRatio: 0.85,
+            childAspectRatio: 0.94,
           ),
           itemCount: displayCategories.length,
           itemBuilder: (context, index) {
@@ -785,11 +794,19 @@ class _CustomerHomeContentState extends State<CustomerHomeContent> {
     required Color color,
     required CategoryModel category,
   }) {
-    // Map category names to 3D icon assets (lowercase for matching)
     final String? customIconAsset = _getCategoryIconAsset(category.name);
 
     return GestureDetector(
       onTap: () {
+        if (category.name.toLowerCase() == 'gas') {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const GasDirectoryScreen(),
+            ),
+          );
+          return;
+        }
         Navigator.push(
           context,
           MaterialPageRoute(
@@ -799,45 +816,56 @@ class _CustomerHomeContentState extends State<CustomerHomeContent> {
         );
       },
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: Colors.grey.shade100, width: 1.5),
+          borderRadius: BorderRadius.circular(28),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.06),
+              blurRadius: 18,
+              offset: const Offset(0, 8),
+            ),
+          ],
         ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Container(
-              width: 48,
-              height: 48,
+              width: 56,
+              height: 56,
+              padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: customIconAsset != null
-                    ? Colors.transparent
-                    : color.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(12),
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.03),
+                    blurRadius: 6,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
               ),
               child: customIconAsset != null
-                  ? ClipRRect(
-                      borderRadius: BorderRadius.circular(12),
-                      child: Image.asset(
-                        customIconAsset,
-                        fit: BoxFit.contain,
-                      ),
+                  ? Image.asset(
+                      customIconAsset,
+                      fit: BoxFit.contain,
+                      errorBuilder: (context, error, stackTrace) {
+                        return Icon(icon, color: color, size: 24);
+                      },
                     )
-                  : Icon(icon, color: color, size: 22),
+                  : Icon(icon, color: color, size: 24),
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 12),
             Text(
               label,
               textAlign: TextAlign.center,
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                color: color.withOpacity(0.9),
-                fontSize: 12,
-                fontWeight: FontWeight.w700,
-                letterSpacing: -0.2,
+              style: const TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w800,
+                color: Color(0xFF1E293B),
+                letterSpacing: -0.3,
                 height: 1.1,
               ),
             ),
@@ -855,22 +883,40 @@ class _CustomerHomeContentState extends State<CustomerHomeContent> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(28),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 15,
+            offset: const Offset(0, 6),
+          ),
+        ],
         border: Border.all(color: Colors.grey.shade100, width: 1.5),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Row(
+          Row(
             children: [
-              Icon(Icons.info_outline, color: Color(0xFF2463eb), size: 20),
-              SizedBox(width: 8),
-              Text(
+              const Icon(Icons.info_outline, color: Color(0xFF2463eb), size: 20),
+              const SizedBox(width: 8),
+              const Text(
                 'About Servico',
                 style: TextStyle(
                   color: Color(0xFF1e293b),
                   fontSize: 18,
                   fontWeight: FontWeight.w700,
                 ),
+              ),
+              const Spacer(),
+              IconButton(
+                icon: const Icon(Icons.settings_outlined, color: Colors.grey, size: 18),
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const TempSeedScreen()),
+                  );
+                },
+                tooltip: 'Developer Settings',
               ),
             ],
           ),

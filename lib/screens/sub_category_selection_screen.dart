@@ -97,6 +97,8 @@ class SubCategorySelectionScreen extends StatelessWidget {
     Color bgColor, {
     bool isAll = false,
   }) {
+    final String? customIconAsset = _getSubCategoryIconAsset(name, category.name);
+
     return GestureDetector(
       onTap: () {
         Navigator.push(
@@ -115,41 +117,119 @@ class SubCategorySelectionScreen extends StatelessWidget {
       child: Container(
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(28),
+          borderRadius: BorderRadius.circular(20),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withOpacity(0.04),
-              blurRadius: 15,
-              offset: const Offset(0, 5),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
             ),
           ],
-          border: Border.all(color: Colors.grey.shade100, width: 1.5),
+          border: Border.all(color: const Color(0xFFF1F5F9), width: 1),
         ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: bgColor,
-                borderRadius: BorderRadius.circular(20),
+              width: 84,
+              height: 84,
+              padding: const EdgeInsets.all(8), // Reduced padding to let the image be larger
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                shape: BoxShape.circle,
               ),
-              child: Icon(icon, color: primaryColor, size: 28),
+              child: customIconAsset != null
+                  ? Image.asset(
+                      customIconAsset,
+                      fit: BoxFit.contain,
+                      errorBuilder: (context, error, stackTrace) => Icon(icon, color: primaryColor, size: 32),
+                    )
+                  : Icon(icon, color: primaryColor, size: 32),
             ),
             const SizedBox(height: 12),
-            Text(
-              name,
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w800,
-                color: Color(0xFF1E293B),
-                letterSpacing: -0.3,
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              child: Text(
+                name,
+                textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF334155),
+                  height: 1.2,
+                ),
               ),
             ),
           ],
         ),
       ),
     );
+  }
+
+  String? _getSubCategoryIconAsset(String subName, String mainCategory) {
+    debugPrint('DEBUG: Mapping subName: "$subName", mainCategory: "$mainCategory"');
+    final subLower = subName.toLowerCase();
+    final mainLower = mainCategory.toLowerCase();
+
+    // Map subcategories to assets
+    // If it's the "All" option, use the main category icon
+    if (subLower == 'all') {
+      if (mainLower.contains('laundry')) return 'assets/icon_laundry.png';
+      if (mainLower.contains('electric')) return 'assets/icon_electrical.png';
+      if (mainLower.contains('cleaning')) return 'assets/icon_cleaning.png';
+      if (mainLower.contains('plumbing')) return 'assets/icon_plumbing.png';
+      if (mainLower.contains('gas')) return 'assets/icon_gas.png';
+      if (mainLower.contains('paint')) return 'assets/icon_painting.png';
+      if (mainLower.contains('ac')) return 'assets/icon_ac.png';
+      if (mainLower.contains('security')) return 'assets/icon_security.png';
+      if (mainLower.contains('garden')) return 'assets/icon_gardening.png';
+      if (mainLower.contains('carpenter')) return 'assets/icon_carpentry.png';
+      if (mainLower.contains('furniture')) return 'assets/icon_furniture.png';
+      if (mainLower.contains('appliance')) return 'assets/icon_appliances.png';
+      if (mainLower.contains('automotive')) return 'assets/icon_automotive.png';
+      if (mainLower.contains('wifi')) return 'assets/icon_wifi.png';
+      if (mainLower.contains('pest')) return 'assets/icon_pest_control.png';
+    }
+
+    // Automotive specific matches
+    if (subLower.contains('wash') || subLower.contains('clean')) return 'assets/icon_car_wash.png';
+    if (subLower.contains('tire') || subLower.contains('tyre') || subLower.contains('wheel') || subLower.contains('alignment')) return 'assets/icon_tire_service.png';
+    if (subLower.contains('engine') || subLower.contains('oil') || subLower.contains('mechanic') || subLower.contains('repair')) return 'assets/icon_engine_repair.png';
+    if (subLower.contains('battery') || subLower.contains('electrical') || subLower.contains('power')) return 'assets/icon_battery_service.png';
+    if (subLower.contains('bike') || subLower.contains('motorcycle') || subLower.contains('two wheeler')) return 'assets/icon_bike_service.png';
+
+    // General subcategory keyword matches
+    if (subLower.contains('ac') || subLower.contains('air')) return 'assets/icon_ac.png';
+    if (subLower.contains('paint')) return 'assets/icon_painting.png';
+    if (subLower.contains('plumbing') || subLower.contains('pipe')) return 'assets/icon_plumbing.png';
+    if (subLower.contains('electric')) return 'assets/icon_electrical.png';
+    if (subLower.contains('furniture')) return 'assets/icon_furniture.png';
+    if (subLower.contains('garden')) return 'assets/icon_gardening.png';
+    if (subLower.contains('automotive') || subLower.contains('car')) return 'assets/icon_automotive.png';
+    if (subLower.contains('appliance') || subLower.contains('fridge') || subLower.contains('oven')) return 'assets/icon_appliances.png';
+    if (subLower.contains('lock') || subLower.contains('security')) return 'assets/icon_security.png';
+    if (subLower.contains('pest')) return 'assets/icon_pest_control.png';
+    if (subLower.contains('wifi') || subLower.contains('internet')) return 'assets/icon_wifi.png';
+
+    // Default to main category icon if no specific subcategory match
+    if (mainLower.contains('laundry')) return 'assets/icon_laundry.png';
+    if (mainLower.contains('electric')) return 'assets/icon_electrical.png';
+    if (mainLower.contains('cleaning')) return 'assets/icon_cleaning.png';
+    if (mainLower.contains('plumbing')) return 'assets/icon_plumbing.png';
+    if (mainLower.contains('gas')) return 'assets/icon_gas.png';
+    if (mainLower.contains('paint')) return 'assets/icon_painting.png';
+    if (mainLower.contains('ac')) return 'assets/icon_ac.png';
+    if (mainLower.contains('security')) return 'assets/icon_security.png';
+    if (mainLower.contains('garden')) return 'assets/icon_gardening.png';
+    if (mainLower.contains('carpenter')) return 'assets/icon_carpentry.png';
+    if (mainLower.contains('furniture')) return 'assets/icon_furniture.png';
+    if (mainLower.contains('appliance')) return 'assets/icon_appliances.png';
+    if (mainLower.contains('automotive')) return 'assets/icon_automotive.png';
+    if (mainLower.contains('wifi')) return 'assets/icon_wifi.png';
+    if (mainLower.contains('pest')) return 'assets/icon_pest_control.png';
+
+    return null;
   }
 }

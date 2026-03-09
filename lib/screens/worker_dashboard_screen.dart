@@ -24,6 +24,8 @@ class _WorkerDashboardScreenState extends State<WorkerDashboardScreen> {
   final BookingService _bookingService = BookingService();
 
   late String _workerId;
+  String? _workerName;
+  String? _workerCategory;
   bool _isAvailable = false;
   bool _isLoading = true;
   StreamSubscription? _requestSubscription;
@@ -43,6 +45,8 @@ class _WorkerDashboardScreenState extends State<WorkerDashboardScreen> {
       if (profile != null) {
         if (mounted) {
           setState(() {
+            _workerName = profile['name'];
+            _workerCategory = profile['category'] ?? profile['serviceType'];
             _isAvailable = profile['isAvailable'] ?? false;
             _isLoading = false;
           });
@@ -61,7 +65,7 @@ class _WorkerDashboardScreenState extends State<WorkerDashboardScreen> {
   void _setupRequestAutoShow() {
     _requestSubscription?.cancel();
     _requestSubscription = _bookingService
-        .streamWorkerRequests(_workerId)
+        .streamWorkerRequests(_workerId, workerCategory: _workerCategory)
         .listen((requests) {
           _processIncomingRequests(requests);
         });
@@ -79,7 +83,11 @@ class _WorkerDashboardScreenState extends State<WorkerDashboardScreen> {
           Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (context) => NewJobRequestScreen(request: newestRequest),
+            builder: (context) => NewJobRequestScreen(
+              request: newestRequest,
+              workerId: _workerId,
+              workerName: _workerName ?? 'Worker',
+            ),
             ),
           ).then((_) {
             if (mounted) setState(() {});
@@ -278,16 +286,30 @@ class _WorkerDashboardScreenState extends State<WorkerDashboardScreen> {
               const SizedBox(height: 28),
               Container(height: 1, color: Colors.white.withOpacity(0.1)),
               const SizedBox(height: 24),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  _buildQuickStat(
-                    Icons.trending_up_rounded,
-                    'Earnings',
-                    '+12%',
-                  ),
-                  _buildQuickStat(Icons.task_alt_rounded, 'Tasks', '48 Done'),
-                ],
+              StreamBuilder<Map<String, dynamic>?>(
+                stream: _workerService.streamWorkerProfile(_workerId),
+                builder: (context, snapshot) {
+                  final profile = snapshot.data;
+                  final accepted = (profile?['acceptedRequests'] as num?)?.toInt() ?? 0;
+                  final rate = (profile?['acceptanceRate'] as num?)?.toDouble();
+                  final rateStr = rate != null ? '${rate.toStringAsFixed(0)}%' : '--';
+
+                  return Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      _buildQuickStat(
+                        Icons.task_alt_rounded,
+                        'Accepted',
+                        '$accepted Jobs',
+                      ),
+                      _buildQuickStat(
+                        Icons.percent_rounded,
+                        'Accept Rate',
+                        rateStr,
+                      ),
+                    ],
+                  );
+                },
               ),
             ],
           ),
@@ -324,7 +346,7 @@ class _WorkerDashboardScreenState extends State<WorkerDashboardScreen> {
 
   Widget _buildIncomingRequests() {
     return StreamBuilder<List<Map<String, dynamic>>>(
-      stream: _bookingService.streamWorkerRequests(_workerId),
+      stream: _bookingService.streamWorkerRequests(_workerId, workerCategory: _workerCategory),
       builder: (context, snapshot) {
         if (!snapshot.hasData || snapshot.data!.isEmpty)
           return const SizedBox.shrink();
@@ -377,7 +399,11 @@ class _WorkerDashboardScreenState extends State<WorkerDashboardScreen> {
         await Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => NewJobRequestScreen(request: req),
+            builder: (context) => NewJobRequestScreen(
+              request: req,
+              workerId: _workerId,
+              workerName: _workerName ?? 'Worker',
+            ),
           ),
         );
         if (mounted) setState(() {});
@@ -403,12 +429,38 @@ class _WorkerDashboardScreenState extends State<WorkerDashboardScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        req['customerName'] ?? 'Customer',
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w800,
-                          fontSize: 16,
-                        ),
+                      Row(
+                        children: [
+                          Text(
+                            req['customerName'] ?? 'Customer',
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w800,
+                              fontSize: 16,
+                            ),
+                          ),
+                          if (req['isRescueJob'] == true) ...[
+                            const SizedBox(width: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.red.shade100,
+                                borderRadius: BorderRadius.circular(6),
+                                border: Border.all(color: Colors.red.shade200),
+                              ),
+                              child: Text(
+                                'RESCUE JOB',
+                                style: TextStyle(
+                                  color: Colors.red.shade700,
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.w900,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
                       ),
                       const SizedBox(height: 2),
                       Row(
@@ -441,7 +493,21 @@ class _WorkerDashboardScreenState extends State<WorkerDashboardScreen> {
                 ),
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [_buildBadge('₹ ${price.toInt()}', Colors.blue)],
+                  children: [
+                    _buildBadge('₹ ${price.toInt()}', Colors.blue),
+                    if (req['isRescueJob'] == true)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 4),
+                        child: Text(
+                          '+ ₹150 Bonus',
+                          style: TextStyle(
+                            color: Colors.green.shade700,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ),
+                  ],
                 ),
               ],
             ),
@@ -451,9 +517,10 @@ class _WorkerDashboardScreenState extends State<WorkerDashboardScreen> {
                 Expanded(
                   child: ElevatedButton(
                     onPressed: () {
-                      _bookingService.updateRequestStatus(
+                      _bookingService.acceptBooking(
                         req['id'],
-                        'accepted',
+                        _workerId,
+                        _workerName ?? 'Worker',
                       );
                     },
                     style: ElevatedButton.styleFrom(
@@ -470,9 +537,9 @@ class _WorkerDashboardScreenState extends State<WorkerDashboardScreen> {
                 Expanded(
                   child: OutlinedButton(
                     onPressed: () {
-                      _bookingService.updateRequestStatus(
+                      _bookingService.rejectBooking(
                         req['id'],
-                        'rejected',
+                        _workerId,
                       );
                     },
                     style: OutlinedButton.styleFrom(
@@ -580,22 +647,62 @@ class _WorkerDashboardScreenState extends State<WorkerDashboardScreen> {
       children: [
         Text('Insights', style: Theme.of(context).textTheme.titleLarge),
         const SizedBox(height: 16),
-        Row(
-          children: [
-            _buildInsightCard(
-              'Orders',
-              '124',
-              Icons.receipt_long_rounded,
-              Colors.purple,
-            ),
-            const SizedBox(width: 12),
-            _buildInsightCard(
-              'Rating',
-              '4.9',
-              Icons.star_rounded,
-              Colors.amber,
-            ),
-          ],
+        StreamBuilder<Map<String, dynamic>?>(
+          stream: _workerService.streamWorkerProfile(_workerId),
+          builder: (context, snapshot) {
+            final profile = snapshot.data;
+            final rating = (profile?['rating'] as num?)?.toDouble() ?? 0.0;
+            final totalReviews = (profile?['totalReviews'] as num?)?.toInt() ?? 0;
+            final acceptedRequests = (profile?['acceptedRequests'] as num?)?.toInt() ?? 0;
+            final acceptanceRate = (profile?['acceptanceRate'] as num?)?.toDouble();
+
+            final ratingStr = ((rating == 0.0 && totalReviews == 0) || profile?['rating'] == null)
+                ? '5.0'
+                : rating.toStringAsFixed(1);
+            final acceptanceStr = acceptanceRate != null
+                ? '${acceptanceRate.toStringAsFixed(0)}%'
+                : '--';
+
+            return Column(
+              children: [
+                Row(
+                  children: [
+                    _buildInsightCard(
+                      'Completed',
+                      '$acceptedRequests',
+                      Icons.receipt_long_rounded,
+                      Colors.purple,
+                    ),
+                    const SizedBox(width: 12),
+                    _buildInsightCard(
+                      'Rating',
+                      ratingStr,
+                      Icons.star_rounded,
+                      Colors.amber,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    _buildInsightCard(
+                      'Reviews',
+                      '$totalReviews',
+                      Icons.reviews_rounded,
+                      Colors.blue,
+                    ),
+                    const SizedBox(width: 12),
+                    _buildInsightCard(
+                      'Acceptance',
+                      acceptanceStr,
+                      Icons.check_circle_rounded,
+                      Colors.green,
+                    ),
+                  ],
+                ),
+              ],
+            );
+          },
         ),
       ],
     );

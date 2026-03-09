@@ -391,8 +391,6 @@ class _WorkerStatusUpdateCardState extends State<WorkerStatusUpdateCard> {
                         _buildHourOption(1, _selectedExtraHours == 1, (h) => setModalState(() => _selectedExtraHours = h)),
                         const SizedBox(width: 12),
                         _buildHourOption(2, _selectedExtraHours == 2, (h) => setModalState(() => _selectedExtraHours = h)),
-                        const SizedBox(width: 12),
-                        _buildHourOption(3, _selectedExtraHours == 3, (h) => setModalState(() => _selectedExtraHours = h)),
                       ],
                     ),
                     const SizedBox(height: 32),

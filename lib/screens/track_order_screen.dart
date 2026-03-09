@@ -7,6 +7,8 @@ import 'package:intl/intl.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'customer_home_screen.dart';
+import '../utils/category_utils.dart';
+
 
 class TrackOrderScreen extends StatefulWidget {
   final String? bookingId;
@@ -56,7 +58,7 @@ class _TrackOrderScreenState extends State<TrackOrderScreen> {
 
         final bookings = snapshot.data ?? [];
         final activeBookings = bookings.where((b) => 
-          ['pending', 'accepted'].contains(b['status']) || 
+          ['pending', 'accepted', 'reassigning'].contains(b['status']) || 
           ['on_the_way', 'arrived', 'working'].contains(b['workerStatus'])
         ).toList();
 
@@ -128,7 +130,8 @@ class _TrackOrderScreenState extends State<TrackOrderScreen> {
     final status = booking['status'] ?? 'pending';
     final workerStatus = booking['workerStatus'] as String? ?? 'pending';
     final workerName = booking['workerName'] ?? 'Matching...';
-    final serviceName = booking['serviceName'] ?? 'Service';
+    final serviceName = CategoryUtils.normalizeName(booking['serviceName'] as String?);
+
     
     return SingleChildScrollView(
       physics: const BouncingScrollPhysics(),
@@ -138,6 +141,35 @@ class _TrackOrderScreenState extends State<TrackOrderScreen> {
           // Worker Message Bubble (Latest Update)
           _buildWorkerMessageBubble(workerStatus, booking),
           const SizedBox(height: 24),
+
+          // Reassignment Notice
+          if (booking['isReassigned'] == true) ...[
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: const Color(0xFFEFF6FF),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: const Color(0xFFBFDBFE)),
+              ),
+              child: Row(
+                children: [
+                   const Icon(Icons.info_rounded, color: Color(0xFF3B82F6), size: 20),
+                   const SizedBox(width: 12),
+                   Expanded(
+                     child: Text(
+                       'This job was reassigned due to a delay. We\'ve applied a 20% discount!',
+                       style: TextStyle(
+                         color: const Color(0xFF1E40AF),
+                         fontSize: 13,
+                         fontWeight: FontWeight.w600,
+                       ),
+                     ),
+                   ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 24),
+          ],
           
           // Service Card
           _buildInfoCard(booking),
@@ -164,6 +196,12 @@ class _TrackOrderScreenState extends State<TrackOrderScreen> {
         IconData icon = Icons.info_outline_rounded;
         Color color = _primaryBlue;
 
+        if (booking['status'] == 'reassigning') {
+          message = "Finding a new professional for your rescue job...";
+          icon = Icons.search_rounded;
+          color = _primaryBlue;
+        }
+
         if (snapshot.hasData && snapshot.data != null) {
           final notification = snapshot.data!;
           message = notification['message'] ?? message;
@@ -175,6 +213,9 @@ class _TrackOrderScreenState extends State<TrackOrderScreen> {
           } else if (type.contains('arrived')) {
             icon = Icons.location_on_rounded;
             color = _accentGreen;
+          } else if (type.contains('reassigning')) {
+            icon = Icons.person_search_rounded;
+            color = _primaryBlue;
           } else if (workerStatus == 'working') {
             icon = Icons.handyman_rounded;
             color = Colors.orange;
@@ -289,13 +330,63 @@ class _TrackOrderScreenState extends State<TrackOrderScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  booking['serviceName'] ?? 'Service',
+                  CategoryUtils.normalizeName(booking['serviceName'] as String?),
+
                   style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: Color(0xFF1E293B)),
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'Worker: ${booking['workerName'] ?? 'Finding...'}',
-                  style: TextStyle(color: Colors.grey.shade600, fontSize: 13, fontWeight: FontWeight.w500),
+                  booking['status'] == 'reassigning' 
+                    ? 'Worker: Finding new expert...' 
+                    : 'Worker: ${booking['workerName'] ?? 'Matching...'}',
+                  style: TextStyle(
+                    color: booking['status'] == 'reassigning' ? _primaryBlue : Colors.grey.shade600,
+                    fontSize: 13,
+                    fontWeight: booking['status'] == 'reassigning' ? FontWeight.w700 : FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                if (booking['isRescueJob'] == true) 
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: Colors.red.shade50,
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: Colors.red.shade100),
+                    ),
+                    child: Text(
+                      'RESCUE JOB',
+                      style: TextStyle(color: Colors.red.shade700, fontSize: 9, fontWeight: FontWeight.w900, letterSpacing: 0.5),
+                    ),
+                  ),
+                const SizedBox(height: 8),
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Row(
+                    children: [
+                      if (booking['isReassigned'] == true) ...[
+                        Text(
+                          '₹${(booking['originalPrice'] as num).toInt()}',
+                          style: TextStyle(
+                            fontSize: 12,
+                            decoration: TextDecoration.lineThrough,
+                            color: Colors.grey.shade400,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                      ],
+                      Text(
+                        '₹${(booking['price'] as num?)?.toInt() ?? 0}',
+                        style: TextStyle(
+                          color: _accentGreen,
+                          fontSize: 15,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),
@@ -344,10 +435,14 @@ class _TrackOrderScreenState extends State<TrackOrderScreen> {
           ),
           _buildTimelineItem(
             'Worker Assigned',
-            booking['workerName'] != null ? '${booking['workerName']} is assigned to your job' : 'Finding the best worker for you',
-            booking['workerName'] != null,
+            booking['status'] == 'reassigning' 
+              ? 'Finding a new expert for your Rescue Job...'
+              : (booking['workerName'] != null 
+                  ? '${booking['workerName']} is assigned to your job' 
+                  : 'Finding the best worker for you'),
+            booking['workerName'] != null && booking['status'] != 'reassigning',
             isLast: false,
-            isActive: booking['workerStatus'] != null || booking['status'] == 'accepted',
+            isActive: (booking['workerStatus'] != null || booking['status'] == 'accepted' || booking['status'] == 'reassigning'),
           ),
           _buildTimelineItem(
             'On My Way',

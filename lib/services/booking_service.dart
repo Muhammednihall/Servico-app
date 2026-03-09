@@ -43,7 +43,7 @@ class BookingService {
       'customerAddress': customerAddress ?? 'Address not provided',
       'customerCoordinates':
           customerCoordinates ??
-          {'lat': 40.7128, 'lng': -74.0060}, // Mock coordinates (NYC)
+          {'lat': 11.2588, 'lng': 75.7804}, // Targeted to Kozhikode instead of NYC mock
       'status': 'pending',
       'isTokenBooking': isTokenBooking,
       'tokenPosition': tokenPosition,
@@ -123,17 +123,32 @@ class BookingService {
         });
   }
 
-  /// Stream incoming requests for a worker (only pending)
-  Stream<List<Map<String, dynamic>>> streamWorkerRequests(String workerId) {
+  /// Stream incoming requests for a worker (direct Always + broadcast rescue if category matches)
+  Stream<List<Map<String, dynamic>>> streamWorkerRequests(String workerId, {String? workerCategory}) {
     return _firestore
         .collection('booking_requests')
-        .where('workerId', isEqualTo: workerId)
-        .where('status', isEqualTo: 'pending')
+        .where('status', whereIn: ['pending', 'reassigning'])
         .snapshots()
         .map((snapshot) {
           final docs = snapshot.docs
               .map((doc) => {'id': doc.id, ...doc.data()})
+              .where((req) {
+                // Direct request - ALWAYS show to the assigned worker
+                if (req['workerId'] == workerId && req['status'] == 'pending') return true;
+                
+                // Broadcast rescue job (anyone in category except previous worker)
+                if (workerCategory != null &&
+                    req['status'] == 'reassigning' && 
+                    req['serviceName'] == workerCategory && 
+                    req['previousWorkerId'] != workerId) {
+                  final rejectedBy = req['rejectedBy'] as List<dynamic>? ?? [];
+                  if (!rejectedBy.contains(workerId)) return true;
+                }
+                
+                return false;
+              })
               .toList();
+          
           docs.sort((a, b) {
             final t1 = (a['updatedAt'] ?? a['createdAt']) as Timestamp?;
             final t2 = (b['updatedAt'] ?? b['createdAt']) as Timestamp?;
@@ -144,38 +159,92 @@ class BookingService {
         });
   }
 
-  /// Update request status
-  Future<void> updateRequestStatus(String requestId, String status) async {
-    final doc = await _firestore
-        .collection('booking_requests')
-        .doc(requestId)
-        .get();
-    if (!doc.exists) return;
+  /// Accept a booking request (handles both direct and broadcast)
+  Future<void> acceptBooking(String requestId, String workerId, String workerName) async {
+    final docRef = _firestore.collection('booking_requests').doc(requestId);
+    
+    await _firestore.runTransaction((transaction) async {
+      final snapshot = await transaction.get(docRef);
+      if (!snapshot.exists) throw Exception('Request not found');
+      
+      final data = snapshot.data() as Map<String, dynamic>;
+      final currentStatus = data['status'];
+      
+      if (currentStatus != 'pending' && currentStatus != 'reassigning') {
+        throw Exception('Job already taken or no longer available');
+      }
 
-    final updateData = <String, dynamic>{
+      transaction.update(docRef, {
+        'status': 'accepted',
+        'workerId': workerId,
+        'workerName': workerName,
+        'acceptedAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
+      final jobRef = _firestore.collection('jobs').doc(requestId);
+      transaction.set(jobRef, {
+        ...data,
+        'status': 'accepted',
+        'workerId': workerId,
+        'workerName': workerName,
+        'acceptedAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+    });
+
+    // Notify customer about new worker if it was a rescue job
+    final finalDoc = await docRef.get();
+    if (finalDoc.exists && finalDoc.data()?['isRescueJob'] == true) {
+      final customerId = finalDoc.data()?['customerId'];
+      if (customerId != null) {
+        await _createCustomerNotification(
+          customerId: customerId,
+          title: '✅ Rescue Worker Found!',
+          message: '$workerName has accepted your request and is now on the way!',
+          type: 'rescue_worker_accepted',
+          bookingId: requestId,
+        );
+      }
+    }
+  }
+
+  /// Update request status (general)
+  Future<void> updateRequestStatus(String requestId, String status) async {
+    await _firestore.collection('booking_requests').doc(requestId).update({
       'status': status,
       'updatedAt': FieldValue.serverTimestamp(),
-    };
-
-    if (status == 'accepted') {
-      updateData['acceptedAt'] = FieldValue.serverTimestamp();
-    }
-
-    await _firestore
-        .collection('booking_requests')
-        .doc(requestId)
-        .update(updateData);
-
-    if (status == 'accepted') {
-      final data = doc.data() as Map<String, dynamic>;
-      await _firestore.collection('jobs').doc(requestId).set({
-        ...data,
-        'id': requestId,
-        'status': 'accepted',
-        'updatedAt': FieldValue.serverTimestamp(),
-        'acceptedAt': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
-    }
+    });
+  }
+  
+  /// Formally reject a booking request (handles both direct and broadcast appropriately)
+  Future<void> rejectBooking(String requestId, String workerId) async {
+    final docRef = _firestore.collection('booking_requests').doc(requestId);
+    
+    await _firestore.runTransaction((transaction) async {
+      final snapshot = await transaction.get(docRef);
+      if (!snapshot.exists) return;
+      
+      final data = snapshot.data() as Map<String, dynamic>;
+      final currentStatus = data['status'];
+      
+      if (currentStatus == 'reassigning') {
+        // Just record that this worker rejected the broadcast
+        List<dynamic> rejectedBy = data['rejectedBy'] ?? [];
+        if (!rejectedBy.contains(workerId)) {
+          rejectedBy.add(workerId);
+        }
+        transaction.update(docRef, {
+          'rejectedBy': rejectedBy,
+        });
+      } else if (currentStatus == 'pending') {
+        // Direct booking rejected
+        transaction.update(docRef, {
+          'status': 'rejected',
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+      }
+    });
   }
 
   /// Stream active jobs for a worker
@@ -319,14 +388,36 @@ class BookingService {
       if (data == null) return;
 
       final workerId = data['workerId'];
+      final rescueBonus = (data['rescueBonus'] as num?)?.toDouble() ?? 0.0;
       final price = (data['price'] as num?)?.toDouble() ?? 0.0;
-      final duration = (data['duration'] as num?)?.toInt() ?? 1;
-      final totalAmount = price * duration;
+      final duration = (data['duration'] as int?) ?? 1;
+      final totalAmount = (price * duration) + rescueBonus;
+
+      final customerPayment = price * duration;
 
       await updateRequestStatus(requestId, 'completed');
 
       final workerService = WorkerService();
       await workerService.creditWorkerBalance(workerId, totalAmount, requestId);
+
+      // Create Service Record (Receipt)
+      await _firestore.collection('service_records').add({
+        'bookingId': requestId,
+        'workerId': workerId,
+        'workerName': data['workerName'],
+        'customerId': data['customerId'],
+        'customerName': data['customerName'],
+        'serviceName': data['serviceName'],
+        'finalAmount': totalAmount, // For legacy compatibility
+        'workerEarnings': totalAmount,
+        'customerPayment': customerPayment,
+        'duration': duration,
+        'completedAt': FieldValue.serverTimestamp(),
+        'isReassigned': data['isReassigned'] ?? false,
+        'isRescueJob': data['isRescueJob'] ?? false,
+        'rescueBonus': data['rescueBonus'] ?? 0.0,
+        'originalPrice': data['originalPrice'] ?? price,
+      });
 
       final customerId = data['customerId'] as String?;
       if (customerId != null) {
@@ -409,8 +500,9 @@ class BookingService {
             (workerDoc.data()?['totalReviews'] as num?)?.toInt() ?? 0;
 
         final newTotalReviews = totalReviews + 1;
-        final newRating =
+        final rawNewRating =
             ((currentRating * totalReviews) + rating) / newTotalReviews;
+        final newRating = rawNewRating.clamp(1.0, 5.0);
 
         transaction.update(workerRef, {
           'rating': newRating,
@@ -439,6 +531,10 @@ class BookingService {
 
   /// Extra time handling
   Future<void> requestExtraTime(String requestId, int hours) async {
+    if (hours > 2) {
+      throw Exception('Cannot request more than 2 extra hours per job');
+    }
+
     await _firestore.collection('booking_requests').doc(requestId).update({
       'extraTimeRequest': {
         'hours': hours,
@@ -520,20 +616,37 @@ class BookingService {
 
       if (penalized) await _applyCancellationPenalty(workerId);
 
+      // Tell customer about cancellation, but let them know a new worker is being found
       await _createCustomerNotification(
         customerId: customerId,
-        title: '⚠️ Job Cancelled',
+        title: '⚠️ Worker Update',
         message:
-            '$workerName has cancelled the job. Please book another provider.',
-        type: 'worker_cancelled',
+            '$workerName was unable to make it. Don\'t worry, we are assigning a new expert now and have applied a 20% discount!',
+        type: 'worker_cancelled_reassigning',
         bookingId: requestId,
       );
 
+      // Put job back into pool for anyone in the category exception this worker
       await docRef.update({
-        'status': 'cancelled',
+        'status': 'reassigning',
+        'isReassigned': true,
+        'previousWorkerId': workerId,
+        'previousWorkerName': workerName,
+        'workerId': null, // Open to anyone
+        'workerName': null,
+        'workerStatus': null,
+        'estimatedArrivalMinutes': null,
+        'isRescueJob': true,
+        'rescueBonus': 150.0,
+        'originalPrice': data['originalPrice'] ?? (data['price'] ?? 0.0),
+        'price': (data['originalPrice'] ?? (data['price'] ?? 0.0)) * 0.8, // 20% discount
         'cancelledBy': 'worker',
         'updatedAt': FieldValue.serverTimestamp(),
       });
+
+      // autoReassignWorker is no longer needed to create a new doc, 
+      // as the original doc is now effectively the broadcast request.
+
     } catch (e) {
       print('❌ Error in cancelBookingByWorker: $e');
       rethrow;
@@ -546,14 +659,26 @@ class BookingService {
       await _firestore.runTransaction((transaction) async {
         final doc = await transaction.get(workerRef);
         if (!doc.exists) return;
-        final currentRating =
-            (doc.data()?['rating'] as num?)?.toDouble() ?? 5.0;
+        final rawRating = (doc.data()?['rating'] as num?)?.toDouble() ?? 0.0;
+        final totalReviews = (doc.data()?['totalReviews'] as num?)?.toInt() ?? 0;
+        final currentRating = (rawRating == 0.0 && totalReviews == 0) ? 5.0 : rawRating;
         final newRating = (currentRating * 0.98).clamp(1.0, 5.0);
-        transaction.update(workerRef, {
+        final penaltyCount = (doc.data()?['penaltyCount'] as int?) ?? 0;
+        final newPenaltyCount = penaltyCount + 1;
+        
+        final updates = <String, dynamic>{
           'rating': newRating,
-          'penaltyCount': FieldValue.increment(1),
+          'penaltyCount': newPenaltyCount,
           'lastPenaltyAt': FieldValue.serverTimestamp(),
-        });
+        };
+
+        // Temporary hard suspension after 3 cancellations
+        if (newPenaltyCount >= 3) {
+          updates['isAvailable'] = false;
+          updates['accountStatus'] = 'suspended';
+        }
+
+        transaction.update(workerRef, updates);
       });
     } catch (e) {}
   }
@@ -609,8 +734,20 @@ class BookingService {
       if (!doc.exists) return false;
 
       final workerId = doc.data()?['workerId'] as String;
+      // Mark original booking for reassignment
       await docRef.update({
+        'status': 'reassigning',
+        'isReassigned': true,
+        'previousWorkerId': workerId,
+        'workerId': null,
+        'workerName': null,
+        'workerStatus': null,
+        'estimatedArrivalMinutes': null,
         'delayStatus': 'not_reached',
+        'isRescueJob': true,
+        'rescueBonus': 150.0,
+        'originalPrice': (doc.data()?['price'] as num?)?.toDouble() ?? 0.0,
+        'price': ((doc.data()?['price'] as num?)?.toDouble() ?? 0.0) * 0.8,
         'workerNotReachedAt': FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
       });
@@ -624,13 +761,102 @@ class BookingService {
         bookingId: requestId,
       );
 
-      await handleBookingExpiredOrRejected(
-        requestId: requestId,
-        reason: 'worker_delayed',
-      );
+      final customerId = doc.data()?['customerId'];
+      if (customerId != null) {
+        await _createCustomerNotification(
+          customerId: customerId,
+          title: '🔄 Finding New Worker',
+          message: 'Since the worker was unreachable, we are assigning a new expert for you. A 20% discount has been applied!',
+          type: 'worker_unreachable_reassigning',
+          bookingId: requestId,
+        );
+      }
+
       return true;
     } catch (e) {
       return false;
+    }
+  }
+
+  /// Auto-assign alternate worker for delays
+  Future<void> autoReassignWorker(String oldRequestId) async {
+    try {
+      final oldDoc =
+          await _firestore.collection('booking_requests').doc(oldRequestId).get();
+      if (!oldDoc.exists) return;
+
+      final oldData = oldDoc.data()!;
+      final category = oldData['serviceName'] as String;
+      final originalPrice = (oldData['price'] as num).toDouble();
+      final customerId = oldData['customerId'] as String;
+      final oldWorkerId = oldData['workerId'] as String;
+
+      // Find available workers in same category
+      final workerService = WorkerService();
+      final allWorkers = await workerService.getWorkersByCategory(category);
+
+      // Filter out original worker and those already on a job
+      final availableWorkers = allWorkers.where((w) => w['id'] != oldWorkerId).toList();
+
+      if (availableWorkers.isEmpty) {
+        await _createCustomerNotification(
+          customerId: customerId,
+          title: '⚠️ No alternate workers',
+          message:
+              'We couldn\'t find an alternate worker right now. Please try again later.',
+          type: 'no_alternate_worker',
+          bookingId: oldRequestId,
+        );
+        return;
+      }
+
+      // Sort by rating or distance (mocked for now, just picking first rated)
+      availableWorkers.sort((a, b) {
+        final rA = (a['rating'] as num?)?.toDouble() ?? 0.0;
+        final rB = (b['rating'] as num?)?.toDouble() ?? 0.0;
+        return rB.compareTo(rA);
+      });
+
+      final newWorker = availableWorkers.first;
+
+      // Calculate reduced charge (20% discount)
+      final reducedPrice = originalPrice * 0.8;
+
+      // Create new booking request
+      final newRequestId = await createBookingRequest(
+        workerId: newWorker['id'],
+        workerName: newWorker['name'] ?? 'Provider',
+        serviceName: category,
+        price: reducedPrice,
+        duration: oldData['duration'] ?? 1,
+        customerId: customerId,
+        customerName: oldData['customerName'],
+        customerAddress: oldData['customerAddress'],
+        customerCoordinates:
+            Map<String, double>.from(oldData['customerCoordinates'] ?? {}),
+      );
+
+      // Mark as reassigned with original info and Rescue Job bonus
+      await _firestore.collection('booking_requests').doc(newRequestId).update({
+        'isReassigned': true,
+        'isRescueJob': true,
+        'rescueBonus': 150.0, // Bonus for picking up a cancelled/delayed job
+        'originalRequestId': oldRequestId,
+        'originalPrice': originalPrice,
+        'discountPercentage': 20,
+      });
+
+      // Notify Customer
+      await _createCustomerNotification(
+        customerId: customerId,
+        title: '🔄 New Worker Assigned!',
+        message:
+            'Due to delay, ${newWorker['name']} has been assigned. You received a 20% discount!',
+        type: 'worker_reassigned',
+        bookingId: newRequestId,
+      );
+    } catch (e) {
+      print('❌ Error in autoReassignWorker: $e');
     }
   }
 
@@ -639,8 +865,9 @@ class BookingService {
     await _firestore.runTransaction((transaction) async {
       final workerDoc = await transaction.get(workerRef);
       if (workerDoc.exists) {
-        final currentRating =
-            (workerDoc.data()?['rating'] as num?)?.toDouble() ?? 5.0;
+        final rawRating = (workerDoc.data()?['rating'] as num?)?.toDouble() ?? 0.0;
+        final totalReviews = (workerDoc.data()?['totalReviews'] as num?)?.toInt() ?? 0;
+        final currentRating = (rawRating == 0.0 && totalReviews == 0) ? 5.0 : rawRating;
         final delayCount = (workerDoc.data()?['delayCount'] as int?) ?? 0;
         final newRating = (currentRating - 0.2).clamp(1.0, 5.0);
         transaction.update(workerRef, {
@@ -699,6 +926,7 @@ class BookingService {
     String? bookingId,
     String? imageUrl,
   }) async {
+    // Always write to Firestore first — this is what drives the in-app popup stream
     await _firestore.collection('customer_notifications').add({
       'customerId': customerId,
       'title': title,
@@ -710,14 +938,19 @@ class BookingService {
       'createdAt': FieldValue.serverTimestamp(),
     });
 
-    await _notificationService.sendNotificationToUser(
-      userId: customerId,
-      userType: 'customer',
-      title: title,
-      body: message,
-      imageUrl: imageUrl,
-      data: {'type': type, 'bookingId': bookingId},
-    );
+    // FCM push is best-effort — don't let a failed token block the in-app notification
+    try {
+      await _notificationService.sendNotificationToUser(
+        userId: customerId,
+        userType: 'customer',
+        title: title,
+        body: message,
+        imageUrl: imageUrl,
+        data: {'type': type, 'bookingId': bookingId},
+      );
+    } catch (e) {
+      print('⚠️ FCM push failed (in-app notification still sent): $e');
+    }
   }
 
   Future<void> _createWorkerNotification({
@@ -834,5 +1067,36 @@ class BookingService {
           .get();
       return cCount + wSnapshot.docs.length;
     });
+  }
+
+  Future<int> getCompletedJobsCount(String workerId) async {
+    try {
+      final snapshot = await _firestore
+          .collection('booking_requests')
+          .where('workerId', isEqualTo: workerId)
+          .where('status', isEqualTo: 'completed')
+          .get();
+      return snapshot.docs.length;
+    } catch (e) {
+      return 0;
+    }
+  }
+
+  Stream<List<Map<String, dynamic>>> streamServiceRecords(
+    String userId, {
+    required String userRole,
+  }) {
+    final collection = _firestore.collection('service_records');
+    final queryField = userRole == 'customer' ? 'customerId' : 'workerId';
+
+    return collection
+        .where(queryField, isEqualTo: userId)
+        .orderBy('completedAt', descending: true)
+        .snapshots()
+        .map(
+          (snapshot) => snapshot.docs
+              .map((doc) => {'id': doc.id, ...doc.data()})
+              .toList(),
+        );
   }
 }

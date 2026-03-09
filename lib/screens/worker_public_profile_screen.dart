@@ -158,7 +158,9 @@ class _WorkerPublicProfileScreenState extends State<WorkerPublicProfileScreen> {
                     const Icon(Icons.star_rounded, color: Colors.orange, size: 20),
                     const SizedBox(width: 4),
                     Text(
-                      '${widget.worker['rating'] ?? '5.0'}',
+                      (((widget.worker['rating'] as num?)?.toDouble() == 0.0 && (widget.worker['totalReviews'] as num?)?.toInt() == 0) || widget.worker['rating'] == null)
+                          ? '5.0'
+                          : ((widget.worker['rating'] as num?)?.toDouble() ?? 5.0).toStringAsFixed(1),
                       style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
                     ),
                     const SizedBox(width: 8),
@@ -173,6 +175,30 @@ class _WorkerPublicProfileScreenState extends State<WorkerPublicProfileScreen> {
                   '${widget.worker['experience'] ?? '5+'} Years Exp.',
                   style: TextStyle(color: Colors.grey.shade600, fontWeight: FontWeight.w600),
                 ),
+                if (widget.worker['serviceArea'] != null && widget.worker['serviceArea'].toString().isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Icon(Icons.location_on, color: Colors.grey.shade500, size: 16),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: Text(
+                          (widget.worker['serviceArea'] as String?)
+                                  ?.replaceAll('_', ' ')
+                                  .split(' ')
+                                  .map((word) => word.isNotEmpty
+                                      ? '${word[0].toUpperCase()}${word.substring(1)}'
+                                      : '')
+                                  .join(' ') ??
+                              'Not Set',
+                          style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ],
             ),
           ),

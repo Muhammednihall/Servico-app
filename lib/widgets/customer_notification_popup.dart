@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import '../services/booking_service.dart';
 
@@ -19,15 +20,21 @@ class CustomerNotificationPopup extends StatefulWidget {
       _CustomerNotificationPopupState();
 }
 
-class _CustomerNotificationPopupState extends State<CustomerNotificationPopup> {
+class _CustomerNotificationPopupState extends State<CustomerNotificationPopup>
+    with SingleTickerProviderStateMixin {
   final BookingService _bookingService = BookingService();
   StreamSubscription? _notificationSubscription;
   List<Map<String, dynamic>> _pendingNotifications = [];
   bool _isShowingPopup = false;
+  late AnimationController _iconAnimationController;
 
   @override
   void initState() {
     super.initState();
+    _iconAnimationController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 2),
+    )..repeat(reverse: true);
     _setupNotificationListener();
   }
 
@@ -76,154 +83,194 @@ class _CustomerNotificationPopupState extends State<CustomerNotificationPopup> {
 
     switch (type) {
       case 'worker_on_the_way':
-        primaryColor = const Color(0xFF2463EB); // Blue
+        primaryColor = const Color(0xFF3B82F6); // Modern Blue
         icon = Icons.directions_car_rounded;
         break;
       case 'worker_arrived':
-        primaryColor = const Color(0xFF10B981); // Green
+        primaryColor = const Color(0xFF10B981); // Emerald Green
         icon = Icons.location_on_rounded;
         break;
-
       case 'booking_confirmed':
-        primaryColor = const Color(0xFF10B981); // Green
+        primaryColor = const Color(0xFF10B981); // Emerald Green
         icon = Icons.check_circle_rounded;
         break;
       case 'job_completed':
-        primaryColor = const Color(0xFF10B981); // Green
+        primaryColor = const Color(0xFF10B981); // Emerald Green
         icon = Icons.verified_rounded;
         break;
       case 'extra_time_requested':
-        primaryColor = const Color(0xFF2463EB); // Blue
+        primaryColor = const Color(0xFFF59E0B); // Amber
         icon = Icons.more_time_rounded;
         break;
       default:
-        primaryColor = const Color(0xFF2463EB); // Default blue
+        primaryColor = const Color(0xFF6366F1); // Indigo
         icon = Icons.notifications_rounded;
     }
 
     await showDialog(
       context: context,
       barrierDismissible: true,
+      barrierColor: Colors.black.withOpacity(0.4),
       builder: (context) => Dialog(
         backgroundColor: Colors.transparent,
+        elevation: 0,
         insetPadding: const EdgeInsets.symmetric(horizontal: 24),
-        child: Container(
-          width: double.infinity,
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(32),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.1),
-                blurRadius: 30,
-                offset: const Offset(0, 10),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(32),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+            child: Container(
+              width: double.infinity,
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.9),
+                borderRadius: BorderRadius.circular(32),
+                border: Border.all(
+                  color: Colors.white.withOpacity(0.5),
+                  width: 1.5,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: primaryColor.withOpacity(0.15),
+                    blurRadius: 40,
+                    offset: const Offset(0, 10),
+                  ),
+                ],
               ),
-            ],
-          ),
-          child: Stack(
-            children: [
-              Column(
-                mainAxisSize: MainAxisSize.min,
+              child: Stack(
+                clipBehavior: Clip.none,
                 children: [
-                  // Gradient Header with Icon
-                  Stack(
-                    alignment: Alignment.center,
-                    clipBehavior: Clip.none,
-                    children: [
-                      Container(
-                        height: 110,
-                        width: double.infinity,
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: [
-                              primaryColor,
-                              primaryColor.withOpacity(0.8),
-                            ],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                          ),
-                          borderRadius: const BorderRadius.vertical(
-                            top: Radius.circular(32),
-                          ),
-                        ),
+                  // Subtle background glow
+                  Positioned(
+                    top: -50,
+                    left: -50,
+                    child: Container(
+                      width: 150,
+                      height: 150,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: primaryColor.withOpacity(0.15),
                       ),
-                      Positioned(
-                        top: 70,
-                        child: Container(
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            shape: BoxShape.circle,
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withOpacity(0.1),
-                                blurRadius: 20,
-                                offset: const Offset(0, 5),
-                              ),
-                            ],
-                          ),
-                          child: Container(
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: primaryColor.withOpacity(0.1),
-                              shape: BoxShape.circle,
-                            ),
-                            child: Icon(icon, color: primaryColor, size: 32),
-                          ),
-                        ),
+                    ),
+                  ),
+                  Positioned(
+                    bottom: -50,
+                    right: -50,
+                    child: Container(
+                      width: 150,
+                      height: 150,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: primaryColor.withOpacity(0.15),
                       ),
-                    ],
+                    ),
                   ),
 
-                  const SizedBox(height: 60),
-
-                  // Text Content
+                  // Main Content
                   Padding(
-                    padding: const EdgeInsets.fromLTRB(28, 0, 28, 28),
+                    padding: const EdgeInsets.all(32),
                     child: Column(
+                      mainAxisSize: MainAxisSize.min,
                       children: [
+                        // Animated Icon Container
+                        AnimatedBuilder(
+                          animation: _iconAnimationController,
+                          builder: (context, child) {
+                            return Transform.translate(
+                              offset: Offset(0, -5 * _iconAnimationController.value),
+                              child: child,
+                            );
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.all(20),
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              gradient: LinearGradient(
+                                colors: [
+                                  primaryColor.withOpacity(0.15),
+                                  primaryColor.withOpacity(0.05),
+                                ],
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                              ),
+                              border: Border.all(
+                                color: primaryColor.withOpacity(0.3),
+                                width: 2,
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: primaryColor.withOpacity(0.2),
+                                  blurRadius: 30,
+                                  spreadRadius: 5,
+                                ),
+                              ],
+                            ),
+                            child: Icon(
+                              icon,
+                              size: 48,
+                              color: primaryColor,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 32),
+
+                        // Title
                         Text(
                           title,
                           textAlign: TextAlign.center,
-                          style: Theme.of(context).textTheme.headlineMedium
-                              ?.copyWith(
-                                fontSize: 22,
-                                fontWeight: FontWeight.w900,
-                              ),
+                          style: const TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.w900,
+                            color: Color(0xFF1E293B),
+                            letterSpacing: -0.5,
+                          ),
                         ),
                         const SizedBox(height: 12),
+
+                        // Message
                         Text(
                           message,
                           textAlign: TextAlign.center,
-                          style: Theme.of(context).textTheme.bodyMedium
-                              ?.copyWith(
-                                fontSize: 15,
-                                height: 1.6,
-                                fontWeight: FontWeight.w500,
-                              ),
+                          style: const TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w500,
+                            color: Color(0xFF64748B),
+                            height: 1.5,
+                          ),
                         ),
 
                         if (imageUrl != null && imageUrl.isNotEmpty) ...[
-                          const SizedBox(height: 20),
-                          ClipRRect(
-                            borderRadius: BorderRadius.circular(24),
-                            child: Image.network(
-                              imageUrl,
-                              height: 180,
-                              width: double.infinity,
-                              fit: BoxFit.cover,
-                              errorBuilder: (context, error, stackTrace) =>
-                                  const SizedBox.shrink(),
+                          const SizedBox(height: 24),
+                          Container(
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(20),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.1),
+                                  blurRadius: 20,
+                                  offset: const Offset(0, 5),
+                                ),
+                              ],
+                            ),
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(20),
+                              child: Image.network(
+                                imageUrl,
+                                height: 160,
+                                width: double.infinity,
+                                fit: BoxFit.cover,
+                                errorBuilder: (context, error, stackTrace) =>
+                                    const SizedBox.shrink(),
+                              ),
                             ),
                           ),
                         ],
 
-                        const SizedBox(height: 32),
+                        const SizedBox(height: 36),
 
-                        // Primary Action
+                        // Action Button
                         SizedBox(
                           width: double.infinity,
-                          height: 58,
+                          height: 56,
                           child: ElevatedButton(
                             onPressed: () {
                               Navigator.pop(context);
@@ -236,14 +283,15 @@ class _CustomerNotificationPopupState extends State<CustomerNotificationPopup> {
                               foregroundColor: Colors.white,
                               elevation: 0,
                               shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(18),
+                                borderRadius: BorderRadius.circular(20),
                               ),
+                              shadowColor: primaryColor.withOpacity(0.4),
                             ),
                             child: const Text(
-                              'Continue',
+                              'Got it',
                               style: TextStyle(
                                 fontSize: 16,
-                                fontWeight: FontWeight.w900,
+                                fontWeight: FontWeight.w700,
                                 letterSpacing: 0.5,
                               ),
                             ),
@@ -252,34 +300,29 @@ class _CustomerNotificationPopupState extends State<CustomerNotificationPopup> {
                       ],
                     ),
                   ),
-                ],
-              ),
-              // Close Button using Modern UI style
-              Positioned(
-                top: 15,
-                right: 15,
-                child: GestureDetector(
-                  onTap: () {
-                    Navigator.pop(context);
-                    _bookingService.markCustomerNotificationAsRead(
-                      notificationId,
-                    );
-                  },
-                  child: Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.2),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: const Icon(
-                      Icons.close_rounded,
-                      color: Colors.white,
-                      size: 20,
+
+                  // Close Button
+                  Positioned(
+                    top: 16,
+                    right: 16,
+                    child: IconButton(
+                      onPressed: () {
+                        Navigator.pop(context);
+                        _bookingService.markCustomerNotificationAsRead(
+                          notificationId,
+                        );
+                      },
+                      icon: const Icon(
+                        Icons.close_rounded,
+                        color: Color(0xFF94A3B8),
+                        size: 24,
+                      ),
+                      splashRadius: 24,
                     ),
                   ),
-                ),
+                ],
               ),
-            ],
+            ),
           ),
         ),
       ),
@@ -288,6 +331,7 @@ class _CustomerNotificationPopupState extends State<CustomerNotificationPopup> {
 
   @override
   void dispose() {
+    _iconAnimationController.dispose();
     _notificationSubscription?.cancel();
     super.dispose();
   }

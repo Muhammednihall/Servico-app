@@ -47,6 +47,9 @@ class UserService {
     required String name,
     required String phone,
     String? address, // Not applicable for workers
+    String? serviceArea, // Applicable for workers
+    double? latitude,
+    double? longitude,
   }) async {
     final user = _auth.currentUser;
     if (user == null) throw 'User not logged in';
@@ -65,6 +68,12 @@ class UserService {
 
     if (role == 'customer' && address != null) {
       updateData['address'] = address;
+    } else if (role == 'worker') {
+      if (serviceArea != null) updateData['serviceArea'] = serviceArea;
+      if (latitude != null) updateData['latitude'] = latitude;
+      if (longitude != null) updateData['longitude'] = longitude;
+      if (latitude != null) updateData['lat'] = latitude; // Compatibility
+      if (longitude != null) updateData['lng'] = longitude; // Compatibility
     }
 
     await _firestore.collection(collection).doc(user.uid).update(updateData);

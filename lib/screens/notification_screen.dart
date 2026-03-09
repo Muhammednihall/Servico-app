@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
+import '../services/worker_service.dart';
 import '../services/auth_service.dart';
 import '../services/booking_service.dart';
 import '../widgets/modern_header.dart';
@@ -17,7 +18,9 @@ class NotificationScreen extends StatefulWidget {
 class _NotificationScreenState extends State<NotificationScreen> {
   final AuthService _authService = AuthService();
   final BookingService _bookingService = BookingService();
+  final WorkerService _workerService = WorkerService();
   String? _role;
+  String? _workerName;
   bool _isLoading = true;
 
   @override
@@ -30,9 +33,17 @@ class _NotificationScreenState extends State<NotificationScreen> {
     final user = _authService.getCurrentUser();
     if (user != null) {
       final role = await _authService.getUserRole(user.uid);
+      String? workerName;
+      
+      if (role == 'worker') {
+        final profile = await _workerService.getWorkerProfile(user.uid);
+        workerName = profile?['name'];
+      }
+
       if (mounted) {
         setState(() {
           _role = role;
+          _workerName = workerName;
           _isLoading = false;
         });
       }
@@ -260,8 +271,11 @@ class _NotificationScreenState extends State<NotificationScreen> {
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (_) =>
-                    NewJobRequestScreen(request: notification['data']),
+                builder: (_) => NewJobRequestScreen(
+                  request: notification['data'],
+                  workerId: _authService.getCurrentUser()!.uid,
+                  workerName: _workerName ?? 'Worker',
+                ),
               ),
             );
           } else {

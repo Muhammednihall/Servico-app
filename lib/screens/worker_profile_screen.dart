@@ -141,6 +141,32 @@ class _WorkerProfileScreenState extends State<WorkerProfileScreen> {
               fontWeight: FontWeight.w500,
             ),
           ),
+          const SizedBox(height: 12),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.star_rounded, color: Colors.orange, size: 20),
+              const SizedBox(width: 4),
+              Text(
+                ((workerData?['rating'] as num?)?.toDouble() == 0.0 && (workerData?['totalReviews'] as num?)?.toInt() == 0) || workerData?['rating'] == null
+                    ? '5.0'
+                    : ((workerData?['rating'] as num?)?.toDouble() ?? 5.0).toStringAsFixed(1),
+                style: const TextStyle(
+                  color: Color(0xFF1e293b),
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(width: 6),
+              Text(
+                '(${workerData?['totalReviews'] ?? '0'} reviews)',
+                style: TextStyle(
+                  color: Colors.grey.shade500,
+                  fontSize: 14,
+                ),
+              ),
+            ],
+          ),
         ],
       ),
     );
@@ -209,7 +235,14 @@ class _WorkerProfileScreenState extends State<WorkerProfileScreen> {
           ),
           _buildInfoRow(
             label: 'Service Area',
-            value: workerData?['serviceArea'] ?? 'Not Set',
+            value: (workerData?['serviceArea'] as String?)
+                    ?.replaceAll('_', ' ')
+                    .split(' ')
+                    .map((word) => word.isNotEmpty
+                        ? '${word[0].toUpperCase()}${word.substring(1)}'
+                        : '')
+                    .join(' ') ??
+                'Not Set',
           ),
           Padding(
             padding: const EdgeInsets.only(top: 10),

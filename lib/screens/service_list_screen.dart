@@ -116,7 +116,7 @@ class ServiceListScreen extends StatelessWidget {
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: const [
-                    Text('\$35/hr', style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold)),
+                    Text('₹35/hr', style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold)),
                     SizedBox(height: 4),
                     Text('2.3 mi', style: TextStyle(color: Colors.black54)),
                   ],

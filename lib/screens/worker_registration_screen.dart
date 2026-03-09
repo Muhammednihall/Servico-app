@@ -34,14 +34,10 @@ class _WorkerRegistrationScreenState extends State<WorkerRegistrationScreen> {
   final AuthService _authService = AuthService();
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  final List<String> _serviceTypes = [
-    'Electrician',
-    'Plumber',
-    'Carpenter',
-    'Mechanic',
-    'Home Cleaner',
-    'Gardener',
-  ];
+  // Dynamic data loaded from Firestore
+  List<String> _serviceTypes = [];
+  List<Map<String, String>> _cities = [];
+
 
   @override
   Widget build(BuildContext context) {
@@ -75,7 +71,7 @@ class _WorkerRegistrationScreenState extends State<WorkerRegistrationScreen> {
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.1),
+            color: Colors.black.withOpacity(0.1),
             blurRadius: 20,
             offset: const Offset(0, 4),
           ),
@@ -93,10 +89,10 @@ class _WorkerRegistrationScreenState extends State<WorkerRegistrationScreen> {
                   width: 40,
                   height: 40,
                   decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.2),
+                    color: Colors.white.withOpacity(0.2),
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
-                      color: Colors.white.withValues(alpha: 0.3),
+                      color: Colors.white.withOpacity(0.3),
                       width: 1,
                     ),
                   ),
@@ -146,13 +142,13 @@ class _WorkerRegistrationScreenState extends State<WorkerRegistrationScreen> {
             borderRadius: BorderRadius.circular(32),
             boxShadow: [
               BoxShadow(
-                color: _primaryColor.withValues(alpha: 0.05),
+                color: _primaryColor.withOpacity(0.05),
                 blurRadius: 20,
                 offset: const Offset(0, 4),
               ),
             ],
             border: Border.all(
-              color: Colors.white.withValues(alpha: 0.5),
+              color: Colors.white.withOpacity(0.5),
               width: 1,
             ),
           ),
@@ -344,6 +340,59 @@ class _WorkerRegistrationScreenState extends State<WorkerRegistrationScreen> {
     );
   }
 
+
+
+  Future<void> _loadInitialData() async {
+    setState(() => _isLoading = true);
+    await Future.wait([
+      _loadServiceTypes(),
+      _loadCities(),
+    ]);
+    if (_selectedCity != null) {
+      await _loadCityData(_selectedCity);
+    }
+    setState(() => _isLoading = false);
+  }
+
+  Future<void> _loadServiceTypes() async {
+    try {
+      final snapshot = await _firestore.collection('categories').get();
+      if (mounted) {
+        setState(() {
+          _serviceTypes = snapshot.docs
+              .map((doc) => doc.data()['name'] as String? ?? '')
+              .where((name) => name.isNotEmpty)
+              .toList();
+          
+          if (_serviceTypes.isEmpty) {
+             _serviceTypes = ['General Service'];
+          }
+        });
+      }
+    } catch (e) {
+      print('Error loading service types: $e');
+    }
+  }
+
+  Future<void> _loadCities() async {
+    try {
+      final snapshot = await _firestore.collection('Locations').get();
+      if (mounted) {
+        setState(() {
+          _cities = snapshot.docs.map((doc) => {
+            'id': doc.id,
+            'name': doc.data()['cityName'] as String? ?? doc.id,
+          }).toList();
+          
+          if (_cities.isNotEmpty && _selectedCity == null) {
+            _selectedCity = _cities.first['id'];
+          }
+        });
+      }
+    } catch (e) {
+      print('Error loading cities: $e');
+    }
+  }
   Widget _buildCityDropdown() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -381,9 +430,9 @@ class _WorkerRegistrationScreenState extends State<WorkerRegistrationScreen> {
               _loadCityData(value);
             });
           },
-          dropdownMenuEntries: const [
-            DropdownMenuEntry(value: 'city_kozhikode', label: 'Kozhikode'),
-          ],
+          dropdownMenuEntries: _cities.map((city) {
+            return DropdownMenuEntry(value: city['id']!, label: city['name']!);
+          }).toList(),
           width: double.infinity,
           inputDecorationTheme: InputDecorationTheme(
             contentPadding: const EdgeInsets.symmetric(
@@ -490,8 +539,16 @@ class _WorkerRegistrationScreenState extends State<WorkerRegistrationScreen> {
 
     final regions = _cityData!['regions'] as Map<String, dynamic>;
     return regions.entries.map((entry) {
-      final regionName = entry.value['regionName'] as String;
-      return DropdownMenuEntry(value: entry.key, label: regionName);
+      final rawName = entry.value['regionName'] as String? ?? entry.key;
+      final formattedName = rawName
+          .replaceAll('_', ' ')
+          .split(' ')
+          .map((word) => word.isNotEmpty
+              ? '${word[0].toUpperCase()}${word.substring(1).toLowerCase()}'
+              : '')
+          .join(' ');
+          
+      return DropdownMenuEntry(value: entry.key, label: formattedName);
     }).toList();
   }
 
@@ -513,8 +570,7 @@ class _WorkerRegistrationScreenState extends State<WorkerRegistrationScreen> {
   @override
   void initState() {
     super.initState();
-    _selectedCity = 'city_kozhikode';
-    _loadCityData('city_kozhikode');
+    _loadInitialData();
   }
 
   Widget _buildServiceTypeDropdown() {

@@ -6,6 +6,8 @@ import 'package:intl/intl.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
+import '../utils/category_utils.dart';
+
 
 class BookingConfirmedScreen extends StatefulWidget {
   final Map<String, dynamic>? bookingData;
@@ -489,7 +491,8 @@ class _BookingConfirmedScreenState extends State<BookingConfirmedScreen> {
           _buildInfoTile(
             Icons.category_rounded,
             'Service',
-            data['serviceName'] ?? 'N/A',
+            CategoryUtils.normalizeName(data['serviceName'] as String?),
+
           ),
           _buildInfoTile(
             Icons.calendar_today_rounded,

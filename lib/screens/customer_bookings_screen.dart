@@ -6,6 +6,8 @@ import '../services/booking_service.dart';
 import '../services/auth_service.dart';
 import 'booking_confirmed_screen.dart';
 import 'booking_request_screen.dart';
+import '../utils/category_utils.dart';
+
 
 class CustomerBookingsScreen extends StatefulWidget {
   const CustomerBookingsScreen({super.key});
@@ -79,7 +81,7 @@ class _CustomerBookingsScreenState extends State<CustomerBookingsScreen>
 
               // Categorize bookings
               final pending = allBookings
-                  .where((b) => b['status'] == 'pending')
+                  .where((b) => b['status'] == 'pending' || b['status'] == 'reassigning')
                   .toList();
               final active = allBookings
                   .where((b) => b['status'] == 'accepted')
@@ -130,6 +132,7 @@ class _CustomerBookingsScreenState extends State<CustomerBookingsScreen>
       ),
       child: TabBar(
         controller: _tabController,
+        indicatorSize: TabBarIndicatorSize.tab,
         indicator: BoxDecoration(
           color: const Color(0xFF2463EB),
           borderRadius: BorderRadius.circular(12),
@@ -239,6 +242,11 @@ class _CustomerBookingsScreenState extends State<CustomerBookingsScreen>
         statusIcon = Icons.schedule_rounded;
         statusLabel = 'Waiting';
         break;
+      case 'reassigning':
+        statusColor = const Color(0xFFF59E0B);
+        statusIcon = Icons.cached_rounded;
+        statusLabel = 'Finding New Provider';
+        break;
       case 'accepted':
         statusColor = const Color(0xFF2463EB);
         statusIcon = Icons.check_circle_outline_rounded;
@@ -316,8 +324,9 @@ class _CustomerBookingsScreenState extends State<CustomerBookingsScreen>
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          booking['serviceName'] ?? 'Service',
+                          CategoryUtils.normalizeName(booking['serviceName'] as String?),
                           style: const TextStyle(
+
                             fontSize: 16,
                             fontWeight: FontWeight.w800,
                             color: Color(0xFF1E293B),
@@ -395,19 +404,51 @@ class _CustomerBookingsScreenState extends State<CustomerBookingsScreen>
                     ],
                   ),
                   // Price
-                  Text(
-                    '₹${price.toInt()}',
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w900,
-                      color: Color(0xFF1E293B),
-                    ),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      if (booking['isReassigned'] == true) ...[
+                        Text(
+                          '₹${(booking['originalPrice'] as num).toInt()}',
+                          style: TextStyle(
+                            fontSize: 12,
+                            decoration: TextDecoration.lineThrough,
+                            color: Colors.grey.shade400,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          margin: const EdgeInsets.only(bottom: 4),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF10B981).withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: const Text(
+                            '20% OFF',
+                            style: TextStyle(
+                              color: Color(0xFF10B981),
+                              fontSize: 10,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ),
+                      ],
+                      Text(
+                        '₹${price.toInt()}',
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w900,
+                          color: Color(0xFF1E293B),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
             ),
             // Action Button for pending
-            if (status == 'pending') _buildPendingActions(booking),
+            if (status == 'pending' || status == 'reassigning') _buildPendingActions(booking),
             // Active booking actions (delay reporting)
             if (status == 'accepted') _buildActiveActions(booking),
             // Rating for completed
@@ -932,7 +973,7 @@ class _CustomerBookingsScreenState extends State<CustomerBookingsScreen>
   }
 
   void _navigateToBooking(Map<String, dynamic> booking, String status) {
-    if (status == 'pending') {
+    if (status == 'pending' || status == 'reassigning') {
       Navigator.push(
         context,
         MaterialPageRoute(
@@ -954,8 +995,10 @@ class _CustomerBookingsScreenState extends State<CustomerBookingsScreen>
     if (service.contains('clean')) return Icons.cleaning_services_rounded;
     if (service.contains('plumb')) return Icons.plumbing_rounded;
     if (service.contains('elect')) return Icons.electrical_services_rounded;
-    if (service.contains('paint')) return Icons.format_paint_rounded;
-    if (service.contains('pest')) return Icons.bug_report_rounded;
+    if (service.contains('paint'))
+      return Icons.format_paint_rounded;
+    if (service.contains('pest'))
+      return Icons.pest_control_rounded;
     if (service.contains('ac') || service.contains('repair'))
       return Icons.home_repair_service_rounded;
     return Icons.handyman_rounded;

@@ -11,8 +11,15 @@ import 'dart:async';
 
 class NewJobRequestScreen extends StatefulWidget {
   final Map<String, dynamic> request;
-
-  const NewJobRequestScreen({super.key, required this.request});
+  final String workerId;
+  final String workerName;
+ 
+  const NewJobRequestScreen({
+    super.key, 
+    required this.request,
+    required this.workerId,
+    required this.workerName,
+  });
 
   @override
   State<NewJobRequestScreen> createState() => _NewJobRequestScreenState();
@@ -45,8 +52,8 @@ class _NewJobRequestScreenState extends State<NewJobRequestScreen> {
           final data = snapshot.data() as Map<String, dynamic>?;
           final status = data?['status'];
 
-          // If status changed from pending
-          if (status != 'pending') {
+          // If status changed from pending or reassigning
+          if (status != 'pending' && status != 'reassigning') {
             _handlePop(status: status);
           }
         });
@@ -64,7 +71,7 @@ class _NewJobRequestScreenState extends State<NewJobRequestScreen> {
 
     if (status != null && mounted) {
       final messenger = ScaffoldMessenger.of(context);
-      if (status != 'accepted' && status != 'pending') {
+      if (status != 'accepted' && status != 'pending' && status != 'reassigning') {
         messenger.showSnackBar(
           SnackBar(
             content: Text(
@@ -397,24 +404,40 @@ class _NewJobRequestScreenState extends State<NewJobRequestScreen> {
                               ),
                             ),
                             const SizedBox(height: 2),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 10,
-                                vertical: 4,
-                              ),
-                              decoration: BoxDecoration(
-                                color: accentColor.withOpacity(0.1),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Text(
-                                serviceName.toUpperCase(),
-                                style: TextStyle(
-                                  color: accentColor,
-                                  fontWeight: FontWeight.w800,
-                                  fontSize: 10,
-                                  letterSpacing: 0.5,
+                            Row(
+                              children: [
+                                Text(
+                                  serviceName.toUpperCase(),
+                                  style: TextStyle(
+                                    color: accentColor,
+                                    fontWeight: FontWeight.w800,
+                                    fontSize: 10,
+                                    letterSpacing: 0.5,
+                                  ),
                                 ),
-                              ),
+                                if (request['isRescueJob'] == true) ...[
+                                  const SizedBox(width: 8),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 6,
+                                      vertical: 2,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: Colors.red.shade100,
+                                      borderRadius: BorderRadius.circular(6),
+                                      border: Border.all(color: Colors.red.shade200),
+                                    ),
+                                    child: const Text(
+                                      'RESCUE JOB',
+                                      style: TextStyle(
+                                        color: Color(0xFFB91C1C),
+                                        fontSize: 9,
+                                        fontWeight: FontWeight.w900,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ],
                             ),
                           ],
                         ),
@@ -442,9 +465,10 @@ class _NewJobRequestScreenState extends State<NewJobRequestScreen> {
                       Expanded(
                         child: _buildInfoCard(
                           'Estimated Price',
-                          '₹$price',
+                          '₹$price${request['isRescueJob'] == true ? ' + ₹150' : ''}',
                           Icons.payments_rounded,
                           Colors.green,
+                          subtitle: request['isRescueJob'] == true ? 'Includes Rescue Bonus' : null,
                         ),
                       ),
                       const SizedBox(width: 16),
@@ -540,9 +564,9 @@ class _NewJobRequestScreenState extends State<NewJobRequestScreen> {
                   child: OutlinedButton(
                     onPressed: () async {
                       try {
-                        await _bookingService.updateRequestStatus(
+                        await _bookingService.rejectBooking(
                           request['id'],
-                          'rejected',
+                          widget.workerId,
                         );
                         _handlePop(status: 'rejected');
                       } catch (e) {
@@ -570,17 +594,18 @@ class _NewJobRequestScreenState extends State<NewJobRequestScreen> {
                 Expanded(
                   flex: 2,
                   child: ElevatedButton(
-                    onPressed: () async {
-                      try {
-                        await _bookingService.updateRequestStatus(
-                          request['id'],
-                          'accepted',
-                        );
-                        _handlePop(status: 'accepted');
-                      } catch (e) {
-                        _handlePop(status: 'error');
-                      }
-                    },
+                      onPressed: () async {
+                        try {
+                          await _bookingService.acceptBooking(
+                            request['id'],
+                            widget.workerId,
+                            widget.workerName,
+                          );
+                          _handlePop(status: 'accepted');
+                        } catch (e) {
+                          _handlePop(status: 'error');
+                        }
+                      },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: primaryColor,
                       padding: const EdgeInsets.symmetric(vertical: 20),
@@ -623,8 +648,9 @@ class _NewJobRequestScreenState extends State<NewJobRequestScreen> {
     String label,
     String value,
     IconData icon,
-    Color color,
-  ) {
+    Color color, {
+    String? subtitle,
+  }) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -650,14 +676,29 @@ class _NewJobRequestScreenState extends State<NewJobRequestScreen> {
             ],
           ),
           const SizedBox(height: 8),
-          Text(
-            value,
-            style: const TextStyle(
-              fontWeight: FontWeight.w800,
-              fontSize: 16,
-              letterSpacing: -0.3,
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(
+              value,
+              style: const TextStyle(
+                fontWeight: FontWeight.w800,
+                fontSize: 16,
+                letterSpacing: -0.3,
+              ),
             ),
           ),
+          if (subtitle != null) ...[
+            const SizedBox(height: 4),
+            Text(
+              subtitle,
+              style: TextStyle(
+                color: Colors.green.shade600,
+                fontSize: 10,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
         ],
       ),
     );

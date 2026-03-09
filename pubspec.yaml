@@ -72,6 +72,28 @@ flutter:
     - assets/customer.png
     - assets/worker.png
     - assets/icon_laundry.png
+    - assets/icon_electrical.png
+    - assets/icon_cleaning.png
+    - assets/icon_plumbing.png
+    - assets/icon_gas.png
+    - assets/icon_painting.png
+    - assets/icon_ac.png
+    - assets/icon_security.png
+    - assets/icon_gardening.png
+    - assets/icon_carpentry.png
+    - assets/indane_logo.png
+    - assets/hp_logo.png
+    - assets/jio_logo.png
+    - assets/icon_furniture.png
+    - assets/icon_appliances.png
+    - assets/icon_automotive.png
+    - assets/icon_wifi.png
+    - assets/icon_pest_control.png
+    - assets/icon_car_wash.png
+    - assets/icon_tire_service.png
+    - assets/icon_engine_repair.png
+    - assets/icon_battery_service.png
+    - assets/icon_bike_service.png
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

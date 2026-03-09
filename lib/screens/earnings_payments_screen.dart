@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/auth_service.dart';
 import '../services/worker_service.dart';
+import 'service_records_screen.dart';
 import '../widgets/modern_header.dart';
 
 class EarningsPaymentsScreen extends StatefulWidget {
@@ -295,7 +296,7 @@ class _EarningsPaymentsScreenState extends State<EarningsPaymentsScreen> {
           _buildDetailRow(
             icon: Icons.account_balance,
             title: 'Total Earned',
-            value: '\$${totalEarned.toStringAsFixed(2)}',
+            value: '₹${totalEarned.toStringAsFixed(2)}',
           ),
           const SizedBox(height: 20),
           SizedBox(
@@ -360,6 +361,24 @@ class _EarningsPaymentsScreenState extends State<EarningsPaymentsScreen> {
                     ),
                   ),
                   TextButton(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const ServiceRecordsScreen(userRole: 'worker'),
+                        ),
+                      );
+                    },
+                    child: Text(
+                      'Service History',
+                      style: TextStyle(
+                        color: _primaryColor,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  TextButton(
                     onPressed: () {},
                     child: Text(
                       'View All',
@@ -403,7 +422,7 @@ class _EarningsPaymentsScreenState extends State<EarningsPaymentsScreen> {
                         ? '${createdAt.month}/${createdAt.day}/${createdAt.year}'
                         : 'Unknown date',
                     amount:
-                        '${isCredit ? '+' : '-'}\$${amount.toStringAsFixed(2)}',
+                        '${isCredit ? '+' : '-'}₹${amount.toStringAsFixed(2)}',
                     isCredit: isCredit,
                     icon: isCredit ? Icons.add_circle : Icons.remove_circle,
                   );

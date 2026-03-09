@@ -7,6 +7,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'worker_main_screen.dart';
 import '../services/booking_service.dart';
 import '../services/location_service.dart';
+import '../services/user_service.dart';
 import '../widgets/modern_header.dart';
 import '../widgets/worker_status_update_card.dart';
 
@@ -217,23 +218,34 @@ class _JobDetailsScreenState extends State<JobDetailsScreen> {
                   ),
                 ),
                 const SizedBox(height: 4),
-                Row(
-                  children: [
-                    const Icon(
-                      Icons.star_rounded,
-                      color: Color(0xFFF59E0B),
-                      size: 16,
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      '5.0 Customer Rating',
-                      style: TextStyle(
-                        color: Colors.grey.shade600,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
+                StreamBuilder<Map<String, dynamic>?>(
+                  stream: UserService().streamUserProfile(data['customerId'] ?? ''),
+                  builder: (context, userSnapshot) {
+                    final rawRating = (userSnapshot.data?['rating'] as num?)?.toDouble() ?? 0.0;
+                    final totalReviews = (userSnapshot.data?['totalReviews'] as num?)?.toInt() ?? 0;
+                    final String ratingStr = ((rawRating == 0.0 && totalReviews == 0) || userSnapshot.data?['rating'] == null)
+                        ? '5.0'
+                        : rawRating.toStringAsFixed(1);
+
+                    return Row(
+                      children: [
+                        const Icon(
+                          Icons.star_rounded,
+                          color: Color(0xFFF59E0B),
+                          size: 16,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          '$ratingStr Customer Rating',
+                          style: TextStyle(
+                            color: Colors.grey.shade600,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    );
+                  }
                 ),
               ],
             ),
@@ -302,7 +314,7 @@ class _JobDetailsScreenState extends State<JobDetailsScreen> {
           _buildDetailTile(
             Icons.payments_rounded,
             'Total Price',
-            '₹ ${price.toStringAsFixed(0)}',
+            '₹ ${price.toStringAsFixed(0)}${data['isReassigned'] == true ? " (reassigned discount applied)" : ""}',
             valueColor: _accentGreen,
           ),
           if (data['notes'] != null && data['notes'].toString().isNotEmpty) ...[
@@ -358,12 +370,18 @@ class _JobDetailsScreenState extends State<JobDetailsScreen> {
             ),
           ),
           const Spacer(),
-          Text(
-            value,
-            style: TextStyle(
-              fontWeight: FontWeight.w800,
-              color: valueColor ?? const Color(0xFF1E293B),
-              fontSize: 14,
+          Flexible(
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerRight,
+              child: Text(
+                value,
+                style: TextStyle(
+                  fontWeight: FontWeight.w800,
+                  color: valueColor ?? const Color(0xFF1E293B),
+                  fontSize: 14,
+                ),
+              ),
             ),
           ),
         ],

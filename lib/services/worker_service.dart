@@ -241,20 +241,38 @@ class WorkerService {
     String category,
   ) async {
     try {
-      // Fetch all workers and filter client-side to avoid index requirements and handle slight name mismatches
       final snapshot = await _firestore.collection('workers').get();
+
+      // Build a list of keywords to match for this category
+      final searchKeywords = _getCategoryKeywords(category.toLowerCase());
 
       final workers = snapshot.docs
           .map((doc) => {'id': doc.id, ...doc.data()})
           .where((worker) {
-            final serviceType = (worker['serviceType'] as String? ?? '')
-                .toLowerCase();
-            final searchCat = category.toLowerCase();
+            // Split serviceType into individual words for accurate matching
+            final serviceType = (worker['serviceType'] as String? ?? '').toLowerCase();
+            final serviceWords = serviceType
+                .replaceAll(',', ' ')
+                .split(RegExp(r'\s+'))
+                .where((w) => w.isNotEmpty)
+                .toList();
+
             final isAvailable = worker['isAvailable'] as bool? ?? false;
 
-            return (serviceType == searchCat ||
-                    serviceType.contains(searchCat)) &&
-                isAvailable;
+            // Check if any keyword matches any word in serviceType (word-level, not substring)
+            final matches = searchKeywords.any((kw) {
+              // First try exact word match
+              if (serviceWords.contains(kw)) return true;
+              // Then try if the serviceType as a whole contains the keyword as a proper word
+              return serviceType.contains(kw) &&
+                  (serviceType == kw ||
+                      serviceType.startsWith('$kw ') ||
+                      serviceType.endsWith(' $kw') ||
+                      serviceType.contains(' $kw ') ||
+                      serviceType.contains('$kw,') ||
+                      serviceType.contains(',$kw'));
+            });
+            return matches && isAvailable;
           })
           .toList();
 
@@ -263,6 +281,53 @@ class WorkerService {
       print('❌ Error fetching workers by category: $e');
       rethrow;
     }
+  }
+
+  /// Returns a list of keywords to match serviceType for a given category
+  List<String> _getCategoryKeywords(String category) {
+    if (category.contains('automotive') || category.contains('car wash') ||
+        category.contains('mechanic')) {
+      return ['automotive', 'car', 'mechanic', 'washing', 'vehicle'];
+    }
+    if (category.contains('electric')) {
+      return ['electric'];
+    }
+    if (category.contains('plumb') || category.contains('water')) {
+      return ['plumb', 'water'];
+    }
+    if (category.contains('clean')) {
+      return ['clean'];
+    }
+    if (category.contains('garden')) {
+      return ['garden', 'gardener'];
+    }
+    if (category.contains('paint')) {
+      return ['paint', 'painter'];
+    }
+    if (category.contains('pest')) {
+      return ['pest', 'exterminator'];
+    }
+    if (category.contains('laundry')) {
+      return ['laundry'];
+    }
+    if (category.contains('wifi') || category.contains('it support')) {
+      return ['wifi', 'it support', 'internet', 'network'];
+    }
+    if (category.contains('appliance')) {
+      return ['appliance'];
+    }
+    if (category.contains('furniture')) {
+      return ['furniture', 'carpenter'];
+    }
+    if (category.contains('ac') || category.contains('hvac')) {
+      return ['ac', 'hvac', 'air con', 'cooling'];
+    }
+    if (category.contains('security') || category.contains('lock')) {
+      return ['security', 'lock', 'cctv'];
+    }
+    // fallback: search by first word of the category
+    final firstWord = category.split(' ').first;
+    return [firstWord];
   }
 
   /// Stream worker jobs
@@ -296,37 +361,62 @@ class WorkerService {
     try {
       final walletRef = _firestore.collection('wallets').doc(workerId);
 
+      final double platformCommission = amount * 0.10;
+      final double workerEarnings = amount - platformCommission;
+
       await _firestore.runTransaction((transaction) async {
         final walletDoc = await transaction.get(walletRef);
 
         if (!walletDoc.exists) {
-          throw 'Wallet not found for worker: $workerId';
+          // Create a wallet if it doesn't exist
+          transaction.set(walletRef, {
+            'userId': workerId,
+            'userType': 'worker',
+            'balance': workerEarnings,
+            'totalEarned': workerEarnings,
+            'totalSpent': 0.0,
+            'currency': 'INR',
+            'payoutMethod': 'bank_transfer',
+            'createdAt': FieldValue.serverTimestamp(),
+            'updatedAt': FieldValue.serverTimestamp(),
+          });
+        } else {
+          final currentBalance = walletDoc.data()?['balance'] as num? ?? 0.0;
+          final totalEarned = walletDoc.data()?['totalEarned'] as num? ?? 0.0;
+
+          transaction.update(walletRef, {
+            'balance': currentBalance + workerEarnings,
+            'totalEarned': totalEarned + workerEarnings,
+            'updatedAt': FieldValue.serverTimestamp(),
+          });
         }
 
-        final currentBalance = walletDoc.data()?['balance'] as num? ?? 0.0;
-        final totalEarned = walletDoc.data()?['totalEarned'] as num? ?? 0.0;
-
-        transaction.update(walletRef, {
-          'balance': currentBalance + amount,
-          'totalEarned': totalEarned + amount,
-          'updatedAt': FieldValue.serverTimestamp(),
-        });
-
-        // Add a transaction record
+        // Add a transaction record for the worker
         final transactionRef = _firestore.collection('transactions').doc();
         transaction.set(transactionRef, {
           'id': transactionRef.id,
           'userId': workerId,
           'type': 'credit',
-          'amount': amount,
-          'description': 'Earnings for job #$requestId',
+          'amount': workerEarnings,
+          'description': 'Earnings for job #$requestId (After 10% Servico Fee)',
           'createdAt': FieldValue.serverTimestamp(),
           'status': 'completed',
+        });
+
+        // Add a platform earnings record
+        final platformRef = _firestore.collection('platform_earnings').doc();
+        transaction.set(platformRef, {
+          'id': platformRef.id,
+          'jobId': requestId,
+          'workerId': workerId,
+          'totalAmount': amount,
+          'commissionAmount': platformCommission,
+          'createdAt': FieldValue.serverTimestamp(),
         });
       });
 
       // Update local storage for instant dashboard reflection
-      await _addEarningsLocally(workerId, amount);
+      await _addEarningsLocally(workerId, workerEarnings);
       
       print('✓ Worker balance credited successfully');
     } catch (e) {

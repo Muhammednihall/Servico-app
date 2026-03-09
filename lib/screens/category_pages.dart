@@ -7,6 +7,7 @@ import '../services/worker_service.dart';
 import '../services/booking_service.dart';
 import '../services/auth_service.dart';
 import '../services/location_service.dart';
+import 'package:geolocator/geolocator.dart';
 import '../widgets/modern_header.dart';
 
 class SubCategoryModel {
@@ -53,12 +54,29 @@ class _CategoryServiceScreenState extends State<CategoryServiceScreen> {
   String _selectedFilter = 'All';
   String _searchQuery = '';
   String? _selectedSubcategory;
+  Position? _userPosition;
+  String? _selectedRegionFilter;
 
   @override
   void initState() {
     super.initState();
     _selectedSubcategory = widget.initialSubcategory;
     _loadWorkers();
+    _initializeLocation();
+  }
+
+  Future<void> _initializeLocation() async {
+    try {
+      final pos = await _locationService.getPosition();
+      if (mounted) {
+        setState(() {
+          _userPosition = pos;
+        });
+        _applyFilters();
+      }
+    } catch (e) {
+      print('Error getting location: $e');
+    }
   }
 
   Future<void> _loadWorkers() async {
@@ -112,6 +130,13 @@ class _CategoryServiceScreenState extends State<CategoryServiceScreen> {
         });
       }
 
+      if (_selectedRegionFilter != null && _selectedRegionFilter != 'All Regions') {
+        workers = workers.where((worker) {
+          final serviceArea = worker['serviceArea'] as String? ?? '';
+          return serviceArea.toLowerCase() == _selectedRegionFilter!.toLowerCase();
+        });
+      }
+
       List<Map<String, dynamic>> workersList = workers.toList();
 
       if (_selectedFilter == 'Rating 4.0+') {
@@ -120,15 +145,35 @@ class _CategoryServiceScreenState extends State<CategoryServiceScreen> {
           return rating >= 4.0;
         }).toList();
         workersList.sort(
-          (a, b) => (b['rating'] as num).compareTo(a['rating'] as num),
+          (a, b) => (b['rating'] as num? ?? 0).compareTo(a['rating'] as num? ?? 0),
         );
-      } else if (_selectedFilter == 'Availability') {
-        workersList = workersList.where((worker) {
-          return worker['isAvailable'] == true;
-        }).toList();
+      } else if (_selectedFilter == 'Nearest' && _userPosition != null) {
+        // Calculate distances first
+        for (var worker in workersList) {
+          final lat = (worker['latitude'] as num?)?.toDouble() ?? (worker['lat'] as num?)?.toDouble();
+          final lng = (worker['longitude'] as num?)?.toDouble() ?? (worker['lng'] as num?)?.toDouble();
+          
+          if (lat != null && lng != null) {
+            worker['distance'] = _locationService.calculateDistance(
+              _userPosition!.latitude,
+              _userPosition!.longitude,
+              lat,
+              lng,
+            );
+          } else {
+            worker['distance'] = 999999.0; // Place at the end
+          }
+        }
+        
+        workersList.sort((a, b) {
+          final dA = a['distance'] as double? ?? 999999.0;
+          final dB = b['distance'] as double? ?? 999999.0;
+          return dA.compareTo(dB);
+        });
       } else if (_selectedFilter == 'Price: Low to High') {
         workersList.sort(
-          (a, b) => (a['hourlyRate'] as num).compareTo(b['hourlyRate'] as num),
+          (a, b) => (a['hourlyRate'] as num? ?? a['price'] as num? ?? 0)
+              .compareTo(b['hourlyRate'] as num? ?? b['price'] as num? ?? 0),
         );
       }
 
@@ -156,16 +201,17 @@ class _CategoryServiceScreenState extends State<CategoryServiceScreen> {
       subtitle: _selectedSubcategory != null ? widget.categoryName : 'Service Provider',
       showBackButton: true,
       bottom: Container(
-        height: 56,
+        height: 48,
         padding: const EdgeInsets.symmetric(horizontal: 16),
         decoration: BoxDecoration(
           color: const Color(0xFFF1F5F9),
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: const Color(0xFFE2E8F0), width: 1),
         ),
         child: Row(
           children: [
-            const Icon(Icons.search, size: 20, color: Color(0xFF64748B)),
-            const SizedBox(width: 12),
+            const Icon(Icons.search_rounded, size: 18, color: Color(0xFF64748B)),
+            const SizedBox(width: 10),
             Expanded(
               child: TextField(
                 onChanged: (value) {
@@ -174,10 +220,12 @@ class _CategoryServiceScreenState extends State<CategoryServiceScreen> {
                   });
                   _applyFilters();
                 },
+                style: const TextStyle(fontSize: 14, color: Color(0xFF1E293B)),
                 decoration: const InputDecoration(
                   hintText: 'Search for specialists...',
-                  hintStyle: TextStyle(color: Color(0xFF94A3B8), fontSize: 14),
+                  hintStyle: TextStyle(color: Color(0xFF94A3B8), fontSize: 13),
                   border: InputBorder.none,
+                  isDense: true,
                 ),
               ),
             ),
@@ -194,11 +242,103 @@ class _CategoryServiceScreenState extends State<CategoryServiceScreen> {
         scrollDirection: Axis.horizontal,
         child: Row(
           children: [
+            _buildFilterChip('Nearest'),
+            const SizedBox(width: 12),
             _buildFilterChip('Rating 4.0+'),
             const SizedBox(width: 12),
             _buildFilterChip('Price: Low to High'),
             const SizedBox(width: 12),
-            _buildFilterChip('Availability'),
+            _buildRegionFilterChip(),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRegionFilterChip() {
+    final regions = _allWorkers
+        .map((w) => w['serviceArea'] as String?)
+        .where((s) => s != null && s.isNotEmpty)
+        .toSet()
+        .toList();
+    regions.sort();
+    
+    final label = _selectedRegionFilter ?? 'Region';
+    final isSelected = _selectedRegionFilter != null && _selectedRegionFilter != 'All Regions';
+
+    return GestureDetector(
+      onTap: () => _showRegionPicker(regions),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          color: isSelected ? const Color(0xFF2563EB) : Colors.white,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: isSelected ? const Color(0xFF2563EB) : const Color(0xFFE2E8F0),
+            width: 1,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              isSelected ? label.replaceAll('_', ' ').split(' ').map((w) => w.isNotEmpty ? '${w[0].toUpperCase()}${w.substring(1).toLowerCase()}' : '').join(' ') : 'Region',
+              style: TextStyle(
+                color: isSelected ? Colors.white : const Color(0xFF475569),
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(width: 6),
+            Icon(
+              Icons.keyboard_arrow_down_rounded,
+              color: isSelected ? Colors.white : const Color(0xFF94A3B8),
+              size: 16,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showRegionPicker(List<String?> regions) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (context) => Container(
+        padding: const EdgeInsets.symmetric(vertical: 24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('Select Region', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+            const SizedBox(height: 16),
+            Expanded(
+              child: ListView(
+                children: [
+                  ListTile(
+                    title: const Text('All Regions'),
+                    onTap: () {
+                      setState(() {
+                        _selectedRegionFilter = null;
+                        _applyFilters();
+                      });
+                      Navigator.pop(context);
+                    },
+                  ),
+                  ...regions.map((region) => ListTile(
+                        title: Text(region?.replaceAll('_', ' ').split(' ').map((w) => w.isNotEmpty ? '${w[0].toUpperCase()}${w.substring(1).toLowerCase()}' : '').join(' ') ?? 'Unknown'),
+                        onTap: () {
+                          setState(() {
+                            _selectedRegionFilter = region;
+                            _applyFilters();
+                          });
+                          Navigator.pop(context);
+                        },
+                      )),
+                ],
+              ),
+            ),
           ],
         ),
       ),
@@ -214,43 +354,24 @@ class _CategoryServiceScreenState extends State<CategoryServiceScreen> {
           _applyFilters();
         });
       },
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
         decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(20),
+          color: isSelected ? const Color(0xFF2563EB) : Colors.white,
+          borderRadius: BorderRadius.circular(10),
           border: Border.all(
-            color: isSelected ? _primaryColor : Colors.grey.shade200,
-            width: isSelected ? 1.5 : 1,
+            color: isSelected ? const Color(0xFF2563EB) : const Color(0xFFE2E8F0),
+            width: 1,
           ),
-          boxShadow: [
-            BoxShadow(
-              color: isSelected
-                  ? _primaryColor.withOpacity(0.1)
-                  : Colors.black.withOpacity(0.05),
-              blurRadius: 4,
-              offset: const Offset(0, 2),
-            ),
-          ],
         ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              label,
-              style: TextStyle(
-                color: isSelected ? _primaryColor : Colors.grey.shade700,
-                fontSize: 14,
-                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-              ),
-            ),
-            const SizedBox(width: 4),
-            Icon(
-              Icons.keyboard_arrow_down,
-              color: isSelected ? _primaryColor : Colors.grey.shade500,
-              size: 20,
-            ),
-          ],
+        child: Text(
+          label,
+          style: TextStyle(
+            color: isSelected ? Colors.white : const Color(0xFF475569),
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+          ),
         ),
       ),
     );
@@ -316,150 +437,151 @@ class _CategoryServiceScreenState extends State<CategoryServiceScreen> {
     final isAvailable = worker['isAvailable'] ?? false;
     final price = (worker['price'] as num?)?.toDouble() ?? 250.0;
 
-    return GestureDetector(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => WorkerPublicProfileScreen(worker: worker),
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
           ),
-        );
-      },
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 20),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(28),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.04),
-              blurRadius: 20,
-              offset: const Offset(0, 8),
-            ),
-          ],
-          border: Border.all(color: Colors.grey.shade100, width: 1.5),
-        ),
-        child: Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.all(20),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Stack(
-                    children: [
-                      Container(
-                        width: 74,
-                        height: 74,
-                        decoration: BoxDecoration(
-                          color: widget.categoryBgColor,
-                          borderRadius: BorderRadius.circular(22),
-                        ),
-                        child: Icon(
-                          widget.categoryIcon,
-                          size: 36,
-                          color: widget.categoryColor,
-                        ),
+        ],
+        border: Border.all(color: const Color(0xFFF1F5F9), width: 1),
+      ),
+      child: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Stack(
+                  children: [
+                    Container(
+                      width: 64,
+                      height: 64,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF8FAFC),
+                        shape: BoxShape.circle,
+                        image: worker['profileImage'] != null
+                            ? DecorationImage(
+                                image: NetworkImage(worker['profileImage']),
+                                fit: BoxFit.cover,
+                              )
+                            : null,
                       ),
-                      if (isAvailable)
-                        Positioned(
-                          right: 0,
-                          top: 0,
-                          child: Container(
-                            width: 16,
-                            height: 16,
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF10B981),
-                              shape: BoxShape.circle,
-                              border: Border.all(color: Colors.white, width: 3),
-                            ),
+                      child: worker['profileImage'] == null
+                          ? const Icon(
+                              Icons.person_rounded,
+                              size: 32,
+                              color: Color(0xFF94A3B8),
+                            )
+                          : null,
+                    ),
+                    if (isAvailable)
+                      Positioned(
+                        right: 2,
+                        top: 2,
+                        child: Container(
+                          width: 14,
+                          height: 14,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF10B981),
+                            shape: BoxShape.circle,
+                            border: Border.all(color: Colors.white, width: 2.5),
                           ),
                         ),
+                      ),
+                  ],
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          Expanded(
+                            child: Text(
+                              name,
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w700,
+                                color: Color(0xFF0F172A),
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            '₹${price.toInt()}',
+                            style: const TextStyle(
+                              color: Color(0xFF2563EB),
+                              fontWeight: FontWeight.w800,
+                              fontSize: 16,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          const Icon(Icons.star_rounded, color: Colors.amber, size: 14),
+                          const SizedBox(width: 4),
+                          Text(
+                            rating.toStringAsFixed(1),
+                            style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12, color: Color(0xFF475569)),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            '$totalReviews reviews',
+                            style: const TextStyle(color: Color(0xFF64748B), fontSize: 12, fontWeight: FontWeight.w500),
+                          ),
+                          const SizedBox(width: 8),
+                          Container(width: 3, height: 3, decoration: const BoxDecoration(color: Color(0xFFCBD5E1), shape: BoxShape.circle)),
+                          const SizedBox(width: 8),
+                          Text(
+                            '$experience yrs exp',
+                            style: const TextStyle(color: Color(0xFF64748B), fontSize: 12, fontWeight: FontWeight.w500),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      Wrap(
+                        spacing: 6,
+                        runSpacing: 6,
+                        children: [
+                          if (worker['distance'] != null && (worker['distance'] as double) < 999999.0)
+                            _buildInfoBadge(
+                              Icons.directions_walk_rounded,
+                              _locationService.formatDistance(worker['distance'] as double),
+                            ),
+                          if (worker['serviceArea'] != null && worker['serviceArea'].toString().isNotEmpty)
+                            _buildInfoBadge(
+                              Icons.location_on_outlined,
+                              ((worker['serviceArea'] as String?)?.replaceAll('_', ' ').split(' ').map((word) => word.isNotEmpty ? '${word[0].toUpperCase()}${word.substring(1)}' : '').join(' ') ?? 'Unknown'),
+                            ),
+                          _buildInfoBadge(Icons.verified_user_outlined, 'Verified'),
+                        ],
+                      ),
                     ],
                   ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Expanded(
-                              child: Text(
-                                name,
-                                style: const TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.w900,
-                                  color: Color(0xFF1E293B),
-                                  letterSpacing: -0.5,
-                                ),
-                              ),
-                            ),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                              decoration: BoxDecoration(
-                                color: widget.categoryColor.withOpacity(0.1),
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                              child: Text(
-                                '₹${price.toInt()}/hr',
-                                style: TextStyle(
-                                  color: widget.categoryColor,
-                                  fontWeight: FontWeight.w800,
-                                  fontSize: 13,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 6),
-                        Row(
-                          children: [
-                            const Icon(Icons.star_rounded, color: Colors.amber, size: 18),
-                            const SizedBox(width: 4),
-                            Text(
-                              rating.toStringAsFixed(1),
-                              style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13),
-                            ),
-                            const SizedBox(width: 4),
-                            Text(
-                              '($totalReviews reviews)',
-                              style: TextStyle(color: Colors.grey.shade500, fontSize: 13),
-                            ),
-                            const SizedBox(width: 8),
-                            Container(width: 4, height: 4, decoration: BoxDecoration(color: Colors.grey.shade300, shape: BoxShape.circle)),
-                            const SizedBox(width: 8),
-                            Text(
-                              '$experience yrs exp',
-                              style: TextStyle(color: Colors.grey.shade500, fontSize: 13),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 12),
-                        Wrap(
-                          spacing: 8,
-                          children: [
-                            _buildInfoBadge(Icons.verified_user_outlined, 'Verified', Colors.blue),
-                            _buildInfoBadge(Icons.timer_outlined, 'Quick Response', Colors.orange),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
+                ),
+              ],
             ),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-              decoration: BoxDecoration(
-                color: const Color(0xFFF8FAFC),
-                borderRadius: const BorderRadius.vertical(bottom: Radius.circular(28)),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  TextButton(
+          ),
+          const Divider(height: 1, color: Color(0xFFF1F5F9)),
+          Padding(
+            padding: const EdgeInsets.all(12),
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextButton(
                     onPressed: () {
                       Navigator.push(
                         context,
@@ -468,45 +590,54 @@ class _CategoryServiceScreenState extends State<CategoryServiceScreen> {
                         ),
                       );
                     },
-                    child: Text(
-                      'Profile',
-                      style: TextStyle(color: Colors.grey.shade600, fontWeight: FontWeight.w700, fontSize: 13),
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 10),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    ),
+                    child: const Text(
+                      'View Profile',
+                      style: TextStyle(color: Color(0xFF64748B), fontWeight: FontWeight.w700, fontSize: 13),
                     ),
                   ),
-                  const SizedBox(width: 4),
-                  ElevatedButton(
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: ElevatedButton(
                     onPressed: () => _handleBooking(worker),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: widget.categoryColor,
+                      backgroundColor: const Color(0xFF2563EB),
                       foregroundColor: Colors.white,
                       elevation: 0,
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      padding: const EdgeInsets.symmetric(vertical: 10),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                     ),
-                    child: const Text('Book Now', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13)),
+                    child: const Text('Book Now', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildInfoBadge(IconData icon, String label, Color color) {
+  Widget _buildInfoBadge(IconData icon, String label) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.08),
-        borderRadius: BorderRadius.circular(8),
+        color: const Color(0xFFF1F5F9),
+        borderRadius: BorderRadius.circular(6),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, color: color, size: 12),
+          Icon(icon, color: const Color(0xFF64748B), size: 12),
           const SizedBox(width: 4),
-          Text(label, style: TextStyle(color: color, fontSize: 10, fontWeight: FontWeight.w800)),
+          Text(
+            label,
+            style: const TextStyle(color: Color(0xFF475569), fontSize: 11, fontWeight: FontWeight.w600),
+          ),
         ],
       ),
     );

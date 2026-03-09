@@ -1,5 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import '../utils/category_utils.dart';
+
 
 class SubCategoryModel {
   final String id;
@@ -11,7 +13,7 @@ class SubCategoryModel {
   factory SubCategoryModel.fromMap(Map<String, dynamic> map, String id) {
     return SubCategoryModel(
       id: id,
-      name: map['name'] ?? '',
+      name: map['name'] as String? ?? 'Service',
       icon: map['icon'] ?? 'build',
     );
   }
@@ -109,7 +111,7 @@ class SubCategoryModel {
       case 'camera_alt':
         return Icons.camera_alt;
       case 'pest_control':
-        return Icons.bug_report;
+        return Icons.format_paint;
       case 'car_repair':
         return Icons.car_repair;
       case 'lock':
@@ -124,6 +126,8 @@ class SubCategoryModel {
         return Icons.vpn_key;
       case 'lock_open':
         return Icons.lock_open;
+      case 'nature':
+        return Icons.nature;
       default:
         return Icons.category;
     }
@@ -161,7 +165,7 @@ class CategoryModel {
 
     return CategoryModel(
       id: doc.id,
-      name: data['name'] ?? 'Unnamed Category',
+      name: CategoryUtils.normalizeName(data['name'] as String?),
       icon: data['icon'] ?? 'category',
       image: data['image'] ?? '',
       color: data['color'] ?? '#2463eb',
@@ -213,14 +217,23 @@ class CategoryModel {
         return Icons.chair_outlined;
       case 'laundry':
         return Icons.local_laundry_service;
+      case 'local_gas_station_rounded':
+        return Icons.local_gas_station_rounded;
       default:
         return Icons.category;
     }
   }
 
   Color getColor() {
-    final hexCode = color.replaceAll('#', '');
-    return Color(int.parse('FF$hexCode', radix: 16));
+    try {
+      String hex = color.replaceAll('#', '').replaceAll('0x', '');
+      if (hex.length == 6) {
+        hex = 'FF' + hex;
+      }
+      return Color(int.parse(hex, radix: 16));
+    } catch (e) {
+      return const Color(0xFF2463EB); // Default blue fallback
+    }
   }
 }
 
