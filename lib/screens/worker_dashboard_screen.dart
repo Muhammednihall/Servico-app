@@ -9,6 +9,8 @@ import 'job_details_screen.dart';
 import '../widgets/modern_header.dart';
 import '../widgets/worker_notification_popup.dart';
 import 'new_job_request_screen.dart';
+import 'worker_reviews_screen.dart';
+import 'service_records_screen.dart';
 import 'dart:async';
 
 class WorkerDashboardScreen extends StatefulWidget {
@@ -56,6 +58,12 @@ class _WorkerDashboardScreenState extends State<WorkerDashboardScreen> {
           NotificationService().getAndSaveToken(
             userId: _workerId,
             userType: 'worker',
+          );
+
+          // Start client-side notification sync (backup for Cloud Functions)
+          NotificationService().startListeningToFirestoreNotifications(
+            _workerId, 
+            'worker',
           );
         }
       }
@@ -126,23 +134,31 @@ class _WorkerDashboardScreenState extends State<WorkerDashboardScreen> {
               },
             ),
             Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 20,
-                  vertical: 24,
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _buildStatusBanner(),
-                    const SizedBox(height: 32),
-                    _buildIncomingRequests(),
-                    const SizedBox(height: 32),
-                    _buildActiveJobs(),
-                    const SizedBox(height: 32),
-                    _buildStatsGrid(),
-                    const SizedBox(height: 120),
-                  ],
+              child: RefreshIndicator(
+                onRefresh: () async {
+                  await _loadWorkerData();
+                  setState(() {});
+                },
+                color: const Color(0xFF2463EB),
+                child: SingleChildScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 24,
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildStatusBanner(),
+                      const SizedBox(height: 32),
+                      _buildIncomingRequests(),
+                      const SizedBox(height: 32),
+                      _buildActiveJobs(),
+                      const SizedBox(height: 32),
+                      _buildStatsGrid(),
+                      const SizedBox(height: 120),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -201,8 +217,8 @@ class _WorkerDashboardScreenState extends State<WorkerDashboardScreen> {
   }
 
   Widget _buildStatusBanner() {
-    return FutureBuilder<double>(
-      future: _workerService.getTodaysEarnings(_workerId),
+    return StreamBuilder<double>(
+      stream: _workerService.streamTodaysEarnings(_workerId),
       builder: (context, snapshot) {
         final todaysEarning = snapshot.data ?? 0.0;
         return Container(
@@ -667,11 +683,20 @@ class _WorkerDashboardScreenState extends State<WorkerDashboardScreen> {
               children: [
                 Row(
                   children: [
-                    _buildInsightCard(
-                      'Completed',
-                      '$acceptedRequests',
-                      Icons.receipt_long_rounded,
-                      Colors.purple,
+                    StreamBuilder<int>(
+                      stream: _bookingService.streamCompletedJobsCount(_workerId),
+                      builder: (context, countSnapshot) {
+                        return _buildInsightCard(
+                          'Completed',
+                          '${countSnapshot.data ?? 0}',
+                          Icons.receipt_long_rounded,
+                          Colors.purple,
+                          onTap: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (_) => const ServiceRecordsScreen(userRole: 'worker')),
+                          ),
+                        );
+                      }
                     ),
                     const SizedBox(width: 12),
                     _buildInsightCard(
@@ -679,6 +704,10 @@ class _WorkerDashboardScreenState extends State<WorkerDashboardScreen> {
                       ratingStr,
                       Icons.star_rounded,
                       Colors.amber,
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => WorkerReviewsScreen(workerId: _workerId)),
+                      ),
                     ),
                   ],
                 ),
@@ -690,6 +719,10 @@ class _WorkerDashboardScreenState extends State<WorkerDashboardScreen> {
                       '$totalReviews',
                       Icons.reviews_rounded,
                       Colors.blue,
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => WorkerReviewsScreen(workerId: _workerId)),
+                      ),
                     ),
                     const SizedBox(width: 12),
                     _buildInsightCard(
@@ -712,45 +745,49 @@ class _WorkerDashboardScreenState extends State<WorkerDashboardScreen> {
     String label,
     String value,
     IconData icon,
-    Color color,
-  ) {
+    Color color, {
+    VoidCallback? onTap,
+  }) {
     return Expanded(
-      child: Container(
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(28),
-          border: Border.all(color: Colors.grey.shade100, width: 1.5),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: color.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(12),
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(28),
+            border: Border.all(color: Colors.grey.shade100, width: 1.5),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(icon, color: color, size: 20),
               ),
-              child: Icon(icon, color: color, size: 20),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              value,
-              style: const TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.w800,
-                color: Color(0xFF1E293B),
+              const SizedBox(height: 16),
+              Text(
+                value,
+                style: const TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w800,
+                  color: Color(0xFF1E293B),
+                ),
               ),
-            ),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 12,
-                color: Colors.grey.shade500,
-                fontWeight: FontWeight.w600,
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.grey.shade500,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

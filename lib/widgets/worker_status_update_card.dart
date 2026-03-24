@@ -566,7 +566,7 @@ class _WorkerStatusUpdateCardState extends State<WorkerStatusUpdateCard> {
   Future<void> _completeJob() async {
     setState(() => _isUpdating = true);
     try {
-      await _bookingService.completeJob(_requestId);
+      await _bookingService.workerCompleteJob(_requestId);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(

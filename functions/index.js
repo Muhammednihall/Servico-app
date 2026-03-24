@@ -355,3 +355,145 @@ exports.onDelayReported = functions.firestore
             return null;
         }
     });
+
+// ==================== NEW BOOKING NOTIFICATIONS ====================
+
+/**
+ * Triggered when a new booking request is created
+ * Notifies the assigned worker (or potentially all workers in category if broadcast)
+ */
+exports.onNewBookingRequest = functions.firestore
+    .document('booking_requests/{bookingId}')
+    .onCreate(async (snap, context) => {
+        const booking = snap.data();
+        const bookingId = context.params.bookingId;
+        const workerId = booking.workerId;
+        const customerName = booking.customerName || 'A customer';
+        const serviceName = booking.serviceName || 'a service';
+
+        if (!workerId) {
+            console.log(`Booking ${bookingId} has no workerId yet (broadcast mode).`);
+            // Here you could implement logic to notify all workers in the category
+            return null;
+        }
+
+        try {
+            // Get worker's FCM token
+            const workerDoc = await db.collection('workers').doc(workerId).get();
+            if (!workerDoc.exists) return null;
+
+            const fcmToken = workerDoc.data().fcmToken;
+            if (!fcmToken) return null;
+
+            // Prepare the FCM message
+            const message = {
+                token: fcmToken,
+                notification: {
+                    title: '🆕 New Job Request!',
+                    body: `${customerName} is requesting ${serviceName}.`,
+                },
+                data: {
+                    type: 'new_job_request',
+                    bookingId: bookingId,
+                    click_action: 'FLUTTER_NOTIFICATION_CLICK',
+                },
+                android: {
+                    priority: 'high',
+                    notification: {
+                        channelId: 'servico_high_importance',
+                        sound: 'default',
+                    },
+                },
+                apns: {
+                    payload: {
+                        aps: {
+                            sound: 'default',
+                            badge: 1,
+                        },
+                    },
+                },
+            };
+
+            await messaging.send(message);
+            console.log(`✅ New job notification sent to worker ${workerId}`);
+
+            // Also create a notification document in worker_notifications for history
+            await db.collection('worker_notifications').add({
+                workerId: workerId,
+                title: '🆕 New Job Request!',
+                message: `${customerName} is requesting ${serviceName}.`,
+                type: 'new_job_request',
+                bookingId: bookingId,
+                isRead: false,
+                isSent: true,
+                createdAt: admin.firestore.FieldValue.serverTimestamp(),
+            });
+
+            return null;
+        } catch (error) {
+            console.error(`❌ Error sending new booking notification: ${error}`);
+            return null;
+        }
+    });
+
+// ==================== BROADCAST NOTIFICATIONS ====================
+
+/**
+ * Triggered when a new broadcast notification is created
+ * Sends FCM push notification to a topic (all, workers, or customers)
+ */
+exports.sendBroadcastNotification = functions.firestore
+    .document('broadcast_notifications/{notificationId}')
+    .onCreate(async (snap, context) => {
+        const broadcast = snap.data();
+        const topic = broadcast.targetTopic || 'all';
+
+        try {
+            const message = {
+                topic: topic,
+                notification: {
+                    title: broadcast.title || 'Servico Announcement',
+                    body: broadcast.body || '',
+                },
+                data: {
+                    type: 'broadcast',
+                    notificationId: context.params.notificationId,
+                    click_action: 'FLUTTER_NOTIFICATION_CLICK',
+                },
+                android: {
+                    priority: 'high',
+                    notification: {
+                        channelId: 'servico_high_importance',
+                        sound: 'default',
+                    },
+                },
+                apns: {
+                    payload: {
+                        aps: {
+                            sound: 'default',
+                            badge: 1,
+                        },
+                    },
+                },
+            };
+
+            // Add image if available
+            if (broadcast.imageUrl) {
+                message.notification.imageUrl = broadcast.imageUrl;
+            }
+
+            const response = await messaging.send(message);
+            console.log(`✅ Broadcast sent to topic ${topic}: ${response}`);
+
+            // Mark as sent
+            await snap.ref.update({
+                isSent: true,
+                sentAt: admin.firestore.FieldValue.serverTimestamp(),
+            });
+
+            return response;
+        } catch (error) {
+            console.error(`❌ Error sending broadcast: ${error}`);
+            return null;
+        }
+    });

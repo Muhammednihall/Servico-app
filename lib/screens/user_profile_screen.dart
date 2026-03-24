@@ -6,6 +6,8 @@ import 'service_records_screen.dart';
 import '../services/auth_service.dart';
 import '../services/user_service.dart';
 import 'package:intl/intl.dart';
+import 'admin_notification_composer_screen.dart';
+import 'notification_screen.dart';
 
 class UserProfileScreen extends StatelessWidget {
   const UserProfileScreen({super.key});
@@ -42,6 +44,10 @@ class UserProfileScreen extends StatelessWidget {
                   child: Column(
                     children: [
                       _buildProfileCard(context, name, role, dateStr),
+                      if (userData?['email'] == 'muhammednihal.k33@gmail.com') ...[
+                        const SizedBox(height: 24),
+                        _buildAdminTools(context),
+                      ],
                       const SizedBox(height: 24),
                       _buildSettings(context, role),
                       const SizedBox(height: 20),
@@ -251,7 +257,12 @@ class UserProfileScreen extends StatelessWidget {
             label: 'Notifications',
             iconColor: const Color(0xFF6366f1),
             iconBg: const Color(0xFFeef2ff),
-            onTap: () {},
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const NotificationScreen()),
+              );
+            },
           ),
           _buildSettingsItem(
             icon: Icons.lock_outline,
@@ -267,6 +278,52 @@ class UserProfileScreen extends StatelessWidget {
             iconBg: const Color(0xFFfaf5ff),
             showBorder: false,
             onTap: () {},
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAdminTools(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: const Color(0xFF1E293B), // Dark slate for admin feel
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Padding(
+            padding: EdgeInsets.fromLTRB(20, 20, 20, 8),
+            child: Text(
+              'Admin Tools',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 18,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
+          _buildSettingsItem(
+            icon: Icons.campaign_rounded,
+            label: 'Compose Notification',
+            iconColor: Colors.amber,
+            iconBg: Colors.amber.withOpacity(0.1),
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const AdminNotificationComposerScreen(),
+                ),
+              );
+            },
           ),
         ],
       ),

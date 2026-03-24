@@ -56,6 +56,15 @@ class BookingService {
       'extraTimeRequest': null,
     });
 
+    // Directly create a worker notification since Cloud Functions are not active
+    await _createWorkerNotification(
+      workerId: workerId,
+      title: '🆕 New Job Request!',
+      message: '${customerName ?? "A customer"} is requesting $serviceName.',
+      type: 'new_job_request',
+      bookingId: docRef.id,
+    );
+
     return docRef.id;
   }
 
@@ -193,18 +202,28 @@ class BookingService {
       }, SetOptions(merge: true));
     });
 
-    // Notify customer about new worker if it was a rescue job
+    // Notify customer that worker accepted their request
     final finalDoc = await docRef.get();
-    if (finalDoc.exists && finalDoc.data()?['isRescueJob'] == true) {
+    if (finalDoc.exists) {
       final customerId = finalDoc.data()?['customerId'];
       if (customerId != null) {
-        await _createCustomerNotification(
-          customerId: customerId,
-          title: '✅ Rescue Worker Found!',
-          message: '$workerName has accepted your request and is now on the way!',
-          type: 'rescue_worker_accepted',
-          bookingId: requestId,
-        );
+        if (finalDoc.data()?['isRescueJob'] == true) {
+          await _createCustomerNotification(
+            customerId: customerId,
+            title: '✅ Rescue Worker Found!',
+            message: '$workerName has accepted your request and is now on the way!',
+            type: 'rescue_worker_accepted',
+            bookingId: requestId,
+          );
+        } else {
+          await _createCustomerNotification(
+            customerId: customerId,
+            title: '✅ Booking Accepted!',
+            message: '$workerName has accepted your request. They will be on their way soon!',
+            type: NotificationType.jobAccepted,
+            bookingId: requestId,
+          );
+        }
       }
     }
   }
@@ -377,8 +396,8 @@ class BookingService {
   Future<void> updateWorkerStatusWorking(String requestId) async =>
       updateWorkerStatus(requestId, 'working');
 
-  /// Complete job
-  Future<void> completeJob(String requestId) async {
+  /// Worker marks job as completed. This starts the verification flow.
+  Future<void> workerCompleteJob(String requestId) async {
     try {
       final doc = await _firestore
           .collection('booking_requests')
@@ -387,50 +406,108 @@ class BookingService {
       final data = doc.data();
       if (data == null) return;
 
-      final workerId = data['workerId'];
-      final rescueBonus = (data['rescueBonus'] as num?)?.toDouble() ?? 0.0;
-      final price = (data['price'] as num?)?.toDouble() ?? 0.0;
-      final duration = (data['duration'] as int?) ?? 1;
-      final totalAmount = (price * duration) + rescueBonus;
+      final customerId = data['customerId'] as String?;
+      final workerName = data['workerName'] as String? ?? 'Provider';
 
-      final customerPayment = price * duration;
-
-      await updateRequestStatus(requestId, 'completed');
-
-      final workerService = WorkerService();
-      await workerService.creditWorkerBalance(workerId, totalAmount, requestId);
-
-      // Create Service Record (Receipt)
-      await _firestore.collection('service_records').add({
-        'bookingId': requestId,
-        'workerId': workerId,
-        'workerName': data['workerName'],
-        'customerId': data['customerId'],
-        'customerName': data['customerName'],
-        'serviceName': data['serviceName'],
-        'finalAmount': totalAmount, // For legacy compatibility
-        'workerEarnings': totalAmount,
-        'customerPayment': customerPayment,
-        'duration': duration,
-        'completedAt': FieldValue.serverTimestamp(),
-        'isReassigned': data['isReassigned'] ?? false,
-        'isRescueJob': data['isRescueJob'] ?? false,
-        'rescueBonus': data['rescueBonus'] ?? 0.0,
-        'originalPrice': data['originalPrice'] ?? price,
+      // Set workerStatus to completed, but overall status remains active for verification
+      await _firestore.collection('booking_requests').doc(requestId).update({
+        'workerStatus': 'completed',
+        'statusUpdatedAt': FieldValue.serverTimestamp(),
       });
 
-      final customerId = data['customerId'] as String?;
       if (customerId != null) {
         await _createCustomerNotification(
           customerId: customerId,
-          title: '✅ Job Completed!',
-          message: 'Your job has been completed. Please rate your experience!',
+          title: '✅ Job Marked Completed!',
+          message: '$workerName has completed the job. Please verify and pay!',
           type: NotificationType.jobCompleted,
           bookingId: requestId,
         );
       }
     } catch (e) {
-      print('❌ Error completing job: $e');
+      print('❌ Error in workerCompleteJob: $e');
+      rethrow;
+    }
+  }
+
+  /// Customer verifies job and rates the worker - This triggers worker payout
+  Future<void> verifyJobByCustomer({
+    required String requestId,
+    required String workerId,
+    required String customerId,
+    required String customerName,
+    required double rating,
+    required String review,
+    required double amount,
+  }) async {
+    try {
+      // 1. Submit the review
+      await submitWorkerReview(
+        requestId: requestId,
+        workerId: workerId,
+        customerId: customerId,
+        customerName: customerName,
+        rating: rating,
+        review: review,
+      );
+
+      // 2. Mark as verified
+      await _firestore.collection('booking_requests').doc(requestId).update({
+        'isVerified': true,
+        'verifiedAt': FieldValue.serverTimestamp(),
+        'status': 'verified', // Intermediate status before payment
+      });
+
+      // 3. Credit worker balance instantly after verification
+      final workerService = WorkerService();
+      await workerService.creditWorkerBalance(workerId, amount, requestId);
+
+      // Create service record (pending payment)
+      final doc = await _firestore.collection('booking_requests').doc(requestId).get();
+      final data = doc.data();
+      
+      await _firestore.collection('service_records').doc(requestId).set({
+        'bookingId': requestId,
+        'workerId': workerId,
+        'workerName': data?['workerName'],
+        'customerId': customerId,
+        'customerName': customerName,
+        'customerAddress': data?['customerAddress'],
+        'serviceName': data?['serviceName'],
+        'workerEarnings': amount,
+        'customerAmountDue': amount,
+        'isVerified': true,
+        'verifiedAt': FieldValue.serverTimestamp(),
+        'completedAt': FieldValue.serverTimestamp(),
+        'paymentStatus': 'pending',
+        'isReassigned': data?['isReassigned'] ?? false,
+        'isRescueJob': data?['isRescueJob'] ?? false,
+      }, SetOptions(merge: true));
+
+    } catch (e) {
+      print('❌ Error in verifyJobByCustomer: $e');
+      rethrow;
+    }
+  }
+
+  /// Finalize payment after Razorpay success
+  Future<void> finalizeCustomerPayment(String requestId, String transactionId) async {
+    try {
+      await _firestore.collection('booking_requests').doc(requestId).update({
+        'status': 'completed',
+        'paymentStatus': 'paid',
+        'transactionId': transactionId,
+        'paidAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
+      await _firestore.collection('service_records').doc(requestId).update({
+        'paymentStatus': 'paid',
+        'transactionId': transactionId,
+        'paidAt': FieldValue.serverTimestamp(),
+      });
+    } catch (e) {
+      print('❌ Error in finalizeCustomerPayment: $e');
       rethrow;
     }
   }
@@ -1067,6 +1144,15 @@ class BookingService {
           .get();
       return cCount + wSnapshot.docs.length;
     });
+  }
+
+  Stream<int> streamCompletedJobsCount(String workerId) {
+    return FirebaseFirestore.instance
+        .collection('booking_requests')
+        .where('workerId', isEqualTo: workerId)
+        .where('status', isEqualTo: 'completed')
+        .snapshots()
+        .map((snapshot) => snapshot.docs.length);
   }
 
   Future<int> getCompletedJobsCount(String workerId) async {

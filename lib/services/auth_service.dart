@@ -1,5 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'notification_service.dart';
 
 class AuthService {
   final FirebaseAuth _firebaseAuth = FirebaseAuth.instance;
@@ -289,6 +290,7 @@ class AuthService {
   // Logout
   Future<void> logout() async {
     try {
+      NotificationService().stopListeningToFirestoreNotifications();
       await _firebaseAuth.signOut();
     } catch (e) {
       throw 'Logout failed: $e';

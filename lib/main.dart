@@ -4,6 +4,8 @@ import 'firebase_options.dart';
 import 'screens/splash_screen.dart';
 import 'services/notification_service.dart';
 
+final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(
@@ -11,7 +13,7 @@ void main() async {
   );
   
   // Initialize notification service for push notifications
-  await NotificationService().initialize();
+  await NotificationService().initialize(navigatorKey: navigatorKey);
   
   runApp(const MyApp());
 }
@@ -24,6 +26,7 @@ class MyApp extends StatelessWidget {
     const primaryBlue = Color(0xFF2463eb);
     
     return MaterialApp(
+      navigatorKey: navigatorKey,
       title: 'Servico App',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(

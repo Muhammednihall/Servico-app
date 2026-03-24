@@ -60,6 +60,12 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
         userId: user.uid,
         userType: 'customer',
       );
+
+      // Start client-side notification sync (backup for Cloud Functions)
+      NotificationService().startListeningToFirestoreNotifications(
+        user.uid, 
+        'customer',
+      );
     }
   }
 

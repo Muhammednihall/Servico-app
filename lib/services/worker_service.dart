@@ -146,7 +146,27 @@ class WorkerService {
     }
   }
 
-  /// Get today's earnings with local persistence and daily reset
+  /// Get today's earnings by streaming transactions from today
+  Stream<double> streamTodaysEarnings(String uid) {
+    final now = DateTime.now();
+    final startOfDay = DateTime(now.year, now.month, now.day);
+    
+    return _firestore
+        .collection('transactions')
+        .where('userId', isEqualTo: uid)
+        .where('type', isEqualTo: 'credit')
+        .where('createdAt', isGreaterThanOrEqualTo: Timestamp.fromDate(startOfDay))
+        .snapshots()
+        .map((snapshot) {
+          double total = 0;
+          for (var doc in snapshot.docs) {
+            total += (doc.data()['amount'] as num?)?.toDouble() ?? 0.0;
+          }
+          return total;
+        });
+  }
+
+  /// Get today's earnings with local persistence (fallback)
   Future<double> getTodaysEarnings(String uid) async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -364,6 +384,11 @@ class WorkerService {
       final double platformCommission = amount * 0.10;
       final double workerEarnings = amount - platformCommission;
 
+      // Fetch worker and job details to enhance transaction description
+      final requestDoc = await _firestore.collection('booking_requests').doc(requestId).get();
+      final requestData = requestDoc.data();
+      final String placeName = requestData?['customerAddress'] ?? 'Unspecified Location';
+
       await _firestore.runTransaction((transaction) async {
         final walletDoc = await transaction.get(walletRef);
 
@@ -398,7 +423,7 @@ class WorkerService {
           'userId': workerId,
           'type': 'credit',
           'amount': workerEarnings,
-          'description': 'Earnings for job #$requestId (After 10% Servico Fee)',
+          'description': 'Earnings for job at $placeName (Net)',
           'createdAt': FieldValue.serverTimestamp(),
           'status': 'completed',
         });

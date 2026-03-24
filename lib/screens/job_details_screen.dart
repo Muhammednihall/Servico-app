@@ -788,7 +788,7 @@ class _JobDetailsScreenState extends State<JobDetailsScreen> {
   Future<void> _handleCompleteJob(Map<String, dynamic> data) async {
     setState(() => _isProcessing = true);
     try {
-      await _bookingService.completeJob(data['id']);
+      await _bookingService.workerCompleteJob(data['id']);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
