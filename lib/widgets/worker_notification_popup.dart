@@ -37,7 +37,18 @@ class _WorkerNotificationPopupState extends State<WorkerNotificationPopup> {
         .streamWorkerNotifications(widget.workerId)
         .listen((notifications) {
           if (notifications.isNotEmpty && !_isShowingPopup) {
-            _pendingNotifications = notifications;
+            // Only show the MOST RECENT notification (last one)
+            final mostRecent = notifications.last;
+            
+            // Mark all older ones as read automatically
+            for (int i = 0; i < notifications.length - 1; i++) {
+              final oldId = notifications[i]['id'] as String?;
+              if (oldId != null) {
+                _bookingService.markNotificationAsRead(oldId);
+              }
+            }
+            
+            _pendingNotifications = [mostRecent];
             _showNextNotification();
           }
         });
@@ -52,12 +63,6 @@ class _WorkerNotificationPopupState extends State<WorkerNotificationPopup> {
     _showNotificationDialog(notification).then((_) {
       _isShowingPopup = false;
       _pendingNotifications.removeAt(0);
-      // Show next notification if any
-      if (_pendingNotifications.isNotEmpty) {
-        Future.delayed(const Duration(milliseconds: 500), () {
-          _showNextNotification();
-        });
-      }
     });
   }
 

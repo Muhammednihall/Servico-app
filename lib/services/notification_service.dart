@@ -134,7 +134,7 @@ class NotificationService {
       sound: true,
     );
 
-    // Set up foreground message handler
+    // Set foreground message handler
     _foregroundSubscription = FirebaseMessaging.onMessage.listen(_handleForegroundMessage);
 
     // Handle notification taps when app is in background
@@ -148,9 +148,6 @@ class NotificationService {
         _handleNotificationTap(initialMessage);
       });
     }
-
-    // Set background message handler
-    FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
 
     _isInitialized = true;
     print('✅ Notification service initialized');
@@ -364,15 +361,22 @@ class NotificationService {
     final collection = userType == 'worker' ? 'worker_notifications' : 'customer_notifications';
     final userField = userType == 'worker' ? 'workerId' : 'customerId';
 
-    // 1. Listen for user-specific notifications
+    // Only look at notifications from the last 5 minutes (prevents old notification flood)
+    final recentCutoff = Timestamp.fromDate(
+      DateTime.now().subtract(const Duration(minutes: 5)),
+    );
+
+    // 1. Listen for user-specific notifications (only recent & unread)
     _firestoreSubscription = _firestore
         .collection(collection)
         .where(userField, isEqualTo: userId)
         .where('isRead', isEqualTo: false)
+        .where('createdAt', isGreaterThan: recentCutoff)
         .snapshots()
         .listen((snapshot) {
       
       if (_isFirstSnapshot) {
+        // On first load, mark all existing ones as "seen" so they don't pop up
         for (final doc in snapshot.docs) { _seenNotificationIds.add(doc.id); }
         _isFirstSnapshot = false;
         return;
@@ -394,13 +398,21 @@ class NotificationService {
               'id': doc.id,
             }),
           );
+
+          // Mark as read so it won't show again on next app open
+          _firestore.collection(collection).doc(doc.id).update({'isRead': true});
         }
       }
     }, onError: (e) => print('❌ Notification sync error: $e'));
 
-    // 2. Listen for global broadcasts
+    // 2. Listen for global broadcasts (only recent ones)
+    final broadcastCutoff = Timestamp.fromDate(
+      DateTime.now().subtract(const Duration(minutes: 5)),
+    );
+
     _broadcastSubscription = _firestore
         .collection('broadcast_notifications')
+        .where('createdAt', isGreaterThan: broadcastCutoff)
         .snapshots()
         .listen((snapshot) {
       

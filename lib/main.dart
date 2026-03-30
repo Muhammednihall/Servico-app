@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'firebase_options.dart';
 import 'screens/splash_screen.dart';
 import 'services/notification_service.dart';
@@ -14,6 +15,9 @@ void main() async {
   
   // Initialize notification service for push notifications
   await NotificationService().initialize(navigatorKey: navigatorKey);
+
+  // Set background message handler as early as possible
+  FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
   
   runApp(const MyApp());
 }
