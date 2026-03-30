@@ -6,6 +6,8 @@ import 'worker_main_screen.dart';
 import '../services/auth_service.dart';
 import '../services/location_service.dart';
 
+import '../services/connectivity_service.dart';
+
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
 
@@ -20,6 +22,7 @@ class _SplashScreenState extends State<SplashScreen>
   late Animation<double> _scaleAnimation;
   final AuthService _authService = AuthService();
   final LocationService _locationService = LocationService();
+  final ConnectivityService _connectivity = ConnectivityService();
 
   @override
   void initState() {
@@ -45,16 +48,17 @@ class _SplashScreenState extends State<SplashScreen>
     );
 
     _animationController.forward();
-
-    // Request location permission and check user session
     _initializeApp();
   }
 
   Future<void> _initializeApp() async {
-    // Request location permission early (won't block if denied)
-    await _locationService.requestPermission();
+    // Start listening for connectivity changes
+    if (mounted) _connectivity.initialize();
     
-    // Wait for animations
+    // Request location permission (non-blocking)
+    _locationService.requestPermission();
+    
+    // Show splash for minimum duration
     await Future.delayed(const Duration(milliseconds: 2500));
     
     if (mounted) {
@@ -67,64 +71,41 @@ class _SplashScreenState extends State<SplashScreen>
       User? currentUser = FirebaseAuth.instance.currentUser;
 
       if (currentUser != null) {
-        // User is logged in, determine their role
+        // User exists, try to get role (will use cache if slow/offline)
         String? role = await _authService.getUserRole(currentUser.uid);
 
         if (mounted) {
           if (role == 'customer') {
-            Navigator.of(context).pushReplacement(
-              PageRouteBuilder(
-                pageBuilder: (context, animation, secondaryAnimation) =>
-                    const CustomerHomeScreen(),
-                transitionsBuilder:
-                    (context, animation, secondaryAnimation, child) {
-                      return FadeTransition(opacity: animation, child: child);
-                    },
-                transitionDuration: const Duration(milliseconds: 500),
-              ),
-            );
+            _navigateWithAnimation(const CustomerHomeScreen());
           } else if (role == 'worker') {
-            Navigator.of(context).pushReplacement(
-              PageRouteBuilder(
-                pageBuilder: (context, animation, secondaryAnimation) =>
-                    const WorkerMainScreen(),
-                transitionsBuilder:
-                    (context, animation, secondaryAnimation, child) {
-                      return FadeTransition(opacity: animation, child: child);
-                    },
-                transitionDuration: const Duration(milliseconds: 500),
-              ),
-            );
+            _navigateWithAnimation(const WorkerMainScreen());
           } else {
-            // Role not found, go to login
             _navigateToLogin();
           }
         }
       } else {
-        // No user logged in, go to login screen
-        if (mounted) {
-          _navigateToLogin();
-        }
+        if (mounted) _navigateToLogin();
       }
     } catch (e) {
-      print('❌ Error checking user session: $e');
-      if (mounted) {
-        _navigateToLogin();
-      }
+      print('❌ Error checking session: $e');
+      if (mounted) _navigateToLogin();
     }
   }
 
-  void _navigateToLogin() {
+  void _navigateWithAnimation(Widget screen) {
     Navigator.of(context).pushReplacement(
       PageRouteBuilder(
-        pageBuilder: (context, animation, secondaryAnimation) =>
-            const LoginScreen(),
+        pageBuilder: (context, animation, secondaryAnimation) => screen,
         transitionsBuilder: (context, animation, secondaryAnimation, child) {
           return FadeTransition(opacity: animation, child: child);
         },
         transitionDuration: const Duration(milliseconds: 500),
       ),
     );
+  }
+
+  void _navigateToLogin() {
+    _navigateWithAnimation(const LoginScreen());
   }
 
   @override
@@ -158,7 +139,7 @@ class _SplashScreenState extends State<SplashScreen>
                           BoxShadow(
                             color: const Color(
                               0xFF2463eb,
-                            ).withValues(alpha: 0.2),
+                            ).withOpacity(0.2),
                             blurRadius: 30,
                             offset: const Offset(0, 10),
                           ),

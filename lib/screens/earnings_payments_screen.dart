@@ -87,7 +87,7 @@ class _EarningsPaymentsScreenState extends State<EarningsPaymentsScreen> {
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-              color: const Color(0xFF0d3d2e).withValues(alpha: 0.4),
+              color: const Color(0xFF0d3d2e).withOpacity(0.4),
               blurRadius: 25,
               offset: const Offset(0, 10),
             ),
@@ -141,7 +141,7 @@ class _EarningsPaymentsScreenState extends State<EarningsPaymentsScreen> {
                 Text(
                   'VISA',
                   style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.9),
+                    color: Colors.white.withOpacity(0.9),
                     fontSize: 20,
                     fontWeight: FontWeight.w800,
                     letterSpacing: 1.5,
@@ -153,7 +153,7 @@ class _EarningsPaymentsScreenState extends State<EarningsPaymentsScreen> {
             Text(
               'Total Balance',
               style: TextStyle(
-                color: Colors.white.withValues(alpha: 0.7),
+                color: Colors.white.withOpacity(0.7),
                 fontSize: 11,
                 fontWeight: FontWeight.w500,
                 letterSpacing: 0.3,
@@ -192,7 +192,7 @@ class _EarningsPaymentsScreenState extends State<EarningsPaymentsScreen> {
                     Text(
                       'CARD HOLDER',
                       style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.6),
+                        color: Colors.white.withOpacity(0.6),
                         fontSize: 8,
                         fontWeight: FontWeight.w600,
                         letterSpacing: 0.5,
@@ -202,7 +202,7 @@ class _EarningsPaymentsScreenState extends State<EarningsPaymentsScreen> {
                     Text(
                       'Worker Account',
                       style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.9),
+                        color: Colors.white.withOpacity(0.9),
                         fontSize: 11,
                         fontWeight: FontWeight.w600,
                       ),
@@ -215,7 +215,7 @@ class _EarningsPaymentsScreenState extends State<EarningsPaymentsScreen> {
                     Text(
                       'VALID THRU',
                       style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.6),
+                        color: Colors.white.withOpacity(0.6),
                         fontSize: 8,
                         fontWeight: FontWeight.w600,
                         letterSpacing: 0.5,
@@ -225,7 +225,7 @@ class _EarningsPaymentsScreenState extends State<EarningsPaymentsScreen> {
                     Text(
                       '12/25',
                       style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.9),
+                        color: Colors.white.withOpacity(0.9),
                         fontSize: 11,
                         fontWeight: FontWeight.w600,
                       ),
@@ -249,7 +249,7 @@ class _EarningsPaymentsScreenState extends State<EarningsPaymentsScreen> {
         border: Border.all(color: Colors.grey.shade100, width: 1),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
+            color: Colors.black.withOpacity(0.05),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -340,7 +340,7 @@ class _EarningsPaymentsScreenState extends State<EarningsPaymentsScreen> {
             border: Border.all(color: Colors.grey.shade100, width: 1),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withValues(alpha: 0.05),
+                color: Colors.black.withOpacity(0.05),
                 blurRadius: 10,
                 offset: const Offset(0, 4),
               ),
@@ -540,3 +540,4 @@ class _EarningsPaymentsScreenState extends State<EarningsPaymentsScreen> {
     );
   }
 }
+

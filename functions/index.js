@@ -60,9 +60,12 @@ exports.sendWorkerNotification = functions.firestore
                     bookingId: notification.bookingId || '',
                     notificationId: context.params.notificationId,
                     click_action: 'FLUTTER_NOTIFICATION_CLICK',
+                    title: notification.title || 'Servico Notification',
+                    body: notification.message || '',
                 },
                 android: {
                     priority: 'high',
+                    ttl: 86400000,
                     notification: {
                         channelId: 'servico_high_importance',
                         sound: 'default',
@@ -70,10 +73,15 @@ exports.sendWorkerNotification = functions.firestore
                     },
                 },
                 apns: {
+                    headers: {
+                        'apns-priority': '10',
+                    },
                     payload: {
                         aps: {
                             sound: 'default',
                             badge: 1,
+                            'content-available': 1,
+                            'mutable-content': 1,
                         },
                     },
                 },
@@ -147,9 +155,12 @@ exports.sendCustomerNotification = functions.firestore
                     bookingId: notification.bookingId || '',
                     notificationId: context.params.notificationId,
                     click_action: 'FLUTTER_NOTIFICATION_CLICK',
+                    title: notification.title || 'Servico Update',
+                    body: notification.body || notification.message || '',
                 },
                 android: {
                     priority: 'high',
+                    ttl: 86400000,
                     notification: {
                         channelId: 'servico_high_importance',
                         sound: 'default',
@@ -157,10 +168,15 @@ exports.sendCustomerNotification = functions.firestore
                     },
                 },
                 apns: {
+                    headers: {
+                        'apns-priority': '10',
+                    },
                     payload: {
                         aps: {
                             sound: 'default',
                             badge: 1,
+                            'content-available': 1,
+                            'mutable-content': 1,
                         },
                     },
                 },
@@ -396,19 +412,27 @@ exports.onNewBookingRequest = functions.firestore
                     type: 'new_job_request',
                     bookingId: bookingId,
                     click_action: 'FLUTTER_NOTIFICATION_CLICK',
+                    title: '🆕 New Job Request!',
+                    body: `${customerName} is requesting ${serviceName}.`,
                 },
                 android: {
                     priority: 'high',
+                    ttl: 86400000,
                     notification: {
                         channelId: 'servico_high_importance',
                         sound: 'default',
                     },
                 },
                 apns: {
+                    headers: {
+                        'apns-priority': '10',
+                    },
                     payload: {
                         aps: {
                             sound: 'default',
                             badge: 1,
+                            'content-available': 1,
+                            'mutable-content': 1,
                         },
                     },
                 },

@@ -61,7 +61,7 @@ class _CustomerRegistrationScreenState extends State<CustomerRegistrationScreen>
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.1),
+            color: Colors.black.withOpacity(0.1),
             blurRadius: 20,
             offset: const Offset(0, 4),
           ),
@@ -79,10 +79,10 @@ class _CustomerRegistrationScreenState extends State<CustomerRegistrationScreen>
                   width: 40,
                   height: 40,
                   decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.2),
+                    color: Colors.white.withOpacity(0.2),
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
-                      color: Colors.white.withValues(alpha: 0.3),
+                      color: Colors.white.withOpacity(0.3),
                       width: 1,
                     ),
                   ),
@@ -132,13 +132,13 @@ class _CustomerRegistrationScreenState extends State<CustomerRegistrationScreen>
             borderRadius: BorderRadius.circular(32),
             boxShadow: [
               BoxShadow(
-                color: _primaryColor.withValues(alpha: 0.05),
+                color: _primaryColor.withOpacity(0.05),
                 blurRadius: 20,
                 offset: const Offset(0, 4),
               ),
             ],
             border: Border.all(
-              color: Colors.white.withValues(alpha: 0.5),
+              color: Colors.white.withOpacity(0.5),
               width: 1,
             ),
           ),
@@ -567,7 +567,7 @@ class _CustomerRegistrationScreenState extends State<CustomerRegistrationScreen>
             borderRadius: BorderRadius.circular(12),
           ),
           elevation: 0,
-          shadowColor: _primaryColor.withValues(alpha: 0.3),
+          shadowColor: _primaryColor.withOpacity(0.3),
         ),
         child: _isLoading
             ? const SizedBox(

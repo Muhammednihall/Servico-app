@@ -1,6 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'notification_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class AuthService {
   final FirebaseAuth _firebaseAuth = FirebaseAuth.instance;
@@ -96,6 +97,7 @@ class AuthService {
     required String password,
     required String phone,
     required String serviceType,
+    required String subcategory,
     required String experience,
     required String serviceArea,
   }) async {
@@ -152,6 +154,7 @@ class AuthService {
         'phone': phone.trim(),
         'role': 'worker',
         'serviceType': serviceType.trim(),
+        'subcategory': subcategory.trim(),
         'experience': experience.trim(),
         'serviceArea': serviceArea.trim(),
         'isAvailable': false,
@@ -302,22 +305,39 @@ class AuthService {
     return _firebaseAuth.currentUser;
   }
 
-  // Get user role
+  // Get user role with caching for offline support
   Future<String?> getUserRole(String uid) async {
     try {
-      DocumentSnapshot customerDoc = await _firestore.collection('customers').doc(uid).get();
-      if (customerDoc.exists) {
-        return 'customer';
-      }
+      final prefs = await SharedPreferences.getInstance();
+      
+      // Try local cache first if offline (Optional: Add a force-refresh flag later)
+      String? cachedRole = prefs.getString('user_role_$uid');
+      
+      try {
+        DocumentSnapshot customerDoc = await _firestore.collection('customers').doc(uid).get().timeout(const Duration(seconds: 5));
+        if (customerDoc.exists) {
+          final role = 'customer';
+          prefs.setString('user_role_$uid', role);
+          return role;
+        }
 
-      DocumentSnapshot workerDoc = await _firestore.collection('workers').doc(uid).get();
-      if (workerDoc.exists) {
-        return 'worker';
+        DocumentSnapshot workerDoc = await _firestore.collection('workers').doc(uid).get().timeout(const Duration(seconds: 5));
+        if (workerDoc.exists) {
+          final role = 'worker';
+          prefs.setString('user_role_$uid', role);
+          return role;
+        }
+      } catch (e) {
+        print('📡 Role fetch offline or slow: using cache if available');
+        if (cachedRole != null) return cachedRole;
+        rethrow;
       }
 
       return null;
     } catch (e) {
-      throw 'Failed to get user role: $e';
+      // Fallback to cache on any error
+      final prefs = await SharedPreferences.getInstance();
+      return prefs.getString('user_role_$uid');
     }
   }
 

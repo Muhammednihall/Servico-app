@@ -110,6 +110,8 @@ class _CategoryServiceScreenState extends State<CategoryServiceScreen> {
       if (_selectedSubcategory != null && _selectedSubcategory != 'All') {
         workers = workers.where((worker) {
           final workerSubcategory = worker['subcategory'] as String? ?? '';
+          // Workers without a subcategory show up in ALL subcategory filters
+          if (workerSubcategory.isEmpty) return true;
           return workerSubcategory.toLowerCase() ==
               _selectedSubcategory!.toLowerCase();
         });

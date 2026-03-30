@@ -16,6 +16,57 @@ import '../screens/customer_bookings_screen.dart';
 @pragma('vm:entry-point')
 Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   print('📱 Background message received: ${message.notification?.title}');
+  
+  // Show local notification for background/terminated state
+  // This ensures notifications appear even if Android doesn't auto-display them
+  final FlutterLocalNotificationsPlugin localNotifications = FlutterLocalNotificationsPlugin();
+  
+  const initSettings = InitializationSettings(
+    android: AndroidInitializationSettings('@mipmap/launcher_icon'),
+    iOS: DarwinInitializationSettings(),
+  );
+  await localNotifications.initialize(initSettings);
+  
+  // Create channel (needed on first background wake)
+  await localNotifications
+      .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
+      ?.createNotificationChannel(const AndroidNotificationChannel(
+        'servico_high_importance',
+        'Servico Notifications',
+        description: 'High importance notifications for job updates',
+        importance: Importance.high,
+        playSound: true,
+        enableVibration: true,
+      ));
+  
+  final title = message.notification?.title ?? message.data['title'] ?? 'Servico';
+  final body = message.notification?.body ?? message.data['body'] ?? message.data['message'] ?? '';
+  
+  if (title.isNotEmpty || body.isNotEmpty) {
+    await localNotifications.show(
+      DateTime.now().millisecondsSinceEpoch ~/ 1000,
+      title,
+      body,
+      const NotificationDetails(
+        android: AndroidNotificationDetails(
+          'servico_high_importance',
+          'Servico Notifications',
+          channelDescription: 'High importance notifications for job updates',
+          importance: Importance.high,
+          priority: Priority.high,
+          playSound: true,
+          enableVibration: true,
+          icon: '@mipmap/launcher_icon',
+        ),
+        iOS: DarwinNotificationDetails(
+          presentAlert: true,
+          presentBadge: true,
+          presentSound: true,
+        ),
+      ),
+      payload: jsonEncode(message.data),
+    );
+  }
 }
 
 /// Notification Service for handling FCM push notifications
@@ -33,13 +84,10 @@ class NotificationService {
   StreamSubscription? _firestoreSubscription;
   StreamSubscription? _broadcastSubscription;
   GlobalKey<NavigatorState>? _navigatorKey;
-  DateTime? _lastNotificationTime;
   final Set<String> _seenNotificationIds = {};
 
-  /// FCM Server Key - Get this from Firebase Console:
-  /// Project Settings > Cloud Messaging > Cloud Messaging API (Legacy) > Server key
-  /// You may need to enable "Cloud Messaging API (Legacy)" first.
-  static const String _fcmServerKey = ''; // <-- PASTE YOUR SERVER KEY HERE
+  // Note: App uses Cloud Functions for sending push notifications (secure production standard).
+  // No server key is stored in the client codebase.
 
   /// Android notification channel for high-priority notifications
   static const AndroidNotificationChannel _channel = AndroidNotificationChannel(
@@ -79,6 +127,13 @@ class NotificationService {
           ?.requestNotificationsPermission();
     }
 
+    // Set foreground notification presentation (iOS)
+    await _messaging.setForegroundNotificationPresentationOptions(
+      alert: true,
+      badge: true,
+      sound: true,
+    );
+
     // Set up foreground message handler
     _foregroundSubscription = FirebaseMessaging.onMessage.listen(_handleForegroundMessage);
 
@@ -88,7 +143,10 @@ class NotificationService {
     // Check for initial message (app opened from terminated state via notification)
     final initialMessage = await _messaging.getInitialMessage();
     if (initialMessage != null) {
-      _handleNotificationTap(initialMessage);
+      // Delay to allow navigator to be ready
+      Future.delayed(const Duration(seconds: 1), () {
+        _handleNotificationTap(initialMessage);
+      });
     }
 
     // Set background message handler
@@ -294,16 +352,19 @@ class NotificationService {
   bool _isFirstSnapshot = true;
   bool _isFirstBroadcastSnapshot = true;
   
+  /// Set up Firestore listeners for notifications (Foreground - real-time sync)
   void startListeningToFirestoreNotifications(String userId, String userType) {
     _firestoreSubscription?.cancel();
+    _broadcastSubscription?.cancel();
     
     _seenNotificationIds.clear();
     _isFirstSnapshot = true;
     _isFirstBroadcastSnapshot = true;
+    
     final collection = userType == 'worker' ? 'worker_notifications' : 'customer_notifications';
     final userField = userType == 'worker' ? 'workerId' : 'customerId';
 
-    // Simple query - no orderBy to avoid needing composite indexes
+    // 1. Listen for user-specific notifications
     _firestoreSubscription = _firestore
         .collection(collection)
         .where(userField, isEqualTo: userId)
@@ -312,37 +373,21 @@ class NotificationService {
         .listen((snapshot) {
       
       if (_isFirstSnapshot) {
-        // First snapshot = initial load. Mark all existing docs as "seen" so we don't spam.
-        for (final doc in snapshot.docs) {
-          _seenNotificationIds.add(doc.id);
-        }
+        for (final doc in snapshot.docs) { _seenNotificationIds.add(doc.id); }
         _isFirstSnapshot = false;
-        print('📡 Loaded ${snapshot.docs.length} existing notifications (marked as seen)');
         return;
       }
       
-      // Subsequent snapshots = real-time changes
       for (final change in snapshot.docChanges) {
-        // Handle both added AND modified (serverTimestamp resolves as modified)
-        if (change.type == DocumentChangeType.added || 
-            change.type == DocumentChangeType.modified) {
+        if (change.type == DocumentChangeType.added || change.type == DocumentChangeType.modified) {
           final doc = change.doc;
           final data = doc.data();
-          if (data == null) continue;
-          
-          // Skip if we already showed this notification
-          if (_seenNotificationIds.contains(doc.id)) continue;
+          if (data == null || _seenNotificationIds.contains(doc.id)) continue;
           _seenNotificationIds.add(doc.id);
           
-          final notifTitle = data['title'] ?? 'New Notification';
-          final notifBody = data['message'] ?? data['body'] ?? '';
-          
-          print('📡 🔔 New notification detected: $notifTitle');
-          
-          // Trigger local notification
           _showLocalNotification(
-            title: notifTitle,
-            body: notifBody,
+            title: data['title'] ?? 'Servico Update',
+            body: data['message'] ?? data['body'] ?? '',
             payload: jsonEncode({
               'type': data['type'] ?? 'general',
               'bookingId': data['bookingId'] ?? '',
@@ -351,56 +396,37 @@ class NotificationService {
           );
         }
       }
-    }, onError: (e) {
-      print('❌ Firestore notification listener error: $e');
-    });
-    
-    print('📡 Firestore notification sync started for $userType: $userId');
+    }, onError: (e) => print('❌ Notification sync error: $e'));
 
-    // 2. Also listen for GLOBAL broadcasts (Admin alerts)
-    _broadcastSubscription?.cancel();
+    // 2. Listen for global broadcasts
     _broadcastSubscription = _firestore
         .collection('broadcast_notifications')
         .snapshots()
         .listen((snapshot) {
       
       if (_isFirstBroadcastSnapshot) {
-        for (final doc in snapshot.docs) {
-          _seenNotificationIds.add('broadcast_${doc.id}');
-        }
+        for (final doc in snapshot.docs) { _seenNotificationIds.add('broad_${doc.id}'); }
         _isFirstBroadcastSnapshot = false;
         return;
       }
       
       for (final change in snapshot.docChanges) {
-        if (change.type == DocumentChangeType.added || 
-            change.type == DocumentChangeType.modified) {
+        if (change.type == DocumentChangeType.added || change.type == DocumentChangeType.modified) {
           final doc = change.doc;
           final data = doc.data();
-          if (data == null) continue;
-          if (_seenNotificationIds.contains('broadcast_${doc.id}')) continue;
-          _seenNotificationIds.add('broadcast_${doc.id}');
+          if (data == null || _seenNotificationIds.contains('broad_${doc.id}')) continue;
+          _seenNotificationIds.add('broad_${doc.id}');
           
           final target = data['targetTopic'] ?? 'all';
-          bool isTarget = target == 'all' || 
-                         (target == 'workers' && userType == 'worker') || 
-                         (target == 'customers' && userType == 'customer');
-          
-          if (isTarget) {
-            print('📡 🔔 Broadcast notification detected: ${data['title']}');
+          if (target == 'all' || (target == 'workers' && userType == 'worker') || (target == 'customers' && userType == 'customer')) {
             _showLocalNotification(
               title: data['title'] ?? 'Announcement',
               body: data['body'] ?? '',
-              payload: jsonEncode({
-                'type': 'broadcast',
-                'id': doc.id,
-              }),
+              payload: jsonEncode({'type': 'broadcast', 'id': doc.id}),
             );
           }
         }
       }
-    }, onError: (e) {
-      print('❌ Broadcast listener error: $e');
     });
   }
 
@@ -411,26 +437,23 @@ class NotificationService {
     _firestoreSubscription = null;
     _broadcastSubscription = null;
     _seenNotificationIds.clear();
-    print('📡 Firestore notification sync stopped');
   }
 
   /// Get FCM token and save to user profile
   Future<String?> getAndSaveToken({
     required String userId,
-    required String userType, // 'customer' or 'worker'
+    required String userType,
   }) async {
     try {
       final token = await _messaging.getToken();
       if (token == null) return null;
 
-      // Save token to appropriate collection
       final collection = userType == 'worker' ? 'workers' : 'customers';
       await _firestore.collection(collection).doc(userId).update({
         'fcmToken': token,
         'tokenUpdatedAt': FieldValue.serverTimestamp(),
       });
 
-      // Listen for token refresh
       _messaging.onTokenRefresh.listen((newToken) {
         _firestore.collection(collection).doc(userId).update({
           'fcmToken': newToken,
@@ -438,11 +461,9 @@ class NotificationService {
         });
       });
 
-      // Subscribe to topics for broadcast notifications
       await _messaging.subscribeToTopic('all');
       await _messaging.subscribeToTopic(userType == 'worker' ? 'workers' : 'customers');
 
-      print('✅ FCM token saved and topics subscribed for $userType: ${token.substring(0, 20)}...');
       return token;
     } catch (e) {
       print('❌ Error saving FCM token: $e');
@@ -450,8 +471,9 @@ class NotificationService {
     }
   }
 
-  /// Send push notification to a specific user via FCM HTTP API
-  /// Falls back to Firestore-only if server key is not configured
+  /// Send notification to a user by writing to Firestore.
+  /// A Cloud Function watches these collections and sends the actual push notification.
+  /// (Secure production method - no server key needed in client app)
   Future<void> sendNotificationToUser({
     required String userId,
     required String userType,
@@ -461,13 +483,8 @@ class NotificationService {
     Map<String, dynamic>? data,
   }) async {
     try {
-      // 1. Always store in Firestore (for in-app display  & listener sync)
-      final notificationCollection = userType == 'worker' 
-          ? 'worker_notifications' 
-          : 'customer_notifications';
-
-      await _firestore.collection(notificationCollection).add({
-        'userId': userId,
+      final collection = userType == 'worker' ? 'worker_notifications' : 'customer_notifications';
+      await _firestore.collection(collection).add({
         if (userType == 'worker') 'workerId': userId,
         if (userType == 'customer') 'customerId': userId,
         'title': title,
@@ -478,97 +495,16 @@ class NotificationService {
         'type': data?['type'] ?? 'general',
         'bookingId': data?['bookingId'] ?? '',
         'isRead': false,
+        'isSent': false,
         'createdAt': FieldValue.serverTimestamp(),
       });
-
-      // 2. Try to send a real FCM push notification
-      await _sendFCMPush(
-        userId: userId,
-        userType: userType,
-        title: title,
-        body: body,
-        imageUrl: imageUrl,
-        data: data,
-      );
-
-      print('✅ Notification sent for $userType: $userId');
+      print('✅ Notification queued via Firestore for $userType: $userId');
     } catch (e) {
-      print('❌ Error sending notification: $e');
+      print('❌ Error queuing notification: $e');
     }
   }
 
-  /// Send a real FCM push notification using the Legacy HTTP API
-  Future<void> _sendFCMPush({
-    required String userId,
-    required String userType,
-    required String title,
-    required String body,
-    String? imageUrl,
-    Map<String, dynamic>? data,
-  }) async {
-    if (_fcmServerKey.isEmpty) {
-      print('⚠️ FCM Server Key not set - skipping push notification (Firestore sync will handle it)');
-      return;
-    }
-
-    try {
-      // Get the user's FCM token from Firestore
-      final collection = userType == 'worker' ? 'workers' : 'customers';
-      final userDoc = await _firestore.collection(collection).doc(userId).get();
-      
-      if (!userDoc.exists) {
-        print('❌ User $userId not found in $collection');
-        return;
-      }
-
-      final fcmToken = userDoc.data()?['fcmToken'] as String?;
-      if (fcmToken == null || fcmToken.isEmpty) {
-        print('⚠️ No FCM token for $userType $userId');
-        return;
-      }
-
-      // Send via FCM Legacy HTTP API
-      final response = await http.post(
-        Uri.parse('https://fcm.googleapis.com/fcm/send'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'key=$_fcmServerKey',
-        },
-        body: jsonEncode({
-          'to': fcmToken,
-          'notification': {
-            'title': title,
-            'body': body,
-            if (imageUrl != null) 'image': imageUrl,
-            'sound': 'default',
-            'click_action': 'FLUTTER_NOTIFICATION_CLICK',
-          },
-          'data': {
-            ...?data,
-            'click_action': 'FLUTTER_NOTIFICATION_CLICK',
-          },
-          'priority': 'high',
-          'android': {
-            'priority': 'high',
-            'notification': {
-              'channel_id': 'servico_high_importance',
-              'sound': 'default',
-            },
-          },
-        }),
-      );
-
-      if (response.statusCode == 200) {
-        print('✅ FCM push sent successfully to $userType $userId');
-      } else {
-        print('❌ FCM push failed: ${response.statusCode} - ${response.body}');
-      }
-    } catch (e) {
-      print('❌ Error sending FCM push: $e');
-    }
-  }
-
-  /// Sends a broadcast notification to a topic (all, customers, or workers)
+  /// Sends a broadcast notification to a topic via Firestore trigger.
   Future<void> sendBroadcastNotification({
     required String title,
     required String body,
@@ -586,9 +522,9 @@ class NotificationService {
         'isSent': false,
         'createdAt': FieldValue.serverTimestamp(),
       });
-      print('✅ Broadcast notification queued for topic: $targetTopic');
+      print('✅ Broadcast queued via Firestore for: $targetTopic');
     } catch (e) {
-      print('❌ Error queuing broadcast notification: $e');
+      print('❌ Error queuing broadcast: $e');
       rethrow;
     }
   }
@@ -596,6 +532,8 @@ class NotificationService {
   /// Dispose resources
   void dispose() {
     _foregroundSubscription?.cancel();
+    _firestoreSubscription?.cancel();
+    _broadcastSubscription?.cancel();
   }
 }
 

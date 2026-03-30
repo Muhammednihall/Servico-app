@@ -48,7 +48,7 @@ class _LoginScreenState extends State<LoginScreen> {
         gradient: LinearGradient(
           colors: [
             _primaryColor,
-            _primaryColor.withValues(alpha: 0.8),
+            _primaryColor.withOpacity(0.8),
             const Color(0xFF1e40af),
           ],
           begin: Alignment.topLeft,
@@ -66,7 +66,7 @@ class _LoginScreenState extends State<LoginScreen> {
               height: 200,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: Colors.white.withValues(alpha: 0.05),
+                color: Colors.white.withOpacity(0.05),
               ),
             ),
           ),
@@ -78,7 +78,7 @@ class _LoginScreenState extends State<LoginScreen> {
               height: 120,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: Colors.white.withValues(alpha: 0.05),
+                color: Colors.white.withOpacity(0.05),
               ),
             ),
           ),
@@ -99,7 +99,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     Text(
                       'Servico',
                       style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.9),
+                        color: Colors.white.withOpacity(0.9),
                         fontSize: 24,
                         fontWeight: FontWeight.w700,
                         letterSpacing: 0.5,
@@ -122,7 +122,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.1),
+                    color: Colors.white.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: AnimatedSwitcher(
@@ -133,7 +133,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           : 'Login to manage your work',
                       key: ValueKey<bool>(_isCustomerSelected),
                       style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.9),
+                        color: Colors.white.withOpacity(0.9),
                         fontSize: 14,
                         fontWeight: FontWeight.w500,
                       ),
@@ -159,7 +159,7 @@ class _LoginScreenState extends State<LoginScreen> {
             borderRadius: BorderRadius.circular(28),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withValues(alpha: 0.06),
+                color: Colors.black.withOpacity(0.06),
                 blurRadius: 20,
                 offset: const Offset(0, 10),
               ),
@@ -221,7 +221,7 @@ class _LoginScreenState extends State<LoginScreen> {
         ),
         boxShadow: [
           BoxShadow(
-            color: _primaryColor.withValues(alpha: 0.3),
+            color: _primaryColor.withOpacity(0.3),
             blurRadius: 12,
             offset: const Offset(0, 6),
           ),
@@ -354,7 +354,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   borderRadius: BorderRadius.circular(12),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.05),
+                      color: Colors.black.withOpacity(0.05),
                       blurRadius: 4,
                       offset: const Offset(0, 2),
                     ),
@@ -432,7 +432,7 @@ class _LoginScreenState extends State<LoginScreen> {
             ),
             prefixIcon: Icon(
               Icons.email_outlined,
-              color: _primaryColor.withValues(alpha: 0.7),
+              color: _primaryColor.withOpacity(0.7),
               size: 22,
             ),
             filled: true,
@@ -498,7 +498,7 @@ class _LoginScreenState extends State<LoginScreen> {
             ),
             prefixIcon: Icon(
               Icons.lock_outline_rounded,
-              color: _primaryColor.withValues(alpha: 0.7),
+              color: _primaryColor.withOpacity(0.7),
               size: 22,
             ),
             suffixIcon: IconButton(
@@ -597,20 +597,20 @@ class _LoginScreenState extends State<LoginScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 40),
             child: Row(
               children: [
-                Expanded(child: Divider(color: Colors.blueGrey.withValues(alpha: 0.1))),
+                Expanded(child: Divider(color: Colors.blueGrey.withOpacity(0.1))),
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   child: Text(
                     'SECURE LOGIN',
                     style: TextStyle(
-                      color: Colors.blueGrey.withValues(alpha: 0.3),
+                      color: Colors.blueGrey.withOpacity(0.3),
                       fontSize: 10,
                       fontWeight: FontWeight.w800,
                       letterSpacing: 1.5,
                     ),
                   ),
                 ),
-                Expanded(child: Divider(color: Colors.blueGrey.withValues(alpha: 0.1))),
+                Expanded(child: Divider(color: Colors.blueGrey.withOpacity(0.1))),
               ],
             ),
           ),

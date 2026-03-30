@@ -25,7 +25,7 @@ class WorkerBottomNavBar extends StatelessWidget {
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
+            color: Colors.black.withOpacity(0.05),
             blurRadius: 6,
             offset: const Offset(0, -4),
           ),
@@ -82,8 +82,8 @@ class WorkerBottomNavBar extends StatelessWidget {
           onItemTapped(index);
         },
         borderRadius: BorderRadius.circular(8),
-        splashColor: primaryColor.withValues(alpha: 0.1),
-        highlightColor: primaryColor.withValues(alpha: 0.05),
+        splashColor: primaryColor.withOpacity(0.1),
+        highlightColor: primaryColor.withOpacity(0.05),
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
           child: Column(
@@ -110,3 +110,4 @@ class WorkerBottomNavBar extends StatelessWidget {
     );
   }
 }
+

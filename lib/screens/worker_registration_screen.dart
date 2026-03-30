@@ -18,6 +18,7 @@ class _WorkerRegistrationScreenState extends State<WorkerRegistrationScreen> {
   bool _isConfirmPasswordVisible = false;
   bool _isLoading = false;
   List<String> _selectedServices = [];
+  String? _selectedSubcategory;
   String? _selectedCity;
   String? _selectedRegion;
   Map<String, dynamic>? _cityData;
@@ -36,6 +37,8 @@ class _WorkerRegistrationScreenState extends State<WorkerRegistrationScreen> {
 
   // Dynamic data loaded from Firestore
   List<String> _serviceTypes = [];
+  List<Map<String, dynamic>> _categoryDocs = []; // Full category data with subcategories
+  List<String> _subcategories = []; // Subcategories for currently selected service
   List<Map<String, String>> _cities = [];
 
 
@@ -208,6 +211,8 @@ class _WorkerRegistrationScreenState extends State<WorkerRegistrationScreen> {
                 const SizedBox(height: 20),
                 _buildServiceTypeDropdown(),
                 const SizedBox(height: 20),
+                _buildSubcategoryDropdown(),
+                const SizedBox(height: 20),
                 _buildTextField(
                   label: 'Experience',
                   hint: 'Years',
@@ -359,19 +364,75 @@ class _WorkerRegistrationScreenState extends State<WorkerRegistrationScreen> {
       final snapshot = await _firestore.collection('categories').get();
       if (mounted) {
         setState(() {
-          _serviceTypes = snapshot.docs
-              .map((doc) => doc.data()['name'] as String? ?? '')
-              .where((name) => name.isNotEmpty)
+          _categoryDocs = snapshot.docs.map((doc) {
+            final data = doc.data();
+            // Properly convert subcategories list - Firestore returns nested maps
+            // that may not be Map<String, dynamic>
+            final rawSubs = data['subcategories'];
+            List<Map<String, dynamic>> parsedSubs = [];
+            if (rawSubs != null && rawSubs is List) {
+              for (final item in rawSubs) {
+                if (item is Map) {
+                  parsedSubs.add(Map<String, dynamic>.from(item));
+                }
+              }
+            }
+            return {
+              'name': data['name'] as String? ?? '',
+              'subcategories': parsedSubs,
+            };
+          }).where((cat) => (cat['name'] as String).isNotEmpty).toList();
+
+          _serviceTypes = _categoryDocs
+              .map((cat) => cat['name'] as String)
               .toList();
           
           if (_serviceTypes.isEmpty) {
              _serviceTypes = ['General Service'];
+          }
+          
+          print('📦 Loaded ${_categoryDocs.length} categories');
+          for (final cat in _categoryDocs) {
+            final subs = cat['subcategories'] as List;
+            print('  📂 ${cat['name']}: ${subs.length} subcategories');
           }
         });
       }
     } catch (e) {
       print('Error loading service types: $e');
     }
+  }
+
+  /// Update the subcategories list based on currently selected service types
+  void _updateSubcategories() {
+    final Set<String> subcats = {};
+    for (final serviceName in _selectedServices) {
+      final categoryDoc = _categoryDocs.firstWhere(
+        (cat) => cat['name'] == serviceName,
+        orElse: () => <String, dynamic>{'name': '', 'subcategories': <Map<String, dynamic>>[]},
+      );
+      final subs = categoryDoc['subcategories'] as List;
+      print('🔍 Service "$serviceName" has ${subs.length} subcategories');
+      for (final sub in subs) {
+        if (sub is Map<String, dynamic>) {
+          final subName = sub['name'] as String? ?? '';
+          if (subName.isNotEmpty) {
+            subcats.add(subName);
+            print('  ✅ Added subcategory: $subName');
+          }
+        } else {
+          print('  ⚠️ Unexpected sub type: ${sub.runtimeType} -> $sub');
+        }
+      }
+    }
+    setState(() {
+      _subcategories = subcats.toList();
+      // Reset selected subcategory if it's no longer in the list
+      if (_selectedSubcategory != null && !_subcategories.contains(_selectedSubcategory)) {
+        _selectedSubcategory = null;
+      }
+      print('📋 Subcategories list: $_subcategories');
+    });
   }
 
   Future<void> _loadCities() async {
@@ -613,6 +674,7 @@ class _WorkerRegistrationScreenState extends State<WorkerRegistrationScreen> {
                     );
                   }
                 });
+                _updateSubcategories();
               },
               itemBuilder: (BuildContext context) {
                 return _serviceTypes.map((String service) {
@@ -644,6 +706,7 @@ class _WorkerRegistrationScreenState extends State<WorkerRegistrationScreen> {
                                 _selectedServices.remove(service);
                               }
                             });
+                            _updateSubcategories();
                           },
                           activeColor: _primaryColor,
                         ),
@@ -699,6 +762,109 @@ class _WorkerRegistrationScreenState extends State<WorkerRegistrationScreen> {
             padding: const EdgeInsets.only(left: 4, top: 8),
             child: Text(
               'Please select at least 1 service',
+              style: TextStyle(
+                color: Colors.red.shade600,
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildSubcategoryDropdown() {
+    // Hide entirely if no service selected or no subcategories available
+    if (_selectedServices.isEmpty || _subcategories.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(left: 4, bottom: 8),
+          child: Row(
+            children: [
+              const Text(
+                'Subcategory',
+                style: TextStyle(
+                  color: Color(0xFF0e121b),
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(width: 4),
+              const Text(
+                '*',
+                style: TextStyle(
+                  color: Colors.red,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ),
+        Container(
+          key: ValueKey('subcat_${_subcategories.join('_')}'),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: const Color(0xFFe2e8f0),
+              width: 1,
+            ),
+          ),
+          child: DropdownButtonFormField<String>(
+            value: _selectedSubcategory,
+            hint: const Text(
+              'Select your specialization',
+              style: TextStyle(
+                color: Color(0xFF94a3b8),
+                fontSize: 15,
+              ),
+            ),
+            icon: const Icon(
+              Icons.arrow_drop_down,
+              color: Color(0xFF9ca3af),
+            ),
+            decoration: const InputDecoration(
+              prefixIcon: Icon(
+                Icons.category_outlined,
+                color: Color(0xFF9ca3af),
+                size: 20,
+              ),
+              border: InputBorder.none,
+              contentPadding: EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 14,
+              ),
+            ),
+            items: _subcategories.map((sub) {
+              return DropdownMenuItem<String>(
+                value: sub,
+                child: Text(
+                  sub,
+                  style: const TextStyle(
+                    fontSize: 15,
+                    color: Color(0xFF0e121b),
+                  ),
+                ),
+              );
+            }).toList(),
+            onChanged: (String? value) {
+              setState(() {
+                _selectedSubcategory = value;
+              });
+            },
+          ),
+        ),
+        if (_selectedSubcategory == null)
+          Padding(
+            padding: const EdgeInsets.only(left: 4, top: 8),
+            child: Text(
+              'Please select a subcategory',
               style: TextStyle(
                 color: Colors.red.shade600,
                 fontSize: 12,
@@ -794,7 +960,7 @@ class _WorkerRegistrationScreenState extends State<WorkerRegistrationScreen> {
             borderRadius: BorderRadius.circular(12),
           ),
           elevation: 0,
-          shadowColor: _primaryColor.withValues(alpha: 0.3),
+          shadowColor: _primaryColor.withOpacity(0.3),
         ),
         child: _isLoading
             ? const SizedBox(
@@ -839,6 +1005,16 @@ class _WorkerRegistrationScreenState extends State<WorkerRegistrationScreen> {
       return;
     }
 
+    if (_subcategories.isNotEmpty && _selectedSubcategory == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please select a subcategory'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
     if (_selectedRegion == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -862,6 +1038,7 @@ class _WorkerRegistrationScreenState extends State<WorkerRegistrationScreen> {
         password: _passwordController.text,
         phone: _phoneController.text.trim(),
         serviceType: serviceType,
+        subcategory: _selectedSubcategory ?? '',
         experience: _experienceController.text.trim(),
         serviceArea: _selectedRegion ?? '',
       );
@@ -964,3 +1141,4 @@ class _ExperienceInputFormatter extends TextInputFormatter {
     return newValue;
   }
 }
+
